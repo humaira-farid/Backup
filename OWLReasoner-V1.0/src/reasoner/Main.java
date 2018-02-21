@@ -5,6 +5,8 @@ import java.io.File;
 import org.apache.commons.cli.*;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 
+import reasoner.ilp.ILPPreprocessor;
+
 
 public class Main {
   
@@ -16,7 +18,7 @@ public class Main {
 		
 		startTime = System.currentTimeMillis();
 		
-		Options options = new Options();
+		/*Options options = new Options();
 
         Option input = new Option("i", "input", true, "input file path");
         input.setRequired(true);
@@ -39,8 +41,9 @@ public class Main {
         }
         String inputFilePath = cmd.getOptionValue("input");
         File file = new File(inputFilePath);
-		new TestReasoner(file).useReasoner();
+		new TestReasoner(file).useReasoner();*/
 		//new TestReasoner().useReasoner();
+		new ILPPreprocessor().callILP();
 		getExecutionTime();
 	}
 	public static void getExecutionTime() {

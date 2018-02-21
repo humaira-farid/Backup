@@ -25,9 +25,9 @@ public class TestReasoner{
 	ReasonerFactory reasonerFactory;
 	 Reasoner reasoner ;
 	 OWLOntologyManager man ;
-	 public TestReasoner(File file) {
+	 public TestReasoner(/*File file*/) {
 		 man = OWLManager.createOWLOntologyManager();
-		// File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/testOnt5.owl");
+		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/testOnt6.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {
@@ -46,14 +46,7 @@ public class TestReasoner{
 	     
 		    
 	     reasoner = reasonerFactory.createReasoner(ont);
-	     //reasoner.preprocess();
-	     // Ask the reasoner to do all the necessary work now
-	      reasoner.precomputeInferences();
-	   //  Extractor ex = new Extractor();
-	    
-	    // String s = "ObjectIntersectionOf";
-	     //intr.parseClassExpression(ont, s);
-	    // intr.test(ont);
+	       // intr.test(ont);
 	      checkExpressivity();
 	      intr.internalize(ont, df);
 	     OWLClassExpression tgAxiom = intr.getTgAxiom(df);
@@ -77,7 +70,7 @@ public class TestReasoner{
 	}
 	
 	
-private void checkExpressivity() {
+	private void checkExpressivity() {
 		/*Set<OWLSubClassOfAxiom> sb = ont.axioms().filter(ax -> ax instanceof OWLSubClassOfAxiom).map(ax -> (OWLSubClassOfAxiom)ax).collect(Collectors.toSet());
 		Set<OWLSubClassOfAxiom> eq = ont.axioms().filter(ax -> ax instanceof OWLEquivalentClassesAxiom).map(ax -> (OWLEquivalentClassesAxiom)ax).flatMap(ax -> ax.asOWLSubClassOfAxioms().stream()).collect(Collectors.toSet());
 		Set<OWLSubClassOfAxiom> dj = ont.axioms().filter(ax -> ax instanceof OWLDisjointClassesAxiom).map(ax -> (OWLDisjointClassesAxiom)ax).flatMap(ax -> ax.asOWLSubClassOfAxioms().stream()).collect(Collectors.toSet());
@@ -100,100 +93,7 @@ private void checkExpressivity() {
 			System.exit(0);
 		}
 		
-}
+	}
 
-/*	public void applyRules(ToDoEntry entry) {
-		
-		reasoner.graph.Node n = entry.getNode();
-		NodeTag nt = entry.getType();
-		switch(nt) {
-		case AND:
-			re.applyAndRule(n, (OWLObjectIntersectionOf)entry.getClassExpression(), entry.getDs());
-			break;
-		case OR:
-			re.applyOrRule(n, (OWLObjectUnionOf)entry.getClassExpression(), entry.getDs());
-			break;
-		case EXISTS:
-			re.applyExistentialRule(n, (OWLObjectSomeValuesFrom)entry.getClassExpression(), entry.getDs());
-			break;
-		case FORALL:
-			re.applyForAllRule(n, (OWLObjectAllValuesFrom)entry.getClassExpression(), entry.getDs());
-			break;
-		default:
-			break;
-		}
-		
-	}*/
-	 public void printSuperClasses(Map<OWLClassExpression,Set<OWLClassExpression>> sup) {
-		 
-		 for(OWLClassExpression c : sup.keySet()) {
-			 System.out.println("Class " + c.toString() + " has superclasses :" + sup.get(c).toString());
-		 }
-	 }
-	 public void printSubClasses(Map<OWLClassExpression,Set<OWLClassExpression>> sub) {
-		 
-		 for(OWLClassExpression c : sub.keySet()) {
-			 System.out.println("Class " + c + " has subclasses :" + sub.get(c));
-		 }
-	 }
-	 public void printEquivalentClasses(Map<OWLClassExpression,Set<OWLClassExpression>> eq) {
-		 
-		 for(OWLClassExpression c : eq.keySet()) {
-			 System.out.println("Class " + c + " has Equivalent classes :" + eq.get(c));
-		 }
-	 }
-	 public void printDisjointClasses(Map<OWLClassExpression,Set<OWLClassExpression>> dj) {
-		 
-		 for(OWLClassExpression c : dj.keySet()) {
-			 System.out.println("Class " + c + " has Disjoint classes :" + dj.get(c));
-		 }
-	 }
-	 public static Set<IRI> getIRIs(File file, String prefix) throws FileNotFoundException {
-		    Set<IRI> iris = new HashSet<IRI>();
-		    Scanner scanner = new Scanner(file);
-		    while (scanner.hasNextLine()) {
-		      String line = scanner.nextLine().trim();
-		      if(!line.startsWith(prefix + "http")) { continue; }
-		      String suffix = line.substring(prefix.length());
-		      String iri = suffix.substring(0, Math.min(suffix.length(), suffix.indexOf(" ")));
-		      System.out.println("<"+ iri +">");
-		      iris.add(IRI.create(iri));
-		    }
-		    return iris;
-		  }
-	 
-	 public void existential(OWLSubClassOfAxiom subAx) {
-		 
-		 if((subAx.getSuperClass() instanceof OWLObjectSomeValuesFrom)) {
-			 System.out.println(((OWLObjectSomeValuesFrom)subAx.getSuperClass()).getProperty()+" . " +((OWLObjectSomeValuesFrom)subAx.getSuperClass()).getFiller());
-		 }
-		 if((subAx.getSuperClass() instanceof OWLClass)) {
-			 System.out.println(((OWLObjectSomeValuesFrom)subAx.getSuperClass()).getComplementNNF()+" . " +((OWLObjectSomeValuesFrom)subAx.getSuperClass()).getFiller());
-		 } 
-	 }
-	 public Set<Disjunct> createDisjuncts(Map<OWLClassExpression ,Set<OWLClassExpression>> sp, Map<OWLClassExpression,Set<OWLClassExpression>> eq, Map<OWLClassExpression,Set<OWLClassExpression>> dj) {
-			Set<Disjunct> disjuncts = new HashSet<Disjunct>();
-			for(OWLClassExpression l : sp.keySet()) {
-				for(OWLClassExpression r : sp.get(l)) {
-					Disjunct disj = new Disjunct(l.getComplementNNF(),r);
-					disjuncts.add(disj);
-				}
-			 }
-			for(OWLClassExpression l : eq.keySet()) {
-				for(OWLClassExpression r : eq.get(l)) {
-					Disjunct disj = new Disjunct(l.getComplementNNF(),r);
-					Disjunct disj2 = new Disjunct(r.getComplementNNF(),l);
-					disjuncts.add(disj);
-					disjuncts.add(disj2);
-				}
-			 }
-			for(OWLClassExpression l : dj.keySet()) {
-				for(OWLClassExpression r : dj.get(l)) {
-					Disjunct disj = new Disjunct(l.getComplementNNF(),r.getComplementNNF());
-					disjuncts.add(disj);
-				}
-			 }
-			return disjuncts;
-		}
 }
 

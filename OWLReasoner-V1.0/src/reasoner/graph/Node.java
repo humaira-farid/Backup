@@ -18,6 +18,7 @@ public class Node implements Cloneable {
 	private NodeType nodeType;
 	private Set<OWLClassExpression> nodeLabel = new HashSet<OWLClassExpression>();
 	private Set<OWLClassExpression> simpleLabel = new HashSet<OWLClassExpression>();
+	private Multimap<OWLObjectCardinalityRestriction, DependencySet> qLE = HashMultimap.create();
 	private final int id;
     private List<Edge> neighbour;
     private List<Edge> incomingEdge; 
@@ -167,8 +168,8 @@ public class Node implements Cloneable {
     }
 
     /**
-     * @param restLevel
-     *        restLevel
+     * @param resetLevel
+     *        resetLevel
      * @return check if node needs to be restored
      */
     public boolean needRestore(int restLevel) {
@@ -280,6 +281,16 @@ public class Node implements Cloneable {
 	public Object clone() throws CloneNotSupportedException {
         return super.clone();
     }
+
+	public Multimap<OWLObjectCardinalityRestriction, DependencySet> getqLE() {
+		return qLE;
+	}
+	public void addqLE(OWLObjectCardinalityRestriction card, DependencySet ds) {
+		this.qLE.put(card, ds);
+	}
+	public void setqLE(Multimap<OWLObjectCardinalityRestriction, DependencySet> qLE) {
+		this.qLE = qLE;
+	}
 
 	public static enum NodeType {
         ANONYMOUS,

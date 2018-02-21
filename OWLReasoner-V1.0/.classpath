@@ -16,5 +16,10 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="/Users/temp/Applications/IBM/ILOG/CPLEX_Studio1262/cplex/lib/cplex.jar">
+		<attributes>
+			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="/Users/temp/Applications/IBM/ILOG/CPLEX_Studio1262/cplex/bin/x86-64_osx"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

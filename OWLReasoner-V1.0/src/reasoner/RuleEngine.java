@@ -179,7 +179,71 @@ public class RuleEngine {
 	}
 	
 	
-	
+	private void processExistentialRestriction(Node from, OWLObjectSomeValuesFrom objSV, DependencySet ds) {
+		System.out.println("Processing exist Rule...");
+		if(!from.isBlocked()) {
+			Node blocker =  findBlocker(from);
+			if(blocker != null) {
+				cg.setNodeBlocked(from, blocker);
+				return;
+			}
+			OWLObjectPropertyExpression role = objSV.getProperty();
+			OWLClassExpression filler = objSV.getFiller();
+			from.addqLE(this.df.getOWLObjectMinCardinality(1, role, filler), ds);
+			//Edge e = this.cg.getEdge(from, filler, role);
+			//if(e == null) {
+				
+			//	if(filler instanceof OWLObjectOneOf) {
+			//		OWLClassExpression ci = df.getOWLObjectOneOf(((OWLObjectOneOf)filler).individuals().iterator().next());
+			//		Node nom = findNominalNode(ci);
+			//		if(nom != null) {
+			//			e = this.cg.addEdge(from, nom, role, ds);
+			//			updateConceptDepSet(nom, ds, ci);
+			//			processForAll(from);
+			//			processForAll(nom);
+			//		}
+			//		else {
+			//			Node to =this.cg.addNode(NodeType.NOMINAL, ci);
+			//			to.setConceptsDependencies(ci, ds);
+			//			ConceptNDepSet cnds = new ConceptNDepSet(ci, ds);
+			//			e = this.cg.addEdge(from, to, role, ds);
+			//			this.cg.addConceptToNode(to, cnds);
+			//			processForAll(from);
+			//			absorbNominal(ci, to, ds);
+						
+			//		}
+			//	}
+				
+			//	else {
+			//		Node to =this.cg.addNode(NodeType.BLOCKABLE, filler);
+			//		to.setConceptsDependencies(filler, ds);
+			//		ConceptNDepSet cnds = new ConceptNDepSet(filler, ds);
+			//		e = this.cg.addEdge(from, to, role, ds);
+			//		this.cg.addConceptToNode(to, cnds);
+			//		processForAll(from);
+			//		if(filler instanceof OWLClass) { 
+			//			to.addSimpleLabel(filler);
+			//			absorbRule1(filler, to, ds);
+			//			absorbRule2(to);
+			//		}
+			//		else 
+			//			addToDoEntry(to, filler, cnds);
+			//	}
+		//	}
+		//	else {
+			//	Node to = e.getToNode();
+			//	updateConceptDepSet(to, ds, filler);
+			//	updateEdgeDepSet(ds, e);
+			//	if(!(filler instanceof OWLClass))
+			//		updateToDoEntryDepSet(to, filler, to.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(filler)).iterator().next().getDs());
+				
+		//	}
+		}
+
+	}
+	private void processHasValue() {
+		
+	}
 
 	private void processForAll(Node node) {
 		node.getLabel().stream().filter(l -> l instanceof OWLObjectAllValuesFrom).

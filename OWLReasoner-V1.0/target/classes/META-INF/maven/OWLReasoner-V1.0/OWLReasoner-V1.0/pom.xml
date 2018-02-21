@@ -38,5 +38,12 @@
         <artifactId>slf4j-simple</artifactId>
         <version>1.7.21</version> <!-- or use LATEST -->
     </dependency>
+    <dependency>
+		<groupId>cplex</groupId>
+		<artifactId>cplex</artifactId>
+		<version>12.6.2</version>
+		<scope>system</scope>
+    		<systemPath>/Users/temp/Applications/IBM/ILOG/CPLEX_Studio1262/cplex/lib/cplex.jar</systemPath>
+	</dependency>
   </dependencies>
 </project>

@@ -16,6 +16,8 @@ public class Internalization {
 	private Set<OWLSubClassOfAxiom> diffInd; 
 	private Set<OWLSubClassOfAxiom> aboxClassAss;
 	private Set<OWLSubClassOfAxiom> aboxObjProAss;
+	private Set<OWLDisjointClassesAxiom> djAx;
+	private Set<OWLDisjointUnionAxiom> djuAx;
 	
 	
 	public Internalization(){
@@ -28,25 +30,26 @@ public class Internalization {
 		diffInd = new HashSet<>();
 		aboxClassAss = new HashSet<>();
 		aboxObjProAss = new HashSet<>();
+		djAx = new HashSet<>();
+		djuAx = new HashSet<>();
 	}
 	public void test(OWLOntology ont) {
 		for (OWLAxiom ax : (Iterable<OWLAxiom>)ont.axioms()::iterator) {
-	    	ax = ax.getNNF();
-	    if(ax instanceof OWLSubClassOfAxiom) {
-	    		OWLSubClassOfAxiom sax = (OWLSubClassOfAxiom)ax;
-	
-		if((sax).getSubClass() instanceof OWLObjectIntersectionOf && ((OWLObjectIntersectionOf)(sax).getSubClass()).asConjunctSet().stream().allMatch(cj -> cj instanceof OWLClass)) {
-		System.out.println(sax.getSubClass());
-		}
-	    }}
+		    	ax = ax.getNNF();
+		    if(ax instanceof OWLSubClassOfAxiom) {
+		    		OWLSubClassOfAxiom sax = (OWLSubClassOfAxiom)ax;
+		
+				if((sax).getSubClass() instanceof OWLObjectIntersectionOf && ((OWLObjectIntersectionOf)(sax).getSubClass()).asConjunctSet().stream().allMatch(cj -> cj instanceof OWLClass)) {
+					System.out.println(sax.getSubClass());
+				}
+		    }
+	    }
 	}
 		
 	public void internalize(OWLOntology ont, OWLDataFactory df) {
 		
 		Set<OWLSubClassOfAxiom> subAx = new HashSet<>();
 	    Set<OWLEquivalentClassesAxiom> eqAx = new HashSet<>();
-	    Set<OWLDisjointClassesAxiom> djAx = new HashSet<>();
-	    Set<OWLDisjointUnionAxiom> djuAx = new HashSet<>();
 	    Set<OWLObjectPropertyDomainAxiom> objdAx = new HashSet<>();
 	    Set<OWLObjectPropertyRangeAxiom> objrAx = new HashSet<>();
 	    Set<OWLSubClassOfAxiom> oneOfSubAx = new HashSet<>();
@@ -220,6 +223,7 @@ public class Internalization {
 	public Set<OWLSubClassOfAxiom>  getTg() {
 		return this.Tg;
 	}
+	//returns set of super-concepts
 	public Set<OWLClassExpression> findConcept(OWLClassExpression c){
 		Set<OWLClassExpression> ce = new HashSet<OWLClassExpression>();
 		this.Tu.stream().filter(sb -> sb.getSubClass().equals(c)).forEach(sb -> ce.add(sb.getSuperClass()));
@@ -243,6 +247,16 @@ public class Internalization {
 		this.diffInd.stream().filter(sb -> sb.getSubClass().equals(c)).forEach(sb -> ce.add(sb.getSuperClass()));
 		this.aboxClassAss.stream().filter(sb -> sb.getSubClass().equals(c)).forEach(sb -> ce.add(sb.getSuperClass()));
 		this.aboxObjProAss.stream().filter(sb -> sb.getSubClass().equals(c)).forEach(sb -> ce.add(sb.getSuperClass()));
+		return ce;
+	}
+	public Set<OWLClassExpression> getDisjoints(OWLClassExpression c){
+		Set<OWLClassExpression> ce = new HashSet<OWLClassExpression>();
+		this.djAx.stream().filter(dj -> dj.contains(c)).forEach(dj -> ce.addAll(dj.getClassExpressionsMinus(c)));
+		return ce;
+	}
+	public Set<OWLClassExpression> getDisjointUnion(OWLClassExpression c){
+		Set<OWLClassExpression> ce = new HashSet<OWLClassExpression>();
+		this.djuAx.stream().filter(dj -> dj.getOWLDisjointClassesAxiom().contains(c)).forEach(dj -> ce.addAll(dj.getOWLDisjointClassesAxiom().getClassExpressionsMinus(c)));
 		return ce;
 	}
 	public OWLClassExpression getTgAxiom(OWLDataFactory df) {
