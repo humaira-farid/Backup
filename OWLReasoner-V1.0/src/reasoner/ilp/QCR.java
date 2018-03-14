@@ -19,5 +19,11 @@ public class QCR {
 		} else 
 			this.type = "EXACT";
 	}
+	QCR(OWLObjectOneOf o){
+		this.role = null;
+		this.cardinality = 1;
+		this.qualifier = o;
+		this.type = "EXACT";
+	}
 	
 }

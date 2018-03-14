@@ -14,43 +14,37 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 import org.semanticweb.owlapi.apibinding.OWLFunctionalSyntaxFactory;
-import org.semanticweb.owlapi.model.*;
+import org.semanticweb.owlapi.model.OWLClassExpression;
+import org.semanticweb.owlapi.model.OWLObjectCardinalityRestriction;
+import org.semanticweb.owlapi.model.OWLObjectComplementOf;
+import org.semanticweb.owlapi.model.OWLObjectOneOf;
+import org.semanticweb.owlapi.model.OWLObjectPropertyExpression;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.SetMultimap;
 
 import ilog.concert.*;
 import ilog.cplex.*;
 import reasoner.ilp.CplexModelGenerator2.SubSet;
 
 
-public class CplexModelGenerator {
+public class CplexModelGenerator3 {
 	IloCplex cplexModel;
-	ILPPreprocessor ilpPro;
+	ILPPreprocessor2 ilpPro;
 	List<OWLObjectCardinalityRestriction> qcrList;
 	Set<QCR> qcrs;
+	Set<Nominal> noms;
 	Set<OWLObjectOneOf> nominals;
 	Set<OWLClassExpression> qcrQualifiers = null;
+	Set<OWLClassExpression> nomQualifiers = null;
 	Set<OWLClassExpression> allQualifiers;
 	Map<Integer, QCR> qcrMap;
+	Map<Integer, Nominal> nomMap;
 	Map<Integer, OWLObjectCardinalityRestriction> crMap;
-	Set<OWLObjectProperty> axiomRoles = null;
-	Set<OWLObjectProperty> srRoles = new HashSet<>();
-	
 	BiMap<OWLClassExpression, Integer> qualifiers = HashBiMap.create();
-	BiMap<OWLObjectProperty, Integer> srRolesMap = HashBiMap.create();
-	
-	BiMap<OWLObjectProperty, Integer> tempRoleHMap = HashBiMap.create();
-	
 	Set<OWLObjectCardinalityRestriction> infeasibilities = new HashSet<>();
-	Map<OWLObjectProperty, Set<OWLObjectProperty>> superRoles = new HashMap<>();;
-	SetMultimap<OWLObjectProperty, OWLClassExpression> forAllMap;
-
-	Map<OWLObjectProperty, OWLObjectProperty> tempRoleH = new HashMap<>();
-	
 	boolean initiallySolved;
 	int M;
 	int totalQCR = 0;
@@ -58,59 +52,30 @@ public class CplexModelGenerator {
 	int totalVar = 0;
 	static double RC_EPS = 1.0e-6;
 	
-	public CplexModelGenerator(ILPPreprocessor ilpPr, 
-			Map<OWLObjectProperty, Set<OWLObjectProperty>> superRoles,
-			SetMultimap<OWLObjectProperty, OWLClassExpression> forAllMap, Map<OWLObjectProperty, OWLObjectProperty> tempRoleH) {
+	public CplexModelGenerator3(ILPPreprocessor2 ilpPreprocessor2) {
 		
-		ilpPro = ilpPr;
-		this.superRoles =  superRoles;
-		this.tempRoleH = tempRoleH;
+		ilpPro = ilpPreprocessor2;
 		qcrs = ilpPro.getQcrs();
 		qcrQualifiers = qcrs.stream().map(qcr -> qcr.qualifier).collect(Collectors.toSet());
+		noms = ilpPro.getNoms();
+		nomQualifiers = noms.stream().map(nom -> nom.qualifier).collect(Collectors.toSet());
 		nominals = new HashSet<OWLObjectOneOf>(ilpPro.getNominals());
 		allQualifiers = new HashSet<OWLClassExpression>(qcrQualifiers);
-		
-		//allQualifiers.addAll(nominals);
-		
+		allQualifiers.addAll(nominals);
 		qcrMap  = ilpPro.getQCRMap();
+		nomMap = ilpPro.getNomMap();
 		crMap = ilpPro.getCRMap();
-		qcrList = ilpPro.cardRes;
-		
-		axiomRoles = qcrs.stream().filter(qcr -> qcr.role!=null).map(qcr -> qcr.role.getNamedProperty()).collect(Collectors.toSet());
-		
-		for(OWLObjectProperty role : axiomRoles) {
-			if(superRoles.get(role)!=null) {
-				for(OWLObjectProperty supRole : superRoles.get(role)) {
-					this.srRoles.add(supRole);
-				}
-			}
-		}
-		
-		this.forAllMap = HashMultimap.create();
-		for(Entry<OWLObjectProperty, OWLClassExpression> e : forAllMap.entries()){
-			this.forAllMap.put(e.getKey(), e.getValue());
-			allQualifiers.add(e.getValue());
-		}
-		
+		qcrList = ilpPro.getCardRes();
 		M = 100;
 		int tempQN = 0;
 		for(OWLClassExpression C : allQualifiers){
 			qualifiers.put(C, tempQN);
 			++tempQN;
 		}
-		int tempRN = 0;
-		for(OWLObjectProperty r : srRoles){
-			srRolesMap.put(r, tempRN);
-			++tempRN;
-		}
-		int tempRHN = 0;
-		for(Entry<OWLObjectProperty, OWLObjectProperty> e : tempRoleH.entrySet()){
-			tempRoleHMap.put(e.getValue(), tempRHN);
-			++tempRHN;
-		}
+		
 		totalQCR = qcrs.size();
 		totalNominals = nominals.size();
-		totalVar = totalQCR;//+totalNominals;
+		totalVar = totalQCR + totalNominals;
 		
 		try {
 			cplexModel= new IloCplex();
@@ -124,7 +89,7 @@ public class CplexModelGenerator {
 		generateCplexModel();
 		 return solve(new RMPModel().generateRmpModel(), new PPModel().GeneratePpModel());
 	}
-	public void generateCplexModel() {
+	public void generateCplexModel(/*OWLObjectMinCardinality minCard*/) {
 		
 		IloCplex initSolver;
 		try {
@@ -138,7 +103,7 @@ public class CplexModelGenerator {
 				if(!check_var.containsKey(C))
 					check_var.put(C , initSolver.numVar(0., Double.MAX_VALUE));
 			}
-
+			
 
 			// Setting objective function
 			IloLinearNumExpr initobjExpr = initSolver.linearNumExpr();
@@ -151,6 +116,7 @@ public class CplexModelGenerator {
 			for(OWLClassExpression C : check_var.keySet()){
 				HashMap<Double , OWLObjectCardinalityRestriction> LBs = new HashMap<>();
 				HashMap<Double , OWLObjectCardinalityRestriction> UBs = new HashMap<>();
+				
 				for(Integer val : qcrMap.keySet()){
 					QCR qcr = qcrMap.get(val);
 					if(qcr.qualifier.equals(C)){
@@ -164,6 +130,8 @@ public class CplexModelGenerator {
 						}
 					}
 				}
+				
+				
 				double lb = 0;
 				double ub = 10000;
 				Set<OWLObjectCardinalityRestriction> LB_map = new HashSet<>();
@@ -187,14 +155,19 @@ public class CplexModelGenerator {
 				rang_qcr_map.put(initSolver.addLe(check_var.get(C) , ub) , UB_map);
 				rang_qcr_map.put(initSolver.addGe(check_var.get(C) , lb) , LB_map);
 			}
+			/*for(OWLClassExpression C : nomQualifiers){
+				if(!check_var.containsKey(C))
+					check_var.put(C , initSolver.numVar(0., Double.MAX_VALUE));
+				rang_qcr_map.put(initSolver.addEq(check_var.get(C), 1), null);
+			}*/
 
 			if(initSolver.solve()){
 				initiallySolved = true;
-			/*	if(qcrQualifiers != null)
+				/*if(qcrQualifiers != null)
 					this.allQualifiers = new HashSet<OWLClassExpression>(qcrQualifiers);
 				else
-					this.allQualifiers = new HashSet<OWLClassExpression>();
-			 */
+					this.allQualifiers = new HashSet<OWLClassExpression>();*/
+
 			//	OWLClassExpression Thing = (OWLClassExpression)OWLFunctionalSyntaxFactory.OWLThing();
 			//	this.allQualifiers.add(Thing);
 
@@ -243,12 +216,12 @@ public class CplexModelGenerator {
 	
 	public ILPSolution solve(RMPModel rmpModel, PPModel ppModel) throws IloException{
 		//int M = 100;
-		ILPSolution returnSolution = new ILPSolution();
+		ILPSolution return_information = new ILPSolution();
 		
 		if(!initiallySolved){
-			returnSolution.setInfeasible_set(infeasibilities);
-			returnSolution.setSolved(false);
-			return returnSolution;
+			return_information.setInfeasible_set(infeasibilities);
+			return_information.setSolved(false);
+			return return_information;
 		}
 		
 		IloCplex rmpCplex = rmpModel.getRmpCplex();
@@ -264,64 +237,59 @@ public class CplexModelGenerator {
 		ArrayList<SubSet> subsets = rmpModel.getSubsets();
 		
 		IloNumVar[] r = ppModel.getR();
-		IloNumVar[] sr = ppModel.getSR();
+		IloNumVar[] n = ppModel.getN();
 		IloNumVar[] b = ppModel.getB();
-		
-		
+		IloNumVar[] nr = new IloNumVar[r.length+n.length]; 
+		int l = 0;
+		for(int i = 0; i < r.length; i++) {
+			nr[l] = r[i];
+			l++;
+		}
+		for(int i = 0; i < n.length; i++) {
+			nr[l] = n[i];
+			l++;
+		}
 
-		/// Generating new columns ///
+		/// COLUMN-GENERATION PROCEDURE ///
 
 				double[] newCol = new double[totalVar];
 
+				/// COLUMN-GENERATION PROCEDURE ///
+
 				double relaxed_opt;
-				while (true) {
+				for (;;) {
 					
-					boolean isRMPFeasible = false;
+					boolean is_master_feasible = false;
 					if(rmpCplex.solve()){
-						isRMPFeasible = true;
+						is_master_feasible = true;
 						relaxed_opt = rmpCplex.getObjValue();
-						System.out.println("relaxed_opt "+relaxed_opt);
-					for(int j=0; j<x.getSize(); j++)
-						System.out.println("x value  "+rmpCplex.getValue(x.getElement(j)));
 					
-					
-					/// generate and add a new column in RMP
+					/// FIND AND ADD A NEW COLUMN ///
 
 					double[] price = rmpCplex.getDuals(Constraint);
-					for(int j = 0 ; j < price.length ; j++)
-						System.out.println("dual value  "+price[j]);
+					
+					for(int i = 0; i < price.length; i++)
+						System.out.println("dual values "+price[i]);
 					
 					IloLinearNumExpr objExpr = ppCplex.linearNumExpr();
 					for(int j = 0 ; j < b.length ; j++)
 						objExpr.addTerm(1 , b[j]);
-					
-					reducedCost.setExpr(ppCplex.diff(objExpr,ppCplex.scalProd(r, price)));
+					reducedCost.setExpr(ppCplex.diff(objExpr,
+							ppCplex.scalProd(r, price)));
 
 					if(ppCplex.solve()){
 						
 						if ( ppCplex.getObjValue() > -RC_EPS ){
+							
 							break;
 						}
 
 						newCol = ppCplex.getValues(r);
+
 						
 						double[] bVal = ppCplex.getValues(b);
-						
+						//System.out.println("bVal " + bVal.length);
 						int cost = 0;
-						double[] rv = ppCplex.getValues(r);
-						System.out.println("------");
-						for(int j = 0 ; j < rv.length ; j++) {
-							System.out.println("r v  ["+j +"]"+ rv[j]);
-							
-						}
-						
-						
-						double[] srv = ppCplex.getValues(sr);
-						
-						for(int j = 0 ; j < srv.length ; j++) {
-							System.out.println("sr v ["+j +"]"+ srv[j]);
-							
-						}
 						for(int j = 0 ; j < bVal.length ; j++) {
 							//System.out.println("bVal " + bVal[j]);
 							cost += bVal[j];
@@ -330,9 +298,20 @@ public class CplexModelGenerator {
 						IloColumn column = rmpCplex.column(obj, cost);//Creates and returns a column from the specified objective and value.
 						for ( int i = 0; i < totalVar; i++ )
 							column = column.and(rmpCplex.column(Constraint[i], newCol[i]));//Creates and returns a column from the specified range and value.
-						
+						//IloNumVar nv = rmpCplex.numVar(column, 0., Double.MAX_VALUE);
+						//rmpCplex.add(nv);
+					//	x.add(nv);
 						x.add( rmpCplex.numVar(column, 0., Double.MAX_VALUE) );
-						subsets.add(new SubSet(ppCplex.getValues(r) , ppCplex.getValues(b), ppCplex.getValues(sr)));
+						double[] tr = ppCplex.getValues(r);
+						double[] tb = ppCplex.getValues(b);
+						for(int i = 0; i < tr.length; i++)
+							System.out.println("r values "+tr[i]);
+						for(int i = 0; i < tb.length; i++)
+							System.out.println("b values "+tb[i]);
+						
+							
+						//System.out.println("r values "+ppCplex.getValues(r)+" b values "+ppCplex.getValues(b));
+						subsets.add(new SubSet(ppCplex.getValues(r) , ppCplex.getValues(b)));
 					}
 					else
 						break;
@@ -340,33 +319,31 @@ public class CplexModelGenerator {
 				else 
 				{	
 					
-					returnSolution.setSolved(isRMPFeasible);
-					return returnSolution;
+					return_information.setSolved(is_master_feasible);
+					return return_information;
 				}
 			}
-				System.out.println("final relaxed_opt " + relaxed_opt);
+				System.out.println("relaxed_opt " + relaxed_opt);
 			if( relaxed_opt < M ){
 				System.out.println("x.getSize() " + x.getSize());
 				for ( int i = 0; i < x.getSize(); i++ ) {
-					/// LP relaxation 
-					//System.out.println("cardinality " + rmpCplex.getValue(x.getElement(i)));
-					rmpCplex.add(rmpCplex.conversion(x.getElement(i),IloNumVarType.Int));//Adds object to the invoking model.
-											//Converts a numeric variable to a specified type.
 					
-
-
+					//if(!isInteger(rmpCplex.getValue(x.getElement(i))))
+					//	System.out.println("non integer");
+						//rmpCplex.add(x.getElement(i));
+					rmpCplex.add(rmpCplex.conversion(x.getElement(i),IloNumVarType.Float));//Adds object to the invoking model.
+											//Converts a numeric variable to a specified type.
 				}
 				for ( int i = 0; i < h.getSize(); i++ ) {
-					rmpCplex.add(rmpCplex.conversion(h.getElement(i),IloNumVarType.Int));
+					//rmpCplex.add(h.getElement(i));
+					rmpCplex.add(rmpCplex.conversion(h.getElement(i),IloNumVarType.Float));
 				}
 
 				boolean result = false;     
 				if(rmpCplex.solve()){
 					result = true;
 					Set<EdgeInformation> edgeInformationSet = new HashSet<EdgeInformation>();
-					
 					if( rmpCplex.getObjValue() < M){
-						System.out.println("rmpCplex.getObjValue() " + rmpCplex.getObjValue());
 						for(int i = 0; i < h.getSize(); i++){
 							double cardinality = rmpCplex.getValue(h.getElement(i));
 							//System.out.println("cardinality " + cardinality);
@@ -374,80 +351,60 @@ public class CplexModelGenerator {
 								System.out.println("non zero cardinality " + cardinality);
 							}
 						}
-						
-						BiMap<Integer, OWLClassExpression> reverseQualifiers = qualifiers.inverse();
-						BiMap<Integer, OWLObjectProperty> reverseRoles = srRolesMap.inverse();
-						BiMap<Integer, OWLObjectProperty> reverseTempRoles = tempRoleHMap.inverse();
-						Map<OWLObjectProperty, OWLObjectProperty> reverseTempRoleH = new HashMap<>();
-						for(Entry<OWLObjectProperty, OWLObjectProperty> e : tempRoleH.entrySet()){
-							reverseTempRoleH.put(e.getValue(), e.getKey());
-						}
-						//System.out.println("x.getSize() ---" + x.getSize());
-						
-						
+						BiMap<Integer, OWLClassExpression> reverse_qualifiers_map = qualifiers.inverse();
 						for(int i = 0; i < x.getSize(); i++){
 							double cardinality = rmpCplex.getValue(x.getElement(i));
 							if(!isInteger(cardinality)) {
 								System.out.println("non integer cardinality " + cardinality);
 							}
 							else {
-								System.out.println("x cardinality " + cardinality);
 								if(cardinality > 0.0){
-									System.out.println("i value " + i);
-									
 									SubSet tempSubSet = subsets.get(i);
-									
-									Set<OWLObjectPropertyExpression> tempRoleSet = new HashSet<>();
-									Set<OWLObjectPropertyExpression> tempSupRoleSet = new HashSet<>();
-									Set<OWLClassExpression> tempClassSet = new HashSet<>();
-										
-									boolean addIt = false;
-										
-									for(int j = 0 ; j < tempSubSet.getConceptIndexSet().length ; j++){
-										if(tempSubSet.getConceptIndexSet()[j] > 0){ // if b value is 1
-											tempClassSet.add(reverseQualifiers.get(j));
-											if(!addIt)
-												addIt = true;
-											}
+									if(tempSubSet.getConceptIndexSet().length==1 && tempSubSet.getRolesIndexSet().length == 1) {
+										System.out.println("hi");
 									}
-									System.out.println("tempClassSet "+tempClassSet.size());
-									if(addIt){
+									else {
+										
+										Set<OWLObjectPropertyExpression> tempObjectSet = new HashSet<>();
+										Set<OWLClassExpression> tempClassSet = new HashSet<>();
+										boolean addIt = false;
+										for(int j = 0 ; j < tempSubSet.getConceptIndexSet().length ; j++){
+											if(tempSubSet.getConceptIndexSet()[j] > 0.5){
+												tempClassSet.add(reverse_qualifiers_map.get(j));
+												if(!addIt)
+													addIt = true;
+											}
+										}
+										if(addIt){
 											for(int j = 0 ; j < tempSubSet.getRolesIndexSet().length ; j++){
-												if(tempSubSet.getRolesIndexSet()[j] > 0) { // if r value is 1
-													System.out.println(" role "+qcrMap.get(j).role);
-													tempRoleSet.add(qcrMap.get(j).role);
+												if(tempSubSet.getRolesIndexSet()[j] > 0.5) {
+													//if(qcrMap.get(j).role!=null)
+														tempObjectSet.add(qcrMap.get(j).role);
 												}
 											}
-											for(int j = 0 ; j < tempSubSet.getSupRolesIndexSet().length ; j++){
-												if(tempSubSet.getSupRolesIndexSet()[j] > 0) { // if sr value is 1
-													System.out.println("sr["+j+"]: "+tempSubSet.getSupRolesIndexSet()[j]);
-													System.out.println("sup role "+reverseRoles.get(j) );
-													
-													tempSupRoleSet.add(reverseRoles.get(j));
-												}
-											}
-											tempRoleSet.addAll(tempSupRoleSet);
-											EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet , tempClassSet , cardinality);
+											////System.out.println("Heeeeeeeeeeey! " + tempClassSet);
+											EdgeInformation tempEdgeInformation = new EdgeInformation(tempObjectSet , tempClassSet , cardinality);
 											edgeInformationSet.add(tempEdgeInformation);
 										}
-									
+									}
 								}
 							}
 						}
-						
-						// Adding complement to ensure at most restrictions
-						Set<QCR> tempMaxQcrs = qcrMap.values().stream().filter(qcr -> qcr.type.equals("MAX")).collect(Collectors.toSet());
+
+						Set<QCR> temp_max_qcrs = qcrMap.values().stream()
+								.filter(qcr -> qcr.type.equals("MAX"))
+								.collect(Collectors.toSet());
 						Map<QCR , Integer> check_complement = new HashMap<>();
-						for(QCR q : tempMaxQcrs){
+						for(QCR q : temp_max_qcrs){
 							check_complement.put(q, q.cardinality);
 						}
 
-						int totalNodes = 0;
+						int check_node_num = 0;
 						for(EdgeInformation e : edgeInformationSet)
-							totalNodes += e.getCardinality();
+							check_node_num += e.getCardinality();
 
-						for(QCR q : tempMaxQcrs){
-							int remained_nodes = totalNodes;
+						for(QCR q : temp_max_qcrs){
+							int remained_nodes = check_node_num;
 							Set<EdgeInformation> addedEdgeInformations = new HashSet<EdgeInformation>();
 							Set<EdgeInformation> reserveEdgeInformations = new HashSet<EdgeInformation>();
 							for(EdgeInformation e : edgeInformationSet){
@@ -500,11 +457,17 @@ public class CplexModelGenerator {
 						Set<EdgeInformation> finalEdgeInformations = new HashSet<EdgeInformation>();
 						for(EdgeInformation e : edge_map.keySet()){
 							Set<OWLClassExpression> fillers = e.getFillers();
+							////System.out.println("Heeeeeeeeeeey! " + fillers);
+							////System.out.println(auxs);
+							
+							////System.out.println("Hoooooooooooy! " + fillers);
 							EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), fillers, edge_map.get(e));
 							finalEdgeInformations.add(tempEdgeInformation);
 						}
 
-						returnSolution.setEdgeInformation(finalEdgeInformations);
+						//System.out.println(this.all_qualifiers);
+
+						return_information.setEdgeInformation(finalEdgeInformations);
 					}
 					else {
 						result = false;
@@ -514,7 +477,7 @@ public class CplexModelGenerator {
 								infeasible_set.add(crMap.get(i));
 							}
 						}
-						returnSolution.setInfeasible_set(infeasible_set);
+						return_information.setInfeasible_set(infeasible_set);
 					}
 				}
 				else{
@@ -522,9 +485,9 @@ public class CplexModelGenerator {
 				}
 				rmpCplex.end();
 				ppCplex.end();
-				returnSolution.setSolved(result);
+				return_information.setSolved(result);
 				
-				return returnSolution;
+				return return_information;
 			}
 			else{
 				Set<OWLObjectCardinalityRestriction> infeasible_set  = new HashSet<>();
@@ -535,9 +498,9 @@ public class CplexModelGenerator {
 				}
 				rmpCplex.end();
 				ppCplex.end();
-				returnSolution.setSolved(false);
-				returnSolution.setInfeasible_set(infeasible_set);
-				return returnSolution;
+				return_information.setSolved(false);
+				return_information.setInfeasible_set(infeasible_set);
+				return return_information;
 			}
 		}
 	
@@ -569,21 +532,15 @@ public class CplexModelGenerator {
 	}
 	static class SubSet {
 		double[] rolesIndexSet;
-		double[] supRolesIndexSet;
 		double[] conceptIndexSet;
 		int cost;
 
-		SubSet(double[] rolesIndexSet, double[] conceptIndexSet, double[] supRolesIndexSet){
+		SubSet(double[] rolesIndexSet, double[] conceptIndexSet){
 			this.rolesIndexSet = rolesIndexSet;
 			this.conceptIndexSet = conceptIndexSet;
-			this.supRolesIndexSet = supRolesIndexSet;
 			cost = 0;
 			for(int j = 0 ; j < conceptIndexSet.length ; j++)
 				cost += conceptIndexSet[j];
-		}
-
-		public double[] getSupRolesIndexSet() {
-			return supRolesIndexSet;
 		}
 
 		public double[] getRolesIndexSet() {
@@ -641,20 +598,29 @@ public class CplexModelGenerator {
 		
 		public RMPModel generateRmpModel() throws IloException {
 			
+			//System.out.println("totalVar "+ totalVar + "qcrmap size " + qcrMap.size());
 			
-			System.out.println("total var : "+totalVar);
-			System.out.println("qcrmap size : "+qcrMap.size());
-			for (int i = 0; i < totalVar; i++) {
-				if(qcrMap.get(i).type.equals("MIN")){
-					Constraint[i] = rmpCplex.addGe(expr[i], qcrMap.get(i).cardinality);
+			int k=0;
+			while(k<totalQCR) {
+				if(qcrMap.get(k).type.equals("MIN")){
+					Constraint[k] = rmpCplex.addGe(expr[k], qcrMap.get(k).cardinality);
+					k++;
 				}
-				else if(qcrMap.get(i).type.equals("MAX")){
-					Constraint[i] = rmpCplex.addLe(expr[i], qcrMap.get(i).cardinality);	
+				else if(qcrMap.get(k).type.equals("MAX")){
+					Constraint[k] = rmpCplex.addLe(expr[k], qcrMap.get(k).cardinality);	
+					k++;
 				}
 				else{
-					Constraint[i] = rmpCplex.addEq(expr[i], qcrMap.get(i).cardinality);	
+					Constraint[k] = rmpCplex.addEq(expr[k], qcrMap.get(k).cardinality);
+					k++;
 				}
 			}
+			for (int i = 0; i < totalNominals; i++) {
+				Constraint[k] = rmpCplex.addEq(expr[k], 1);
+				k++;
+			}
+			System.out.println("total var : "+totalVar);
+			System.out.println("qcrmap size : "+qcrMap.size());
 			
 
 			for (int i = 0; i < totalVar; i++)
@@ -671,11 +637,6 @@ public class CplexModelGenerator {
 		}
 
 
-		public IloObjective getObj() {
-			return obj;
-		}
-
-
 		public IloRange[] getConstraint() {
 			return Constraint;
 		}
@@ -685,16 +646,13 @@ public class CplexModelGenerator {
 			return expr;
 		}
 
-
 		public IloNumVarArray getH() {
 			return h;
 		}
 
-
 		public ArrayList<SubSet> getSubsets() {
 			return subsets;
 		}
-
 
 		public IloNumVarArray getX() {
 			return x;
@@ -708,120 +666,67 @@ public class CplexModelGenerator {
 		IloCplex ppCplex;
 		IloObjective reducedCost;
 		IloNumVar[] r ;
+		IloNumVar[] n ;
 		IloNumVar[] b ;
-		IloNumVar[] sr ;
-		IloNumVar[] hr ;
 		
 		public IloCplex getPpCplex() {
 			return ppCplex;
 		}
-		public IloObjective getReducedCost() {
-			return reducedCost;
-		}
 		public IloNumVar[] getR() {
 			return r;
 		}
-		public IloNumVar[] getHR() {
-			return hr;
+		public IloNumVar[] getN() {
+			return n;
 		}
-		public IloNumVar[] getSR() {
-			return sr;
-		}
+
 		public IloNumVar[] getB() {
 			return b;
 		}
+	
 		
 		public PPModel GeneratePpModel() throws IloException {
-			
-			Map<OWLObjectProperty, Set<OWLClassExpression>> forAllMaps = 
-					(Map<OWLObjectProperty, Set<OWLClassExpression>>) (Map<?, ?>) forAllMap.asMap();
-			
-				
 			ppCplex = new IloCplex();
 			ppCplex.setOut(new NullOutputStream());
 
 			reducedCost = ppCplex.addMinimize();
-			r = ppCplex.numVarArray(totalVar, 0., 1, IloNumVarType.Int);
-			b = ppCplex.numVarArray(allQualifiers.size(), 0., 1, IloNumVarType.Int);
-			//if(otherRoles.size()!=0)
-			sr = ppCplex.boolVarArray(srRoles.size());//numVarArray(otherRoles.size(), 0., 1, IloNumVarType.Int);
-			hr = ppCplex.boolVarArray(tempRoleH.size());//numVarArray(tempRoleH.size(), 0., 1, IloNumVarType.Int);
-			
+			r = ppCplex.numVarArray(totalQCR, 0., 1, 
+					IloNumVarType.Int);
+			b = ppCplex.numVarArray(allQualifiers.size(), 0., 1, 
+					IloNumVarType.Int);
+			n = ppCplex.numVarArray(totalNominals, 0., 1, 
+					IloNumVarType.Int);
+
 			// In at-least restrictions: if r[i]==1 --> b[i.qualifier]=1
 			// In at-most restrictions: if b[i.qualifier]==1 --> a[i]=1
 			
-			
-			SetMultimap<OWLObjectProperty, Integer> axiomRolesMap = HashMultimap.create();
-			
-			for (int i = 0; i < totalVar; i++ ) {
-				if(qcrMap.get(i).role!=null) {
-					axiomRolesMap.put(qcrMap.get(i).role.getNamedProperty(), i);
-					if(tempRoleH.containsKey(qcrMap.get(i).role.getNamedProperty()))
-						ppCplex.addLe(r[i] , hr[tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role.getNamedProperty()))]);
-					//System.out.println("r["+i+"]: role "+"hr["+tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role.getNamedProperty()))+"] "+ tempRoleH.get(qcrMap.get(i).role.getNamedProperty()));
+			int k=0;
+			while(k<totalQCR) {
+				if(qcrMap.get(k).type.equals("MIN")) {
+					ppCplex.addLe(r[k] , b[qualifiers.get(qcrMap.get(k).qualifier)]);
+					k++;
 				}
-				if(qcrMap.get(i).type.equals("MIN"))
-					ppCplex.addLe(r[i] , b[qualifiers.get(qcrMap.get(i).qualifier)]);
-				else if (qcrMap.get(i).type.equals("MAX"))
-					ppCplex.addLe(b[qualifiers.get(qcrMap.get(i).qualifier)] , r[i]);
 				else {
-					ppCplex.addLe(r[i] , b[qualifiers.get(qcrMap.get(i).qualifier)]);
-					ppCplex.addLe(b[qualifiers.get(qcrMap.get(i).qualifier)] , r[i]);
+					ppCplex.addLe(b[qualifiers.get(qcrMap.get(k).qualifier)] , r[k]);	 
+					k++;
 				}
+			}
+			for (int i = 0; i < totalNominals; i++) {
+				ppCplex.addLe(n[k] , b[qualifiers.get(nomMap.get(k).qualifier)]);
+				ppCplex.addLe(b[qualifiers.get(qcrMap.get(k).qualifier)] , n[k]);	 
+				k++;
 			}
 			
 			
 			
-			// Role Hierarchy
-			for (OWLObjectProperty role : superRoles.keySet()){
-				if(superRoles.get(role) != null){
-					OWLObjectProperty tempSupRole = tempRoleH.get(role);
-					for(OWLObjectProperty supRole : superRoles.get(role)){
-						System.out.println("role : "+role+" H role "+tempSupRole+" sup role " +supRole);
-						System.out.println("hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "sr["+srRolesMap.get(supRole)+"]");
-						if(axiomRoles.contains(supRole)) {
-							System.out.println("hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "hr["+tempRoleHMap.get(tempRoleH.get(supRole))+"]");
-							ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], hr[tempRoleHMap.get(tempRoleH.get(supRole))]);
-							
-						}
-						ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], sr[srRolesMap.get(supRole)]);
-					}
-				}
-			}
-			//For All Restrictions -- Semantics 
+			//disjoint
+			/*ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(0).qualifier)]),
+					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(1).qualifier)])), 1);*/
+			//subsumption
+
+			ppCplex.addLe(b[qualifiers.get(qcrMap.get(0).qualifier)],b[qualifiers.get(nomMap.get(2).qualifier)]);
 			
-			for (OWLObjectProperty role : forAllMaps.keySet()){
-				if(forAllMaps.get(role) != null){
-					if(axiomRoles.contains(role)) {
-						OWLObjectProperty tempSupRole = tempRoleH.get(role);
-						System.out.println("role : "+role+" H role "+tempSupRole);
-						
-						for(OWLClassExpression C : forAllMaps.get(role)) {
-							ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], b[qualifiers.get(C)]);
-							if(srRolesMap.get(role)!=null)
-								ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
-						}
-					}
-					else {
-						System.out.println("role : "+role);
-						
-						for(OWLClassExpression C : forAllMaps.get(role))
-							ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
-					}
-				}
-			}
-			
-			
-			
-			
-			///
-			//ppCplex.addLe(b[qualifiers.get(qcrMap.get(0).qualifier)],b[qualifiers.get(qcrMap.get(3).qualifier)]);
-			
-		
-			
-			ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(1).qualifier)]),
-					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(3).qualifier)])), 1);
-			
+			ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(0).qualifier)]),
+					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(2).qualifier)])), 1);
 			return this;
 		}
 	}

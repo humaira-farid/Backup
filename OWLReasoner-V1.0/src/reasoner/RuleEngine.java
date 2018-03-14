@@ -40,12 +40,24 @@ public class RuleEngine {
 		while(!todo.isEmpty()) {
 	    	 	//System.out.println("while loop "+ todo.entries());
 	    	 	ToDoEntry entry = todo.getNextEntry();
-	    	 	if(entry!=null)
+	    	 	if(entry!=null) {
+	    	 		//check if we need ILP
+	    	 		if(needILPModule(entry.getClassExpression()))
+	    	 			callILP();
+	    	 		else
 	    	 			this.applyRules(entry);
+	    	 	}
 		}
 		//System.out.println("No. of nodes : "+ cg.getTotalNodes());
 	}
-	
+	public boolean needILPModule(OWLClassExpression axiom) {
+		if(axiom.individualsInSignature().iterator().hasNext())
+			return true;
+		return false;
+	}
+	public void callILP() {
+		
+	}
 	public void createFirstNode(OWLClassExpression tgAxiom) {
 		
 		Node from = cg.addNode(NodeType.NOMINAL, tgAxiom);

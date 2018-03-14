@@ -27,7 +27,7 @@ import ilog.cplex.*;
 import reasoner.ilp.CplexModelGenerator2.SubSet;
 
 
-public class CplexModelGenerator {
+public class CplexModelGenerator1 {
 	IloCplex cplexModel;
 	ILPPreprocessor ilpPro;
 	List<OWLObjectCardinalityRestriction> qcrList;
@@ -38,9 +38,11 @@ public class CplexModelGenerator {
 	Map<Integer, QCR> qcrMap;
 	Map<Integer, OWLObjectCardinalityRestriction> crMap;
 	Set<OWLObjectProperty> axiomRoles = null;
+	//Set<OWLObjectProperty> otherRoles = new HashSet<>();
 	Set<OWLObjectProperty> srRoles = new HashSet<>();
 	
 	BiMap<OWLClassExpression, Integer> qualifiers = HashBiMap.create();
+	//BiMap<OWLObjectProperty, Integer> otherRolesMap = HashBiMap.create();
 	BiMap<OWLObjectProperty, Integer> srRolesMap = HashBiMap.create();
 	
 	BiMap<OWLObjectProperty, Integer> tempRoleHMap = HashBiMap.create();
@@ -58,7 +60,7 @@ public class CplexModelGenerator {
 	int totalVar = 0;
 	static double RC_EPS = 1.0e-6;
 	
-	public CplexModelGenerator(ILPPreprocessor ilpPr, 
+	public CplexModelGenerator1(ILPPreprocessor ilpPr, 
 			Map<OWLObjectProperty, Set<OWLObjectProperty>> superRoles,
 			SetMultimap<OWLObjectProperty, OWLClassExpression> forAllMap, Map<OWLObjectProperty, OWLObjectProperty> tempRoleH) {
 		
@@ -105,6 +107,7 @@ public class CplexModelGenerator {
 		}
 		int tempRHN = 0;
 		for(Entry<OWLObjectProperty, OWLObjectProperty> e : tempRoleH.entrySet()){
+		//for(OWLObjectProperty r : tempRoleH.){
 			tempRoleHMap.put(e.getValue(), tempRHN);
 			++tempRHN;
 		}
@@ -124,7 +127,7 @@ public class CplexModelGenerator {
 		generateCplexModel();
 		 return solve(new RMPModel().generateRmpModel(), new PPModel().GeneratePpModel());
 	}
-	public void generateCplexModel() {
+	public void generateCplexModel(/*OWLObjectMinCardinality minCard*/) {
 		
 		IloCplex initSolver;
 		try {
@@ -265,6 +268,7 @@ public class CplexModelGenerator {
 		
 		IloNumVar[] r = ppModel.getR();
 		IloNumVar[] sr = ppModel.getSR();
+	//	IloNumVar[] hr = ppModel.getHR();
 		IloNumVar[] b = ppModel.getB();
 		
 		
@@ -284,6 +288,9 @@ public class CplexModelGenerator {
 					for(int j=0; j<x.getSize(); j++)
 						System.out.println("x value  "+rmpCplex.getValue(x.getElement(j)));
 					
+				//	if(relaxed_opt < M){
+				//		break;
+				//	}
 					
 					/// generate and add a new column in RMP
 
@@ -306,7 +313,7 @@ public class CplexModelGenerator {
 						newCol = ppCplex.getValues(r);
 						
 						double[] bVal = ppCplex.getValues(b);
-						
+						//System.out.println("bVal " + bVal.length);
 						int cost = 0;
 						double[] rv = ppCplex.getValues(r);
 						System.out.println("------");
@@ -333,6 +340,8 @@ public class CplexModelGenerator {
 						
 						x.add( rmpCplex.numVar(column, 0., Double.MAX_VALUE) );
 						subsets.add(new SubSet(ppCplex.getValues(r) , ppCplex.getValues(b), ppCplex.getValues(sr)));
+						
+						//subsets.add(new SubSet(ppCplex.getValues(r) , ppCplex.getValues(b), ppCplex.getValues(sr), ppCplex.getValues(hr)));
 					}
 					else
 						break;
@@ -352,7 +361,7 @@ public class CplexModelGenerator {
 					//System.out.println("cardinality " + rmpCplex.getValue(x.getElement(i)));
 					rmpCplex.add(rmpCplex.conversion(x.getElement(i),IloNumVarType.Int));//Adds object to the invoking model.
 											//Converts a numeric variable to a specified type.
-					
+					//rmpCplex.add(x.getElement(i));
 
 
 				}
@@ -426,6 +435,13 @@ public class CplexModelGenerator {
 													tempSupRoleSet.add(reverseRoles.get(j));
 												}
 											}
+										/*	for(int j = 0 ; j < tempSubSet.getTempSupRolesIndexSet().length ; j++){
+												if(tempSubSet.getTempSupRolesIndexSet()[j] > 0) { // if hr value is 1
+													System.out.println(tempSubSet.getTempSupRolesIndexSet()[j]);
+													System.out.println("temp role "+reverseTempRoles.get(j) +" role "+reverseTempRoleH.get(reverseTempRoles.get(j)));
+													tempSupRoleSet.add(reverseTempRoleH.get(reverseTempRoles.get(j)));
+												}
+											}*/
 											tempRoleSet.addAll(tempSupRoleSet);
 											EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet , tempClassSet , cardinality);
 											edgeInformationSet.add(tempEdgeInformation);
@@ -571,16 +587,22 @@ public class CplexModelGenerator {
 		double[] rolesIndexSet;
 		double[] supRolesIndexSet;
 		double[] conceptIndexSet;
+		//double[] tempSupRolesIndexSet;
 		int cost;
 
 		SubSet(double[] rolesIndexSet, double[] conceptIndexSet, double[] supRolesIndexSet){
 			this.rolesIndexSet = rolesIndexSet;
 			this.conceptIndexSet = conceptIndexSet;
 			this.supRolesIndexSet = supRolesIndexSet;
+			//this.tempSupRolesIndexSet = tempSupRolesIndexSet;
 			cost = 0;
 			for(int j = 0 ; j < conceptIndexSet.length ; j++)
 				cost += conceptIndexSet[j];
 		}
+
+	/*	public double[] getTempSupRolesIndexSet() {
+			return tempSupRolesIndexSet;
+		}*/
 
 		public double[] getSupRolesIndexSet() {
 			return supRolesIndexSet;
@@ -641,7 +663,27 @@ public class CplexModelGenerator {
 		
 		public RMPModel generateRmpModel() throws IloException {
 			
+			//System.out.println("totalVar "+ totalVar + "qcrmap size " + qcrMap.size());
 			
+			/*int k=0;
+			while(k<totalQCR) {
+				if(qcrMap.get(k).type.equals("MIN")){
+					Constraint[k] = rmpCplex.addGe(expr[k], qcrMap.get(k).cardinality);
+					k++;
+				}
+				else if(qcrMap.get(k).type.equals("MAX")){
+					Constraint[k] = rmpCplex.addLe(expr[k], qcrMap.get(k).cardinality);	
+					k++;
+				}
+				else{
+					Constraint[k] = rmpCplex.addEq(expr[k], qcrMap.get(k).cardinality);
+					k++;
+				}
+			}
+			for (int i = 0; i < totalNominals; i++) {
+				Constraint[k] = rmpCplex.addGe(expr[k], 1);
+				k++;
+			}*/
 			System.out.println("total var : "+totalVar);
 			System.out.println("qcrmap size : "+qcrMap.size());
 			for (int i = 0; i < totalVar; i++) {
@@ -670,31 +712,49 @@ public class CplexModelGenerator {
 			return rmpCplex;
 		}
 
+		public void setRmpCplex(IloCplex rmpCplex) {
+			this.rmpCplex = rmpCplex;
+		}
 
 		public IloObjective getObj() {
 			return obj;
 		}
 
+		public void setObj(IloObjective obj) {
+			this.obj = obj;
+		}
 
 		public IloRange[] getConstraint() {
 			return Constraint;
 		}
 
+		public void setConstraint(IloRange[] constraint) {
+			Constraint = constraint;
+		}
 
 		public IloLinearNumExpr[] getExpr() {
 			return expr;
 		}
 
+		public void setExpr(IloLinearNumExpr[] expr) {
+			this.expr = expr;
+		}
 
 		public IloNumVarArray getH() {
 			return h;
 		}
 
+		public void setH(IloNumVarArray h) {
+			this.h = h;
+		}
 
 		public ArrayList<SubSet> getSubsets() {
 			return subsets;
 		}
 
+		public void setSubsets(ArrayList<SubSet> subsets) {
+			this.subsets = subsets;
+		}
 
 		public IloNumVarArray getX() {
 			return x;
@@ -715,8 +775,14 @@ public class CplexModelGenerator {
 		public IloCplex getPpCplex() {
 			return ppCplex;
 		}
+		public void setPpCplex(IloCplex ppCplex) {
+			this.ppCplex = ppCplex;
+		}
 		public IloObjective getReducedCost() {
 			return reducedCost;
+		}
+		public void setReducedCost(IloObjective reducedCost) {
+			this.reducedCost = reducedCost;
 		}
 		public IloNumVar[] getR() {
 			return r;
@@ -727,8 +793,14 @@ public class CplexModelGenerator {
 		public IloNumVar[] getSR() {
 			return sr;
 		}
+		public void setR(IloNumVar[] r) {
+			this.r = r;
+		}
 		public IloNumVar[] getB() {
 			return b;
+		}
+		public void setB(IloNumVar[] b) {
+			this.b = b;
 		}
 		
 		public PPModel GeneratePpModel() throws IloException {
@@ -758,6 +830,7 @@ public class CplexModelGenerator {
 					axiomRolesMap.put(qcrMap.get(i).role.getNamedProperty(), i);
 					if(tempRoleH.containsKey(qcrMap.get(i).role.getNamedProperty()))
 						ppCplex.addLe(r[i] , hr[tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role.getNamedProperty()))]);
+					//ppCplex.addLe(ppCplex.diff(r[i], hr[tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role.getNamedProperty()))]), 0);
 					//System.out.println("r["+i+"]: role "+"hr["+tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role.getNamedProperty()))+"] "+ tempRoleH.get(qcrMap.get(i).role.getNamedProperty()));
 				}
 				if(qcrMap.get(i).type.equals("MIN"))
@@ -769,6 +842,30 @@ public class CplexModelGenerator {
 					ppCplex.addLe(b[qualifiers.get(qcrMap.get(i).qualifier)] , r[i]);
 				}
 			}
+			//for(IloNumVar v : hr)
+			//	ppCplex.add(v);
+			//disjoint
+			/*ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(0).qualifier)]),
+					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(1).qualifier)])), 1);*/
+			//subsumption
+
+			// this can work for top
+		/*	Map<OWLObjectProperty, Set<Integer>> axiomRolesMaps = 
+					(Map<OWLObjectProperty, Set<Integer>>) (Map<?, ?>) axiomRolesMap.asMap();
+			for (OWLObjectProperty role : superRoles.keySet()){
+				if(superRoles.get(role) != null){
+					OWLObjectProperty tempSupRole = tempRoleH.get(role);
+					for(OWLObjectProperty supRole : superRoles.get(role)){
+						if(axiomRoles.contains(supRole)) {
+							for(int i : axiomRolesMaps.get(supRole))
+								ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], r[i]);
+						}
+						else
+							ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], sr[otherRolesMap.get(supRole)]);
+					}
+				}
+			}*/
+			
 			
 			
 			
@@ -785,10 +882,72 @@ public class CplexModelGenerator {
 							
 						}
 						ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], sr[srRolesMap.get(supRole)]);
+						
 					}
 				}
 			}
+			
+			/*for (OWLObjectProperty role : superRoles.keySet()){
+				if(superRoles.get(role) != null){
+					OWLObjectProperty tempSupRole = tempRoleH.get(role);
+					for(OWLObjectProperty supRole : superRoles.get(role)){
+						System.out.println("role : "+role+" H role "+tempSupRole+" sup role " +supRole);
+						if(axiomRoles.contains(supRole)) {
+							System.out.println("hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "hr["+tempRoleHMap.get(tempRoleH.get(supRole))+"]");
+							ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], hr[tempRoleHMap.get(tempRoleH.get(supRole))]);
+							
+						}
+						else {
+							System.out.println("hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "sr["+otherRolesMap.get(supRole)+"]");
+							
+							ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], sr[otherRolesMap.get(supRole)]);
+						}
+					}
+				}
+			}*/
+			
+			/*
+			for (OWLObjectProperty role : superRoles.keySet()){
+				if(superRoles.get(role) != null){
+					OWLObjectProperty tempSupRole = null;
+					boolean hasHelperRole = false;
+					if(tempRoleH.containsKey(role)) {
+						hasHelperRole = true;
+						tempSupRole = tempRoleH.get(role);
+					}
+					for(OWLObjectProperty supRole : superRoles.get(role)){
+						//System.out.println("role : "+role+" H role "+tempSupRole+" sup role " +supRole);
+						if(axiomRoles.contains(supRole)) {
+							if(hasHelperRole) {
+								//System.out.println("hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "hr["+tempRoleHMap.get(tempRoleH.get(supRole))+"]");
+								if(tempRoleH.containsKey(supRole))
+									ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], hr[tempRoleHMap.get(tempRoleH.get(supRole))]);
+								else
+									ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], hr[tempRoleHMap.get(tempRoleH.get(supRole))]);
+							}
+							else
+								ppCplex.addLe(r[axiomRolesMap.get(role)], sr[axiomRolesMap.get(supRole)])
+						}
+						else {
+							System.out.println("hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "sr["+otherRolesMap.get(supRole)+"]");
+							
+							ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], sr[otherRolesMap.get(supRole)]);
+						}
+					
+					}
+				}
+			}*/
+			
+			
+			
 			//For All Restrictions -- Semantics 
+			/*for (OWLObjectProperty role : forAllMaps.keySet()){
+				if(forAllMaps.get(role) != null){
+					for(OWLClassExpression C : forAllMaps.get(role))
+						ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
+					
+				}
+			}*/
 			
 			for (OWLObjectProperty role : forAllMaps.keySet()){
 				if(forAllMaps.get(role) != null){
@@ -813,11 +972,45 @@ public class CplexModelGenerator {
 			
 			
 			
+		/*	for (OWLObjectProperty role : forAllMaps.keySet()){
+				if(forAllMaps.get(role) != null){
+					OWLObjectProperty tempSupRole = tempRoleH.get(role);
+					for(OWLClassExpression C : forAllMaps.get(role)){
+						if(axiomRoles.contains(role))
+							ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], b[qualifiers.get(C)]);
+						else 
+							ppCplex.addLe(sr[otherRolesMap.get(role)], b[qualifiers.get(C)]);
+					}
+				}
+			}*/
+			
 			
 			///
 			//ppCplex.addLe(b[qualifiers.get(qcrMap.get(0).qualifier)],b[qualifiers.get(qcrMap.get(3).qualifier)]);
 			
-		
+		/*	ppCplex.addLe(b[qualifiers.get(qcrMap.get(1).qualifier)],b[qualifiers.get(qcrMap.get(6).qualifier)]);
+			ppCplex.addLe(b[qualifiers.get(qcrMap.get(2).qualifier)],b[qualifiers.get(qcrMap.get(6).qualifier)]);
+			ppCplex.addLe(b[qualifiers.get(qcrMap.get(3).qualifier)],b[qualifiers.get(qcrMap.get(6).qualifier)]);
+			ppCplex.addLe(b[qualifiers.get(qcrMap.get(4).qualifier)],b[qualifiers.get(qcrMap.get(6).qualifier)]);
+			ppCplex.addLe(b[qualifiers.get(qcrMap.get(5).qualifier)],b[qualifiers.get(qcrMap.get(6).qualifier)]);
+			
+			ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(0).qualifier)]),
+					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(1).qualifier)]),
+					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(3).qualifier)])), 2);
+			
+			ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(0).qualifier)]),
+					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(2).qualifier)]),
+					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(4).qualifier)])), 2);
+			
+			ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(3).qualifier)]),
+					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(4).qualifier)]),
+					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(5).qualifier)])), 2);
+			
+			ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(0).qualifier)]),
+					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(5).qualifier)])), 1);
+			
+			ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(1).qualifier)]),
+					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(4).qualifier)])), 1);*/
 			
 			ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(1).qualifier)]),
 					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(3).qualifier)])), 1);

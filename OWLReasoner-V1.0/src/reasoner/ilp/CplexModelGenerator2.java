@@ -48,7 +48,7 @@ public class CplexModelGenerator2 {
 	Set<Set<OWLClassExpression>> disjoint_groups;
 	boolean initiallySolved;
 	Set<OWLObjectCardinalityRestriction> infeasibilities;
-	int M;
+	//int M;
 
 	Logger logger = LoggerFactory.getLogger(CplexModelGenerator2.class);
 
@@ -148,7 +148,7 @@ public class CplexModelGenerator2 {
 
 			if(initSolver.solve()){
 				initiallySolved = true;
-				this.concept_subsumers = HashMultimap.create();
+				/*this.concept_subsumers = HashMultimap.create();
 				for(Entry<OWLClassExpression, OWLClassExpression> e : concept_subsumers.entries()){
 					this.concept_subsumers.put(e.getKey(), e.getValue());
 				}
@@ -168,7 +168,7 @@ public class CplexModelGenerator2 {
 				this.disjoint_groups = new HashSet<>();
 				for(Set<OWLClassExpression> e : disjoint_groups){
 					this.disjoint_groups.add(e);
-				}
+				}*/
 
 				if(all_qcr_qualifiers != null)
 					this.all_qualifiers = new HashSet<OWLClassExpression>(all_qcr_qualifiers);
@@ -178,7 +178,7 @@ public class CplexModelGenerator2 {
 			//	OWLClassExpression Thing = (OWLClassExpression)OWLFunctionalSyntaxFactory.OWLThing();
 			//	this.all_qualifiers.add(Thing);
 
-				if(concept_subsumers.keySet() != null){
+				/*if(concept_subsumers.keySet() != null){
 					this.all_qualifiers.addAll(concept_subsumers.keySet());
 					for(OWLClassExpression C : concept_subsumers.keySet()){
 						this.all_qualifiers.addAll(concept_subsumers.get(C));
@@ -225,7 +225,7 @@ public class CplexModelGenerator2 {
 						this.concept_disjoints.put(C, NotC);
 						this.all_qualifiers.add(NotC);
 					}
-				}
+				}*/
 			}
 			else{
 				initiallySolved = false;
@@ -418,15 +418,15 @@ public class CplexModelGenerator2 {
 			return return_information;
 		}
 
-		OWLClassExpression Thing = (OWLClassExpression)OWLFunctionalSyntaxFactory.OWLThing();
+	/*	OWLClassExpression Thing = (OWLClassExpression)OWLFunctionalSyntaxFactory.OWLThing();
 
 		for(OWLClassExpression C : all_qualifiers){
 			if((!C.equals(Thing)) && !concept_subsumers.containsEntry(C, Thing)){
 				concept_subsumers.put(C, Thing);
 			}
-		}
+		}*/
 
-		int M = 10000;
+		int M = 100;
 		int subroles_num;
 		if(subroles != null) {
 			subroles_num = subroles.keySet().size(); 
@@ -434,10 +434,10 @@ public class CplexModelGenerator2 {
 			subroles_num = 0;
 		}
 		int qualifier_num = all_qualifiers.size();
-		System.out.println("all qualifiers: "+ all_qualifiers.size());
-
+		System.out.println("all qualifiers: "+ qualifier_num);
+		System.out.println("subroles_num: "+ subroles_num);
 		@SuppressWarnings("unchecked") // Safe because SetMultimap guarantees this.
-		final Map<OWLClassExpression, Set<OWLClassExpression>> concept_subsumers_map = 
+	/*	final Map<OWLClassExpression, Set<OWLClassExpression>> concept_subsumers_map = 
 		(Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>) concept_subsumers.asMap();
 
 		logger.trace("Concept Subsumers Received:");
@@ -478,7 +478,7 @@ public class CplexModelGenerator2 {
 		for(Set<OWLClassExpression> e : disjoint_groups){
 			logger.trace(e.toString());
 		}
-		logger.trace("-----------------------------------");
+		logger.trace("-----------------------------------");*/
 
 		int temp_qualifier_num = 0;
 		BiMap<OWLClassExpression, Integer> qualifiers = HashBiMap.create();
@@ -538,12 +538,16 @@ public class CplexModelGenerator2 {
 				colSolver.addLe(b[qualifiers.get(subroles.get(i).qualifier)] , a[i]);	 
 		}
 
-
-		
-		colSolver.addLe(colSolver.sum(colSolver.prod(1.0, b[qualifiers.get(subroles.get(0).qualifier)]),
+		colSolver.addLe(colSolver.sum(colSolver.prod(1.0, b[qualifiers.get(subroles.get(2).qualifier)]),
 				colSolver.prod(1.0, b[qualifiers.get(subroles.get(1).qualifier)])), 1);
+		//System.out.println("qua:1 "+b[qualifiers.get(subroles.get(0).qualifier)]+" qua2: "+b[qualifiers.get(subroles.get(1).qualifier)]);
+		
+		//colSolver.addLe(b[qualifiers.get(subroles.get(0).qualifier)],b[qualifiers.get(subroles.get(1).qualifier)]);
+		
+		//colSolver.addLe(colSolver.sum(colSolver.prod(1.0, b[qualifiers.get(subroles.get(0).qualifier)]),
+		//		colSolver.prod(1.0, b[qualifiers.get(subroles.get(1).qualifier)])), 1);
 		// Checking disjoints
-		for (OWLClassExpression C : all_qualifiers){
+	/*	for (OWLClassExpression C : all_qualifiers){
 			if(concept_disjoints_map.get(C) != null){
 				for(OWLClassExpression D : concept_disjoints_map.get(C)){
 					if(C instanceof OWLObjectComplementOf){
@@ -637,7 +641,7 @@ public class CplexModelGenerator2 {
 				logger.trace("~" + ((OWLEntity)((OWLObjectComplementOf)C).getOperand()).getIRI().getFragment() + " : " + qualifiers.get(C));
 			else
 				logger.trace(((OWLEntity)C).getIRI().getFragment() + " : " + qualifiers.get(C));
-		}
+		}*/
 		/// COLUMN-GENERATION PROCEDURE ///
 
 		double[] newCol = new double[subroles_num];
@@ -662,11 +666,13 @@ public class CplexModelGenerator2 {
 				logger.trace("RMP Obj: " + relaxed_opt);
 				ArrayList<Double> tempx = new ArrayList<Double>();
 				for(int i = 0 ; i < x.getSize(); i++){
+					System.out.println("x value  "+qcrSolver.getValue(x.getElement(i)));
 					tempx.add(qcrSolver.getValue(x.getElement(i)));
 				}
 				ArrayList<Double> temph = new ArrayList<Double>();
 				for(int i = 0 ; i < h.getSize(); i++){
 					temph.add(qcrSolver.getValue(h.getElement(i)));
+					System.out.println("card " + qcrSolver.getValue(h.getElement(i)));
 				}
 				if(x.getSize() != 0)
 					logger.trace("x: " + tempx);
@@ -678,6 +684,10 @@ public class CplexModelGenerator2 {
 				/// FIND AND ADD A NEW COLUMN ///
 
 				double[] price = qcrSolver.getDuals(Constraint);
+				for(int j = 0 ; j < price.length ; j++)
+					System.out.println("dual value  "+price[j]);
+				
+				
 				IloLinearNumExpr objExpr = colSolver.linearNumExpr();
 				System.out.println("b length " + b.length );
 				for(int j = 0 ; j < b.length ; j++)

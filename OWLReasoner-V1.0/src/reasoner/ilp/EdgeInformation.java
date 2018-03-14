@@ -17,6 +17,12 @@ public class EdgeInformation
     this.fillers = fillers;
     this.cardinality = card;
   }
+  public EdgeInformation(Set<OWLObjectPropertyExpression> roles, Set<OWLClassExpression> fillers, double card)
+  {
+    this.edges = roles;
+    this.fillers = fillers;
+    this.cardinality = (int) card;
+  }
   
   public Set<OWLObjectPropertyExpression> getEdges()
   {

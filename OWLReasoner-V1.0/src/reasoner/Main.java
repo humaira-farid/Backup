@@ -5,6 +5,7 @@ import java.io.File;
 import org.apache.commons.cli.*;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 
+import ilog.concert.IloException;
 import reasoner.ilp.ILPPreprocessor;
 
 
@@ -43,7 +44,12 @@ public class Main {
         File file = new File(inputFilePath);
 		new TestReasoner(file).useReasoner();*/
 		//new TestReasoner().useReasoner();
-		new ILPPreprocessor().callILP();
+		try {
+			new ILPPreprocessor().callILP();
+		} catch (IloException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		getExecutionTime();
 	}
 	public static void getExecutionTime() {
