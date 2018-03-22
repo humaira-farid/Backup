@@ -28,7 +28,7 @@ import reasoner.ilp.CplexModelGenerator2.SubSet;
 
 
 public class CplexModelGenerator {
-	IloCplex cplexModel;
+	//IloCplex cplexModel;
 	ILPPreprocessor ilpPro;
 	List<OWLObjectCardinalityRestriction> qcrList;
 	Set<QCR> qcrs;
@@ -37,19 +37,20 @@ public class CplexModelGenerator {
 	Set<OWLClassExpression> allQualifiers;
 	Map<Integer, QCR> qcrMap;
 	Map<Integer, OWLObjectCardinalityRestriction> crMap;
-	Set<OWLObjectProperty> axiomRoles = null;
-	Set<OWLObjectProperty> srRoles = new HashSet<>();
-	
+	Set<OWLObjectPropertyExpression> axiomRoles = null;
+	Set<OWLObjectPropertyExpression> srRoles = new HashSet<>();
+	SetMultimap<OWLClassExpression, OWLClassExpression> conceptSubsumers = HashMultimap.create();
+	SetMultimap<OWLClassExpression, OWLClassExpression> conceptDisjoints = HashMultimap.create();
 	BiMap<OWLClassExpression, Integer> qualifiers = HashBiMap.create();
-	BiMap<OWLObjectProperty, Integer> srRolesMap = HashBiMap.create();
+	BiMap<OWLObjectPropertyExpression, Integer> srRolesMap = HashBiMap.create();
 	
-	BiMap<OWLObjectProperty, Integer> tempRoleHMap = HashBiMap.create();
+	BiMap<OWLObjectPropertyExpression, Integer> tempRoleHMap = HashBiMap.create();
 	
 	Set<OWLObjectCardinalityRestriction> infeasibilities = new HashSet<>();
-	Map<OWLObjectProperty, Set<OWLObjectProperty>> superRoles = new HashMap<>();;
-	SetMultimap<OWLObjectProperty, OWLClassExpression> forAllMap;
+	Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRoles = new HashMap<>();;
+	SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> forAllMap;
 
-	Map<OWLObjectProperty, OWLObjectProperty> tempRoleH = new HashMap<>();
+	Map<OWLObjectPropertyExpression, OWLObjectPropertyExpression> tempRoleH = new HashMap<>();
 	
 	boolean initiallySolved;
 	int M;
@@ -59,69 +60,99 @@ public class CplexModelGenerator {
 	static double RC_EPS = 1.0e-6;
 	
 	public CplexModelGenerator(ILPPreprocessor ilpPr, 
-			Map<OWLObjectProperty, Set<OWLObjectProperty>> superRoles,
-			SetMultimap<OWLObjectProperty, OWLClassExpression> forAllMap, Map<OWLObjectProperty, OWLObjectProperty> tempRoleH) {
+			SetMultimap<OWLClassExpression, OWLClassExpression> conceptSubsumers,
+			SetMultimap<OWLClassExpression, OWLClassExpression> conceptDisjoints,
+			Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> sRMap,
+			SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> forAllMap2, 
+			Map<OWLObjectPropertyExpression, OWLObjectPropertyExpression> tempRoleH2) {
 		
 		ilpPro = ilpPr;
-		this.superRoles =  superRoles;
-		this.tempRoleH = tempRoleH;
-		qcrs = ilpPro.getQcrs();
 		qcrQualifiers = qcrs.stream().map(qcr -> qcr.qualifier).collect(Collectors.toSet());
-		nominals = new HashSet<OWLObjectOneOf>(ilpPro.getNominals());
-		allQualifiers = new HashSet<OWLClassExpression>(qcrQualifiers);
-		
-		//allQualifiers.addAll(nominals);
-		
 		qcrMap  = ilpPro.getQCRMap();
+		qcrs = ilpPro.getQcrs();
 		crMap = ilpPro.getCRMap();
-		qcrList = ilpPro.cardRes;
+		qcrList = ilpPro.getCardRes();
 		
-		axiomRoles = qcrs.stream().filter(qcr -> qcr.role!=null).map(qcr -> qcr.role.getNamedProperty()).collect(Collectors.toSet());
+		generateCplexModel();
 		
-		for(OWLObjectProperty role : axiomRoles) {
-			if(superRoles.get(role)!=null) {
-				for(OWLObjectProperty supRole : superRoles.get(role)) {
-					this.srRoles.add(supRole);
+		if(initiallySolved) {
+			this.conceptSubsumers = HashMultimap.create();
+			for(Entry<OWLClassExpression, OWLClassExpression> e : conceptSubsumers.entries()){
+				this.conceptSubsumers.put(e.getKey(), e.getValue());
+			}
+
+			this.conceptDisjoints = HashMultimap.create();
+			for(Entry<OWLClassExpression, OWLClassExpression> e : conceptDisjoints.entries()){
+				this.conceptDisjoints.put(e.getKey(), e.getValue());
+			}
+			this.superRoles =  sRMap;
+			this.tempRoleH = tempRoleH2;
+			
+			
+			nominals = new HashSet<OWLObjectOneOf>(ilpPro.getNominals());
+			allQualifiers = new HashSet<OWLClassExpression>(qcrQualifiers);
+			if(conceptSubsumers.keySet() != null){
+				//this.allQualifiers.addAll(conceptSubsumers.keySet());
+				for(OWLClassExpression C : conceptSubsumers.keySet()){
+					this.allQualifiers.addAll(conceptSubsumers.get(C));
 				}
 			}
+
+			if(conceptDisjoints.keySet() != null){
+				//this.allQualifiers.addAll(conceptDisjoints.keySet());
+				for(OWLClassExpression C : conceptDisjoints.keySet()){
+					this.allQualifiers.addAll(conceptDisjoints.get(C));
+				}
+			}
+			
+			
+			
+			axiomRoles = qcrs.stream().filter(qcr -> qcr.role!=null).map(qcr -> qcr.role).collect(Collectors.toSet());
+			
+			for(OWLObjectPropertyExpression role : axiomRoles) {
+				if(sRMap.get(role)!=null) {
+					for(OWLObjectPropertyExpression supRole : sRMap.get(role)) {
+						this.srRoles.add(supRole);
+					}
+				}
+			}
+			
+			this.forAllMap = HashMultimap.create();
+			for(Entry<OWLObjectPropertyExpression, OWLClassExpression> e : forAllMap2.entries()){
+				this.forAllMap.put(e.getKey(), e.getValue());
+				allQualifiers.add(e.getValue());
+			}
+			
+			M = 100;
+			int tempQN = 0;
+			for(OWLClassExpression C : allQualifiers){
+				qualifiers.put(C, tempQN);
+				++tempQN;
+			}
+			int tempRN = 0;
+			for(OWLObjectPropertyExpression r : srRoles){
+				srRolesMap.put(r, tempRN);
+				++tempRN;
+			}
+			int tempRHN = 0;
+			for(Entry<OWLObjectPropertyExpression, OWLObjectPropertyExpression> e : tempRoleH2.entrySet()){
+				tempRoleHMap.put(e.getValue(), tempRHN);
+				++tempRHN;
+			}
+			totalQCR = qcrs.size();
+			totalNominals = nominals.size();
+			totalVar = totalQCR;//+totalNominals;
 		}
-		
-		this.forAllMap = HashMultimap.create();
-		for(Entry<OWLObjectProperty, OWLClassExpression> e : forAllMap.entries()){
-			this.forAllMap.put(e.getKey(), e.getValue());
-			allQualifiers.add(e.getValue());
-		}
-		
-		M = 100;
-		int tempQN = 0;
-		for(OWLClassExpression C : allQualifiers){
-			qualifiers.put(C, tempQN);
-			++tempQN;
-		}
-		int tempRN = 0;
-		for(OWLObjectProperty r : srRoles){
-			srRolesMap.put(r, tempRN);
-			++tempRN;
-		}
-		int tempRHN = 0;
-		for(Entry<OWLObjectProperty, OWLObjectProperty> e : tempRoleH.entrySet()){
-			tempRoleHMap.put(e.getValue(), tempRHN);
-			++tempRHN;
-		}
-		totalQCR = qcrs.size();
-		totalNominals = nominals.size();
-		totalVar = totalQCR;//+totalNominals;
-		
-		try {
+		/*try {
 			cplexModel= new IloCplex();
 		} catch (IloException e) {
 			e.printStackTrace();
-		}
+		}*/
 	}
 	
 	public ILPSolution getILPSolution() throws IloException {
 		
-		generateCplexModel();
+		
 		 return solve(new RMPModel().generateRmpModel(), new PPModel().GeneratePpModel());
 	}
 	public void generateCplexModel() {
@@ -237,9 +268,9 @@ public class CplexModelGenerator {
 	}
 	
 	
-	public IloCplex getCplexModel() {
+	/*public IloCplex getCplexModel() {
 		return this.cplexModel;
-	}
+	}*/
 	
 	public ILPSolution solve(RMPModel rmpModel, PPModel ppModel) throws IloException{
 		//int M = 100;
@@ -376,10 +407,10 @@ public class CplexModelGenerator {
 						}
 						
 						BiMap<Integer, OWLClassExpression> reverseQualifiers = qualifiers.inverse();
-						BiMap<Integer, OWLObjectProperty> reverseRoles = srRolesMap.inverse();
-						BiMap<Integer, OWLObjectProperty> reverseTempRoles = tempRoleHMap.inverse();
-						Map<OWLObjectProperty, OWLObjectProperty> reverseTempRoleH = new HashMap<>();
-						for(Entry<OWLObjectProperty, OWLObjectProperty> e : tempRoleH.entrySet()){
+						BiMap<Integer, OWLObjectPropertyExpression> reverseRoles = srRolesMap.inverse();
+						BiMap<Integer, OWLObjectPropertyExpression> reverseTempRoles = tempRoleHMap.inverse();
+						Map<OWLObjectPropertyExpression, OWLObjectPropertyExpression> reverseTempRoleH = new HashMap<>();
+						for(Entry<OWLObjectPropertyExpression, OWLObjectPropertyExpression> e : tempRoleH.entrySet()){
 							reverseTempRoleH.put(e.getValue(), e.getKey());
 						}
 						//System.out.println("x.getSize() ---" + x.getSize());
@@ -733,8 +764,8 @@ public class CplexModelGenerator {
 		
 		public PPModel GeneratePpModel() throws IloException {
 			
-			Map<OWLObjectProperty, Set<OWLClassExpression>> forAllMaps = 
-					(Map<OWLObjectProperty, Set<OWLClassExpression>>) (Map<?, ?>) forAllMap.asMap();
+			Map<OWLObjectPropertyExpression, Set<OWLClassExpression>> forAllMaps = 
+					(Map<OWLObjectPropertyExpression, Set<OWLClassExpression>>) (Map<?, ?>) forAllMap.asMap();
 			
 				
 			ppCplex = new IloCplex();
@@ -751,13 +782,13 @@ public class CplexModelGenerator {
 			// In at-most restrictions: if b[i.qualifier]==1 --> a[i]=1
 			
 			
-			SetMultimap<OWLObjectProperty, Integer> axiomRolesMap = HashMultimap.create();
+			SetMultimap<OWLObjectPropertyExpression, Integer> axiomRolesMap = HashMultimap.create();
 			
 			for (int i = 0; i < totalVar; i++ ) {
 				if(qcrMap.get(i).role!=null) {
-					axiomRolesMap.put(qcrMap.get(i).role.getNamedProperty(), i);
-					if(tempRoleH.containsKey(qcrMap.get(i).role.getNamedProperty()))
-						ppCplex.addLe(r[i] , hr[tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role.getNamedProperty()))]);
+					axiomRolesMap.put(qcrMap.get(i).role, i);
+					if(tempRoleH.containsKey(qcrMap.get(i).role))
+						ppCplex.addLe(r[i] , hr[tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role))]);
 					//System.out.println("r["+i+"]: role "+"hr["+tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role.getNamedProperty()))+"] "+ tempRoleH.get(qcrMap.get(i).role.getNamedProperty()));
 				}
 				if(qcrMap.get(i).type.equals("MIN"))
@@ -773,10 +804,10 @@ public class CplexModelGenerator {
 			
 			
 			// Role Hierarchy
-			for (OWLObjectProperty role : superRoles.keySet()){
+			for (OWLObjectPropertyExpression role : superRoles.keySet()){
 				if(superRoles.get(role) != null){
-					OWLObjectProperty tempSupRole = tempRoleH.get(role);
-					for(OWLObjectProperty supRole : superRoles.get(role)){
+					OWLObjectPropertyExpression tempSupRole = tempRoleH.get(role);
+					for(OWLObjectPropertyExpression supRole : superRoles.get(role)){
 						System.out.println("role : "+role+" H role "+tempSupRole+" sup role " +supRole);
 						System.out.println("hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "sr["+srRolesMap.get(supRole)+"]");
 						if(axiomRoles.contains(supRole)) {
@@ -790,10 +821,10 @@ public class CplexModelGenerator {
 			}
 			//For All Restrictions -- Semantics 
 			
-			for (OWLObjectProperty role : forAllMaps.keySet()){
+			for (OWLObjectPropertyExpression role : forAllMaps.keySet()){
 				if(forAllMaps.get(role) != null){
 					if(axiomRoles.contains(role)) {
-						OWLObjectProperty tempSupRole = tempRoleH.get(role);
+						OWLObjectPropertyExpression tempSupRole = tempRoleH.get(role);
 						System.out.println("role : "+role+" H role "+tempSupRole);
 						
 						for(OWLClassExpression C : forAllMaps.get(role)) {
@@ -811,16 +842,29 @@ public class CplexModelGenerator {
 				}
 			}
 			
+			final Map<OWLClassExpression, Set<OWLClassExpression>> conceptSubsumersMap = 
+					(Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>) conceptSubsumers.asMap();
+			// Checking subsumers
+			for (OWLClassExpression C : allQualifiers){
+				if(conceptSubsumersMap.get(C) != null){
+					for(OWLClassExpression D : conceptSubsumersMap.get(C)){
+						ppCplex.addLe(b[qualifiers.get(C)], b[qualifiers.get(D)]);
+					}
+				}
+			}
 			
 			
+			final Map<OWLClassExpression, Set<OWLClassExpression>> conceptDisjointsMap = 
+					(Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>) conceptDisjoints.asMap();
+
 			
 			///
 			//ppCplex.addLe(b[qualifiers.get(qcrMap.get(0).qualifier)],b[qualifiers.get(qcrMap.get(3).qualifier)]);
 			
 		
 			
-			ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(1).qualifier)]),
-					ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(3).qualifier)])), 1);
+		//	ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(1).qualifier)]),
+		//			ppCplex.prod(1.0, b[qualifiers.get(qcrMap.get(3).qualifier)])), 1);
 			
 			return this;
 		}

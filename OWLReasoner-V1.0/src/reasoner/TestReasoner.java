@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.*;
-import org.semanticweb.owlapi.reasoner.Node;
+import org.semanticweb.owlapi.util.DefaultPrefixManager;
 
 
 import reasoner.preprocessing.Internalization;
@@ -25,19 +25,22 @@ public class TestReasoner{
 	ReasonerFactory reasonerFactory;
 	 Reasoner reasoner ;
 	 OWLOntologyManager man ;
+	 DefaultPrefixManager prefixManager = new DefaultPrefixManager();
+	 Ontology ontology;
 	 public TestReasoner(/*File file*/) {
 		 man = OWLManager.createOWLOntologyManager();
-		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/testOnt6.owl");
+		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/testOnt7_O_fun.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {
 			e.printStackTrace();
 		}
-		 
+		prefixManager.setDefaultPrefix(((IRI)ont.getOntologyID().getOntologyIRI().get()).toString());
 		df = man.getOWLDataFactory();
 	    reasonerFactory = new ReasonerFactory();
 		todo = new ToDoList();
 		intr = new Internalization();
+		intr.setPrefixManager(prefixManager);
 		re = new RuleEngine(intr, todo, df);
 	}
 	
@@ -48,7 +51,7 @@ public class TestReasoner{
 	     reasoner = reasonerFactory.createReasoner(ont);
 	       // intr.test(ont);
 	      checkExpressivity();
-	      intr.internalize(ont, df);
+	     ontology =  intr.internalize(ont, df);
 	     OWLClassExpression tgAxiom = intr.getTgAxiom(df);
 	    // for (OWLSubClassOfAxiom sbg : intr.getTg()) 
 	    // 	 	System.out.println("TG: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
@@ -70,6 +73,10 @@ public class TestReasoner{
 	}
 	
 	
+	public Ontology getOntology() {
+		return ontology;
+	}
+
 	private void checkExpressivity() {
 		/*Set<OWLSubClassOfAxiom> sb = ont.axioms().filter(ax -> ax instanceof OWLSubClassOfAxiom).map(ax -> (OWLSubClassOfAxiom)ax).collect(Collectors.toSet());
 		Set<OWLSubClassOfAxiom> eq = ont.axioms().filter(ax -> ax instanceof OWLEquivalentClassesAxiom).map(ax -> (OWLEquivalentClassesAxiom)ax).flatMap(ax -> ax.asOWLSubClassOfAxioms().stream()).collect(Collectors.toSet());
@@ -87,7 +94,7 @@ public class TestReasoner{
 			Main.getExecutionTime();
 			System.exit(0);
 		}
-		if(ont.axioms().anyMatch(ax -> ax instanceof OWLTransitiveObjectPropertyAxiom || ax instanceof OWLSubObjectPropertyOfAxiom || ax instanceof OWLFunctionalObjectPropertyAxiom)) {
+		if(ont.axioms().anyMatch(ax -> ax instanceof OWLTransitiveObjectPropertyAxiom || ax instanceof OWLFunctionalObjectPropertyAxiom)) {
 			System.err.println("Reasoner cannot Proccess your Ontology. It contains unhandled object property axioms.");
 			Main.getExecutionTime();
 			System.exit(0);

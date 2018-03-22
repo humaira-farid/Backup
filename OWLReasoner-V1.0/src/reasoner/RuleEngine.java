@@ -12,6 +12,7 @@ import com.google.common.collect.Multimap;
 import reasoner.Dependencies.DependencySet;
 import reasoner.graph.*;
 import reasoner.graph.Node.NodeType;
+import reasoner.ilp.ILPPreprocessor;
 import reasoner.preprocessing.Internalization;
 import reasoner.state.SaveStack;
 import reasoner.todolist.ToDoEntry;
@@ -23,7 +24,8 @@ public class RuleEngine {
 	ToDoList todo;
 	private int currentBranchingPoint;
 	OWLDataFactory df;
-	
+	boolean forAllCheck = false;
+	boolean isExistential = false;
 	Map<Integer, BranchHandler> branches = new HashMap<Integer, BranchHandler>();
 	Map<Integer, CompletionGraph> copies = new HashMap<Integer, CompletionGraph>();
 	Map<Integer, Multimap<Integer,OWLClassExpression>> branches2 = new HashMap<Integer, Multimap<Integer,OWLClassExpression>>();
@@ -37,25 +39,313 @@ public class RuleEngine {
 	
 	public void checkConsistency(OWLClassExpression tgAxiom) {
 		createFirstNode(tgAxiom);
+		if(!todo.isEmpty()) {
+			ToDoEntry entry = todo.getNextEntry();
+			this.applyRules(entry);
+		}
+			
 		while(!todo.isEmpty()) {
 	    	 	//System.out.println("while loop "+ todo.entries());
 	    	 	ToDoEntry entry = todo.getNextEntry();
 	    	 	if(entry!=null) {
-	    	 		//check if we need ILP
-	    	 		if(needILPModule(entry.getClassExpression()))
-	    	 			callILP();
-	    	 		else
-	    	 			this.applyRules(entry);
+	    	 		if(entry.getType().equals(NodeTag.OR)) {
+	    	 			applyOrRule(entry.getNode(), (OWLObjectUnionOf)entry.getClassExpression(), entry.getDs());
+	    	 			//this.applyRules(entry);
+	    	 		}
+	    	 		else {
+		    	 		//check if we need ILP
+		    	 		if(needILPModule(entry))
+		    	 			callILP(entry);
+		    	 		else
+		    	 			this.applyRules(entry);
+	    	 		}
 	    	 	}
 		}
 		//System.out.println("No. of nodes : "+ cg.getTotalNodes());
 	}
-	public boolean needILPModule(OWLClassExpression axiom) {
-		if(axiom.individualsInSignature().iterator().hasNext())
+	public boolean needILPModule(ToDoEntry entry) {
+		/* if AND : get conjuncts and check ---->
+		 * 1) if Exists then check fillers, if any one has nominal then we will call ilp, 
+		 * 2) check for universal 
+		 * 3) if OR 
+		 */
+		forAllCheck = false;
+		isExistential = false;
+		Node n = entry.getNode();
+		if(!n.isBlocked()) {
+			if(entry.getType().equals(NodeTag.AND)) {
+				for(OWLClassExpression ce : entry.getClassExpression().asConjunctSet()) {
+					if(ce instanceof OWLObjectHasValue)
+						return true;
+					else if (ce instanceof OWLObjectIntersectionOf) {
+						if(hasNominal((OWLObjectIntersectionOf)ce)) {
+							return true;
+						}
+					}
+					else if (ce instanceof OWLObjectUnionOf) {
+						if(hasNominal((OWLObjectUnionOf)ce)) {
+							return true;
+						}
+					}
+						
+					else if(ce instanceof OWLObjectSomeValuesFrom) {
+						isExistential = true;
+						if(hasNominal((OWLObjectSomeValuesFrom) ce)) 
+							return true;
+					}
+					else if(ce instanceof OWLObjectAllValuesFrom) {
+						if(hasNominal((OWLObjectAllValuesFrom) ce)) {
+							forAllCheck = true;
+						}
+					}
+				}
+			}
+			else if(entry.getType().equals(NodeTag.EXISTS)) {
+				OWLClassExpression ce = entry.getClassExpression();
+				if(ce instanceof OWLObjectHasValue)
+					return true;
+				else if(hasNominal((OWLObjectSomeValuesFrom) ce)) 
+					return true;
+			}
+		}
+		if(forAllCheck && isExistential)
 			return true;
 		return false;
 	}
-	public void callILP() {
+	private boolean hasNominal(OWLObjectAllValuesFrom ce) {
+		OWLClassExpression filler = ce.getFiller();
+		if(filler instanceof OWLObjectOneOf)
+			return true;
+		else if(filler instanceof OWLClass) {
+			if(hasNominal(filler)) {
+				return true;
+			}
+		}
+		else if(filler instanceof OWLObjectIntersectionOf) {
+			for(OWLClassExpression c : filler.asConjunctSet()) {
+				if(c instanceof OWLClass) {
+					if(hasNominal(c)) {
+						return true;
+					}
+				}
+				else if(c instanceof OWLObjectOneOf)
+					return true;
+			}
+		}
+		else if(filler instanceof OWLObjectUnionOf) {
+			for(OWLClassExpression c : filler.asDisjunctSet()) {
+				if(c instanceof OWLClass) {
+					if(hasNominal(c)) {
+						return true;
+					}
+				}
+				else if(c instanceof OWLObjectOneOf)
+					return true;
+			}
+		} 
+		return false;
+	}
+	private boolean hasNominal(OWLObjectSomeValuesFrom ce) {
+		OWLClassExpression filler = ce.getFiller();
+		
+		if(filler instanceof OWLObjectOneOf)
+			return true;
+		else if(filler instanceof OWLClass) {
+			if(hasNominal(filler)) 
+				return true;
+		}
+		else if(filler instanceof OWLObjectIntersectionOf) {
+			for(OWLClassExpression c : filler.asConjunctSet()) {
+				if(c instanceof OWLClass) {
+					if(hasNominal(c)) {
+						return true;
+					}
+				}
+				else if(c instanceof OWLObjectOneOf)
+					return true;
+			}
+		}
+		else if(filler instanceof OWLObjectUnionOf) {
+			for(OWLClassExpression c : filler.asDisjunctSet()) {
+				if(c instanceof OWLClass) {
+					if(hasNominal(c)) {
+						return true;
+					}
+				}
+				else if(c instanceof OWLObjectOneOf)
+					return true;
+			}
+		}
+		for(OWLObjectAllValuesFrom forAll : this.intl.getRoleRange(ce.getProperty())) {
+			if(forAll.getFiller() instanceof OWLObjectOneOf)
+				return true;
+			else if(forAll.getFiller() instanceof OWLObjectIntersectionOf) {
+				if(forAll.getFiller().asConjunctSet().stream().anyMatch(cj -> (cj instanceof OWLObjectOneOf)))
+					return true;
+			}
+			else if(forAll.getFiller() instanceof OWLObjectUnionOf) {
+				if(forAll.getFiller().asDisjunctSet().stream().anyMatch(dj -> (dj instanceof OWLObjectOneOf)))
+					return true;
+			}
+		}
+		return false;
+	}
+	private boolean hasNominal(OWLObjectIntersectionOf ce) {
+		for(OWLClassExpression c : ce.asConjunctSet()) {
+			if(c instanceof OWLObjectHasValue)
+				return true;
+			else if (c instanceof OWLObjectIntersectionOf) {
+				if(hasNominal((OWLObjectIntersectionOf)c)) {
+					return true;
+				}
+			}
+			else if (c instanceof OWLObjectSomeValuesFrom) {
+				isExistential = true;
+				if(hasNominal((OWLObjectSomeValuesFrom)c)) {
+					return true;
+				}
+				
+			}
+			else if (c instanceof OWLObjectAllValuesFrom) {
+				if(hasNominal((OWLObjectAllValuesFrom)c)) {
+					forAllCheck = true;
+					return true;
+				}
+			}
+			else if (c instanceof OWLObjectUnionOf) {
+				if(hasNominal((OWLObjectUnionOf)c)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+
+	private boolean hasNominal(OWLObjectUnionOf ce) {
+		for(OWLClassExpression c : ce.asDisjunctSet()) {
+			if (c instanceof OWLObjectIntersectionOf) {
+				if(hasNominal((OWLObjectIntersectionOf)c)) {
+					return true;
+				}
+			}
+			else if(c instanceof OWLObjectHasValue)
+				return true;
+			else if (c instanceof OWLObjectSomeValuesFrom) {
+				isExistential = true;
+				if(hasNominal((OWLObjectSomeValuesFrom)c)) {
+					return true;
+				}
+				
+			}
+			else if (c instanceof OWLObjectAllValuesFrom) {
+				if(hasNominal((OWLObjectAllValuesFrom)c)) {
+					forAllCheck = true;
+					return true;
+				}
+			}
+			else if (c instanceof OWLObjectUnionOf) {
+				if(hasNominal((OWLObjectUnionOf)c)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean hasNominal(OWLClassExpression filler) {
+		if(filler instanceof OWLObjectOneOf) {
+			return true;
+		}
+		else if(filler instanceof OWLClass) {
+			//return isNominal(filler);
+			Set<OWLClassExpression> sup = this.intl.findConcept(filler);
+			//System.out.println("class expression "+filler+ " size: "+ sup.size());
+			if(sup.size()!=0) {
+				for(OWLClassExpression c : sup) {
+					if(c instanceof OWLObjectOneOf) {
+						return true;
+					}
+					else if(c instanceof OWLClass) {
+						return hasNominal(c);
+					}
+					else if(c instanceof OWLObjectIntersectionOf) {
+						for(OWLClassExpression objIn : c.asConjunctSet()) {
+							if(hasNominal(objIn))
+									return true;
+						}
+					}
+					else if(c instanceof OWLObjectUnionOf) {
+						for(OWLClassExpression objUn : c.asDisjunctSet()) {
+							if(hasNominal(objUn))
+								return true;
+						}
+					}
+				}
+			}
+		}
+		else if(filler instanceof OWLObjectIntersectionOf) {
+			for(OWLClassExpression objIn : filler.asConjunctSet()) {
+				if(objIn instanceof OWLObjectOneOf) {
+					return true;
+				}
+				else
+					return hasNominal(objIn);
+			}
+		}
+		else if(filler instanceof OWLObjectUnionOf) {
+			for(OWLClassExpression objUn : filler.asDisjunctSet()) {
+				if(objUn instanceof OWLObjectOneOf) {
+					return true;
+				}
+				else if(objUn instanceof OWLClass) {
+					if(hasNominal(objUn))
+						return true;
+				}
+				else
+					return hasNominal(objUn);
+			}
+		}
+		
+		return false;
+	}
+
+	/*private boolean isNominal(OWLClassExpression ce) {
+		if(ce instanceof OWLObjectOneOf) {
+			return true; 
+		}
+		else {
+			Set<OWLClassExpression> sup = this.intl.findConcept(ce);
+		
+			if(sup.size()!=0) {
+				for(OWLClassExpression c : sup) {
+					if(c instanceof OWLObjectOneOf) {
+						return true;
+					}
+					else if(c instanceof OWLClass) {
+						return isNominal(c);
+					}
+					else if(c instanceof OWLObjectIntersectionOf) {
+						for(OWLClassExpression objIn : c.asConjunctSet()) {
+							if(isNominal(objIn))
+									return true;
+						}
+					}
+					else if(c instanceof OWLObjectUnionOf) {
+						for(OWLClassExpression objUn : c.asDisjunctSet()) {
+							if(isNominal(objUn))
+								return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}*/
+
+	public void callILP(ToDoEntry entry) {
+		System.out.println("Calling ILP module...");
+		ILPPreprocessor ilpPro = new ILPPreprocessor(entry, this.intl, this.df);
 		
 	}
 	public void createFirstNode(OWLClassExpression tgAxiom) {

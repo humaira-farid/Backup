@@ -4,39 +4,57 @@ import java.util.*;
 
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.*;
+import org.semanticweb.owlapi.util.DefaultPrefixManager;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
 
 import ilog.concert.IloException;
+import reasoner.Ontology;
+import reasoner.preprocessing.Internalization;
+import reasoner.todolist.ToDoEntry;
 
 public class ILPPreprocessor {
 	
 	List<OWLObjectCardinalityRestriction> cardRes = new ArrayList<>();
-	
+	Set<OWLObjectSomeValuesFrom> exists = new HashSet<>();
+	Set<OWLObjectHasValue> hasValue = new HashSet<>();
+	Set<OWLSubClassOfAxiom> anonymous = new HashSet<>();
+	SetMultimap<OWLClassExpression, OWLClassExpression> conceptSubsumers = HashMultimap.create();
+	SetMultimap<OWLClassExpression, OWLClassExpression> conceptDisjoints = HashMultimap.create();
+	SetMultimap<OWLClassExpression, OWLClassExpression> nominalSubsumers = HashMultimap.create();
+	SetMultimap<OWLClassExpression, OWLClassExpression> nominalDisjoints = HashMultimap.create();
+	SetMultimap<OWLClassExpression, OWLClassExpression> simpleASubsumers = HashMultimap.create();
+	SetMultimap<OWLClassExpression, OWLClassExpression> complexASubsumers = HashMultimap.create();
 	
 	Set<QCR> qcrs = new HashSet<>();
 	Map<Integer, OWLObjectCardinalityRestriction> crMap = new HashMap<Integer, OWLObjectCardinalityRestriction>();
 	Map<Integer, QCR> qcrMap = new HashMap<Integer, QCR>();
 	Set<OWLObjectOneOf> nominals = new HashSet<>();
+	Set<OWLClassExpression> simpleConcepts = new HashSet<>();
+	Set<OWLClassExpression> complexConcepts = new HashSet<>();
+	
 	OWLDataFactory df;
 	OWLOntologyManager man = OWLManager.createOWLOntologyManager();
-	Set<OWLObjectProperty> roles = new HashSet<>();
-	Map<OWLObjectProperty, OWLObjectProperty> tempRoleH = new HashMap<>();
-	SetMultimap<OWLObjectProperty, OWLObjectProperty> superRoles = HashMultimap.create();
-	SetMultimap<OWLObjectProperty, OWLObjectProperty> sR = HashMultimap.create();
+	Set<OWLObjectPropertyExpression> roles = new HashSet<>();
+	Map<OWLObjectPropertyExpression, OWLObjectPropertyExpression> tempRoleH = new HashMap<>();
+	//SetMultimap<OWLObjectPropertyExpression, OWLObjectPropertyExpression> superRoles = HashMultimap.create();
+	SetMultimap<OWLObjectPropertyExpression, OWLObjectPropertyExpression> sR = HashMultimap.create();
 	
-	Map<OWLObjectProperty, Set<OWLObjectProperty>> superRolesMap = new HashMap<>();
-	Map<OWLObjectProperty, Set<OWLObjectProperty>> sRMap = new HashMap<>();
+	Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap = new HashMap<>();
+	Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> sRMap = new HashMap<>();
 	
-	SetMultimap<OWLObjectProperty, OWLClassExpression> forAllMap = HashMultimap.create();
+	SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> forAllMap = HashMultimap.create();
 	
 	Set<OWLObjectAllValuesFrom> forAllRes = new HashSet<>();
 
 	Set<OWLSubObjectPropertyOfAxiom> subRoleAxioms = new HashSet<>();
-	String base = "http://www.semanticweb.org/ontologies/individualsexample";
 	
-	public ILPPreprocessor(/*axiom*/) {
+	DefaultPrefixManager prefixManager;
+	Ontology ontology;
+	String base = null;
+	
+/*	public ILPPreprocessor() {
 		df = man.getOWLDataFactory();
 		OWLObjectProperty r = df.getOWLObjectProperty(IRI.create(base+"#R"));
 		OWLObjectProperty t = df.getOWLObjectProperty(IRI.create(base+"#T"));
@@ -102,15 +120,348 @@ public class ILPPreprocessor {
 		 * if(c instanceof OWLObjectSomeValuesFrom)--- filler instanceof OWLObjectOneOf || instanceof OWLObjectUnionOf && 
 		    							((OWLObjectUnionOf)((OWLObjectSomeValuesFrom)(sax).getSubClass()).getFiller()).disjunctSet().anyMatch(dj -> dj instanceof OWLObjectOneOf))))
 		 * if(c instanceof OWLObjectAllValuesFrom)---filler instanceof OWLObjectOneOf || above
-		 */
+		 *
+	}*/
+	
+	public ILPPreprocessor(ToDoEntry entry, Internalization intl, OWLDataFactory df) {
+		this.df = df;
+		this.prefixManager = intl.getPrefixManager();
+		this.ontology = intl.getOntology();
+		this.base = this.prefixManager.getDefaultPrefix();
+		//this.superRoles = ontology.getSuperRoles();
+		this.superRolesMap = ontology.getSuperRolesMap();
+		processEntry(entry);
+		generateQCR();
+		processConcepts();
+	}
+
+	private void processConcepts() {
+		for(OWLSubClassOfAxiom sb : this.anonymous) {
+			if(sb.getSuperClass() instanceof OWLObjectIntersectionOf) {
+				addIntersectionConcepts(sb.getSubClass(), sb.getSuperClass());
+			}
+			else if(sb.getSuperClass() instanceof OWLObjectUnionOf) {
+				if(sb.getSuperClass().asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass))) {
+					this.simpleASubsumers.put(sb.getSubClass(), sb.getSuperClass());
+					for(OWLClassExpression c : sb.getSuperClass().asDisjunctSet()) {
+						if(c instanceof OWLObjectOneOf) {
+							nominals.add((OWLObjectOneOf)c);
+						}
+						else if(c instanceof OWLClass) {
+							simpleConcepts.add(c);
+						}
+					}
+				}
+				else
+					this.complexASubsumers.put(sb.getSubClass(), sb.getSuperClass());
+			}
+			else if(sb.getSuperClass() instanceof OWLObjectSomeValuesFrom) {
+				this.complexASubsumers.put(sb.getSubClass(), sb.getSuperClass());
+			}
+			else if(sb.getSuperClass() instanceof OWLObjectAllValuesFrom) {
+				this.complexASubsumers.put(sb.getSubClass(), sb.getSuperClass());
+			}
+			else if(sb.getSuperClass() instanceof OWLObjectHasValue) {
+				this.complexASubsumers.put(sb.getSubClass(), sb.getSuperClass());
+			}
+		}
+	
+	}
+
+	private void addIntersectionConcepts(OWLClassExpression sb, OWLClassExpression sp) {
+		for(OWLClassExpression ce : sp.asConjunctSet()) {
+			if(ce instanceof OWLClass) {
+				this.simpleConcepts.add(ce);
+				this.simpleASubsumers.put(sb, ce);
+			}
+			else if(ce instanceof OWLObjectOneOf) {
+				this.nominals.add((OWLObjectOneOf)ce);
+				this.simpleASubsumers.put(sb, ce);
+			}
+			else if(ce instanceof OWLObjectUnionOf) {
+				if(ce.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass))) {
+					this.simpleASubsumers.put(sb, ce);
+					for(OWLClassExpression c : ce.asDisjunctSet()) {
+						if(c instanceof OWLObjectOneOf) {
+							nominals.add((OWLObjectOneOf)c);
+						}
+						else if(c instanceof OWLClass) {
+							simpleConcepts.add(c);
+						}
+					}
+				}
+				else
+					this.complexASubsumers.put(sb, ce);
+			}
+			
+			else if(ce instanceof OWLObjectIntersectionOf) {
+				addIntersectionConcepts(sb, ce);
+			}
+			else if(ce instanceof OWLObjectSomeValuesFrom) {
+				this.complexASubsumers.put(sb, ce);
+			}
+			else if(ce instanceof OWLObjectAllValuesFrom) {
+				this.complexASubsumers.put(sb, ce);
+			}
+			else if(ce instanceof OWLObjectHasValue) {
+				this.complexASubsumers.put(sb, ce);
+			}
+		}
+		
+	}
+
+	private void processEntry(ToDoEntry entry) {
+		
+		OWLClassExpression ce = entry.getClassExpression();
+		if(ce instanceof OWLObjectIntersectionOf) {
+			processIntersection(ce);
+			
+		}
+		else if(ce instanceof OWLObjectSomeValuesFrom) {
+			exists.add((OWLObjectSomeValuesFrom)ce);
+		}
+		else if(ce instanceof OWLObjectHasValue) {
+			hasValue.add((OWLObjectHasValue)ce);
+		}
+	
+	}
+
+	private void processIntersection(OWLClassExpression ce) {
+		for(OWLClassExpression c : ce.asConjunctSet()) {
+			if(c instanceof OWLObjectUnionOf) {
+				processDisjunction(c);
+			}
+			else if(c instanceof OWLObjectSomeValuesFrom) {
+				exists.add((OWLObjectSomeValuesFrom)c);
+			}
+			else if(c instanceof OWLObjectHasValue) {
+				hasValue.add((OWLObjectHasValue)ce);
+			}
+			else if(c instanceof OWLObjectAllValuesFrom) {
+				this.forAllRes.add((OWLObjectAllValuesFrom)c);
+			}
+			else if(c instanceof OWLObjectIntersectionOf) {
+				processIntersection(c);
+			}
+		}
+		
+	}
+
+
+	private void processDisjunction(OWLClassExpression c) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	private void generateQCR() {
+		int counter = 0;
+		for(OWLObjectSomeValuesFrom ex : this.exists) {
+			OWLClassExpression filler = ex.getFiller();
+			OWLObjectPropertyExpression role = ex.getProperty();
+			if(filler instanceof OWLObjectOneOf) {
+				this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				nominals.add((OWLObjectOneOf)filler);
+				
+			}
+			else if(filler instanceof OWLClass) {
+				this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				simpleConcepts.add(filler);
+			}
+			else if(filler instanceof OWLObjectIntersectionOf) {
+				OWLClassExpression qualifier = df.getOWLClass("#aux_" + ++counter, prefixManager);
+				filler.asConjunctSet().stream().forEach(cj -> this.anonymous.add(df.getOWLSubClassOfAxiom(qualifier, cj)));
+				this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectUnionOf) {
+				OWLClassExpression qualifier = df.getOWLClass("#aux_" + ++counter, prefixManager);
+				this.anonymous.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectAllValuesFrom) {
+				OWLClassExpression qualifier = df.getOWLClass("#aux_" + ++counter, prefixManager);
+				this.anonymous.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectSomeValuesFrom) {
+				OWLClassExpression qualifier = df.getOWLClass("#aux_" + ++counter, prefixManager);
+				this.anonymous.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+		}
+		for(OWLObjectHasValue hv : hasValue) {
+			OWLObjectPropertyExpression role = hv.getProperty();
+			OWLIndividual ind = hv.getFiller();
+			nominals.add(df.getOWLObjectOneOf(ind));
+			this.cardRes.add(df.getOWLObjectMinCardinality(1, role, df.getOWLObjectOneOf(ind)));
+		}
+	
 	}
 	
-	public void callILP() throws IloException {
-		CplexModelGenerator cmg = new CplexModelGenerator(this, this.sRMap, this.forAllMap, this.tempRoleH);
-		ILPSolution sol = cmg.getILPSolution();
+	public void createMaps() {
+		int i = 0;
+		for(OWLObjectCardinalityRestriction q : getCardRes()) {
+			crMap.put(i, q);
+			roles.add(q.getProperty());
+			QCR qcr = new QCR(q);
+			qcrMap.put(i, qcr);
+			qcrs.add(qcr);
+			++i;
+		}
+		for(OWLObjectOneOf o : getNominals()) {
+			QCR qcr = new QCR(o);
+			qcrMap.put(i, qcr);
+			qcrs.add(qcr);
+			++i;
+		}
+		// add range restrictions
+		for(OWLObjectPropertyExpression obj : roles) {
+			this.forAllRes.addAll(ontology.getRoleRange(obj));
+			if(superRolesMap.containsKey(obj)) {
+				superRolesMap.get(obj).stream().forEach(sr -> this.forAllRes.addAll(ontology.getRoleRange(sr)));
+			}
+		}
 		
-		//CplexModelGenerator2 cmg = new CplexModelGenerator2(this);
-		//ILPSolution sol = cmg.solve();
+		// process forAll restrictions 
+		
+		int k=1;
+		for(OWLObjectAllValuesFrom forAll : getForAllRes()) {
+			
+			OWLObjectPropertyExpression role = forAll.getProperty().getNamedProperty();
+			if(roles.contains(role)){
+				if(!tempRoleH.containsKey(role)) {
+					OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#H"+k));// create Helper Role
+					tempRoleH.put(role, rh);
+					k++;
+					System.out.println("role "+ role +"H role : "+rh);
+					
+					for(OWLObjectPropertyExpression r : superRolesMap.keySet()) {
+						if(superRolesMap.get(r).contains(role)) {
+							if(!tempRoleH.containsKey(r)) {
+								OWLObjectPropertyExpression rh1 = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
+								tempRoleH.put(r, rh1);
+								k++;
+								System.out.println("role "+ r +"H role : "+rh1);
+								
+							}
+	
+							sR.put(r, role);
+						}
+					}
+				}
+			}
+			
+			else{
+				for(OWLObjectPropertyExpression r : superRolesMap.keySet()) {
+					if(superRolesMap.get(r).contains(role)) {
+						if(!tempRoleH.containsKey(r)) {
+							OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
+							tempRoleH.put(r, rh);
+							k++;
+							System.out.println("role "+ r +"H role : "+rh);
+							
+						}
+						sR.put(r, role);
+					}
+				}
+			}
+				
+			this.forAllMap.put(forAll.getProperty().getNamedProperty(), forAll.getFiller());
+		}
+		this.sRMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) sR.asMap();
+		
+		// disjointness -concepts
+		for(OWLClassExpression ce : simpleConcepts) {
+			if(!ontology.getDisjointConcepts(ce).isEmpty()) {
+				ontology.getDisjointConcepts(ce).stream().forEach(d -> conceptDisjoints.put(ce, d));
+			}
+		}
+		// disjointness -nominals
+		for(OWLObjectOneOf o : nominals) {
+			if(!ontology.getDisjointConcepts(o).isEmpty()) {
+				ontology.getDisjointConcepts(o).stream().forEach(d -> conceptDisjoints.put(o, d));
+			}
+		}
+		
+		// subsumption- concepts
+		
+		for(OWLClassExpression ce : simpleConcepts) {
+			if(!ontology.getSubsumers(ce).isEmpty()) {
+				for(OWLClassExpression sp : ontology.getSubsumers(ce)) {
+					if(sp instanceof OWLObjectOneOf)
+						conceptSubsumers.put(ce, sp);
+					else if(sp instanceof OWLClass)
+						conceptSubsumers.put(ce, sp);
+					else if(sp instanceof OWLObjectUnionOf) {
+						if(sp.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass)))
+							conceptSubsumers.put(ce, sp);
+					}
+					else if(sp instanceof OWLObjectIntersectionOf)
+						checkIntersection(ce, sp);
+				} 
+			}
+		}
+		// subsumption - nominals
+		for(OWLObjectOneOf o : nominals) {
+			if(!ontology.getSubsumers(o).isEmpty()) {
+				for(OWLClassExpression sp : ontology.getSubsumers(o)) {
+					if(sp instanceof OWLObjectOneOf)
+						nominalSubsumers.put(o, sp);
+					else if(sp instanceof OWLClass)
+						nominalSubsumers.put(o, sp);
+					else if(sp instanceof OWLObjectUnionOf) {
+						if(sp.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass)))
+							nominalSubsumers.put(o, sp);
+					}
+					else if(sp instanceof OWLObjectIntersectionOf)
+						checkIntersection(o, sp);
+				} 
+			}
+		}
+		
+	}
+	
+
+	private void checkIntersection(OWLClassExpression ce, OWLClassExpression sp) {
+		if(ce instanceof OWLClass) {
+			for(OWLClassExpression cj : sp.asConjunctSet()) {
+				if(cj instanceof OWLObjectOneOf)
+					conceptSubsumers.put(ce, cj);
+				else if(cj instanceof OWLClass)
+					conceptSubsumers.put(ce, cj);
+				else if(cj instanceof OWLObjectUnionOf) {
+					if(cj.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass)))
+						conceptSubsumers.put(ce, cj);
+				}
+				else if(cj instanceof OWLObjectIntersectionOf)
+					checkIntersection(ce, cj);
+			}
+		}
+		else if(ce instanceof OWLObjectOneOf) {
+			for(OWLClassExpression cj : sp.asConjunctSet()) {
+				if(cj instanceof OWLObjectOneOf)
+					nominalSubsumers.put(ce, cj);
+				else if(cj instanceof OWLClass)
+					nominalSubsumers.put(ce, cj);
+				else if(cj instanceof OWLObjectUnionOf) {
+					if(cj.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass)))
+						nominalSubsumers.put(ce, cj);
+				}
+				else if(cj instanceof OWLObjectIntersectionOf)
+					checkIntersection(ce, cj);
+			}
+		}
+	}
+
+	public void callILP() throws IloException {
+
+		SetMultimap<OWLClassExpression, OWLClassExpression> subsumers = HashMultimap.create();
+		SetMultimap<OWLClassExpression, OWLClassExpression> disjoints = HashMultimap.create();
+		subsumers.putAll(conceptSubsumers);
+		subsumers.putAll(nominalSubsumers);
+		disjoints.putAll(conceptDisjoints);
+		disjoints.putAll(nominalDisjoints);
+		CplexModelGenerator cmg = new CplexModelGenerator(this, subsumers, disjoints, this.sRMap, this.forAllMap, this.tempRoleH);
+		ILPSolution sol = cmg.getILPSolution();
 		System.out.println("Solved: "+sol.isSolved());
 		for(EdgeInformation ei : sol.getEdgeInformation()) {
 			System.out.println("edge info: " + ei.getEdges() +" filler: " + ei.getFillers() +" cardinality : "+ ei.getCardinality());
@@ -130,11 +481,11 @@ public class ILPPreprocessor {
 		
 	}
 	
-	public void createMaps() {
+	/*public void createMaps() {
 		int i = 0;
 		for(OWLObjectCardinalityRestriction q : getCardRes()) {
 			crMap.put(i, q);
-			roles.add(q.getProperty().getNamedProperty());
+			roles.add(q.getProperty());
 			QCR qcr = new QCR(q);
 			qcrMap.put(i, qcr);
 			//System.out.println(i +"  "+ qcr.qualifier);
@@ -147,7 +498,7 @@ public class ILPPreprocessor {
 			System.out.println("role "+ r +"H role : "+rh);
 			tempRoleH.put(r, rh);
 			k++;
-		}*/
+		}*
 		for(OWLObjectOneOf o : getNominals()) {
 			QCR qcr = new QCR(o);
 			qcrMap.put(i, qcr);
@@ -215,9 +566,9 @@ public class ILPPreprocessor {
 		}
 		this.sRMap = (Map<OWLObjectProperty, Set<OWLObjectProperty>>) (Map<?, ?>) sR.asMap();
 		
-	}
+	}*/
 	
-	public SetMultimap<OWLObjectProperty, OWLClassExpression> getForAllMap() {
+	public SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> getForAllMap() {
 		return forAllMap;
 	}
 

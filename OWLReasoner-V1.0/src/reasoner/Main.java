@@ -43,13 +43,13 @@ public class Main {
         String inputFilePath = cmd.getOptionValue("input");
         File file = new File(inputFilePath);
 		new TestReasoner(file).useReasoner();*/
-		//new TestReasoner().useReasoner();
-		try {
+		new TestReasoner().useReasoner();
+		/*try {
 			new ILPPreprocessor().callILP();
 		} catch (IloException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
+		}*/
 		getExecutionTime();
 	}
 	public static void getExecutionTime() {
