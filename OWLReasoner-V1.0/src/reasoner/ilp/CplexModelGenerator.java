@@ -39,15 +39,15 @@ public class CplexModelGenerator {
 	Map<Integer, OWLObjectCardinalityRestriction> crMap;
 	Set<OWLObjectPropertyExpression> axiomRoles = null;
 	Set<OWLObjectPropertyExpression> srRoles = new HashSet<>();
-	SetMultimap<OWLClassExpression, OWLClassExpression> conceptSubsumers = HashMultimap.create();
+	Map<OWLClassExpression, Set<OWLClassExpression>> conceptSubsumersMap;
 	SetMultimap<OWLClassExpression, OWLClassExpression> conceptDisjoints = HashMultimap.create();
 	BiMap<OWLClassExpression, Integer> qualifiers = HashBiMap.create();
 	BiMap<OWLObjectPropertyExpression, Integer> srRolesMap = HashBiMap.create();
-	
+	Set<Set<OWLClassExpression>> disjointGroups = new HashSet<>();
 	BiMap<OWLObjectPropertyExpression, Integer> tempRoleHMap = HashBiMap.create();
 	
 	Set<OWLObjectCardinalityRestriction> infeasibilities = new HashSet<>();
-	Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRoles = new HashMap<>();;
+	Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRoles = new HashMap<>();
 	SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> forAllMap;
 
 	Map<OWLObjectPropertyExpression, OWLObjectPropertyExpression> tempRoleH = new HashMap<>();
@@ -60,26 +60,26 @@ public class CplexModelGenerator {
 	static double RC_EPS = 1.0e-6;
 	
 	public CplexModelGenerator(ILPPreprocessor ilpPr, 
-			SetMultimap<OWLClassExpression, OWLClassExpression> conceptSubsumers,
+			Map<OWLClassExpression, Set<OWLClassExpression>> conceptSubsumersMap,
 			SetMultimap<OWLClassExpression, OWLClassExpression> conceptDisjoints,
+			Set<Set<OWLClassExpression>> disjointGroups,
 			Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> sRMap,
 			SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> forAllMap2, 
 			Map<OWLObjectPropertyExpression, OWLObjectPropertyExpression> tempRoleH2) {
 		
 		ilpPro = ilpPr;
+		qcrs = ilpPro.getQcrs();
 		qcrQualifiers = qcrs.stream().map(qcr -> qcr.qualifier).collect(Collectors.toSet());
 		qcrMap  = ilpPro.getQCRMap();
-		qcrs = ilpPro.getQcrs();
 		crMap = ilpPro.getCRMap();
 		qcrList = ilpPro.getCardRes();
 		
 		generateCplexModel();
 		
 		if(initiallySolved) {
-			this.conceptSubsumers = HashMultimap.create();
-			for(Entry<OWLClassExpression, OWLClassExpression> e : conceptSubsumers.entries()){
-				this.conceptSubsumers.put(e.getKey(), e.getValue());
-			}
+			this.disjointGroups = disjointGroups;
+			this.conceptSubsumersMap = new HashMap<>(conceptSubsumersMap);
+			
 
 			this.conceptDisjoints = HashMultimap.create();
 			for(Entry<OWLClassExpression, OWLClassExpression> e : conceptDisjoints.entries()){
@@ -88,13 +88,17 @@ public class CplexModelGenerator {
 			this.superRoles =  sRMap;
 			this.tempRoleH = tempRoleH2;
 			
-			
 			nominals = new HashSet<OWLObjectOneOf>(ilpPro.getNominals());
 			allQualifiers = new HashSet<OWLClassExpression>(qcrQualifiers);
-			if(conceptSubsumers.keySet() != null){
+			if(conceptSubsumersMap.keySet() != null){
 				//this.allQualifiers.addAll(conceptSubsumers.keySet());
-				for(OWLClassExpression C : conceptSubsumers.keySet()){
-					this.allQualifiers.addAll(conceptSubsumers.get(C));
+				for(OWLClassExpression C : conceptSubsumersMap.keySet()){
+					Set<OWLClassExpression> temp = new HashSet<>();
+					conceptSubsumersMap.get(C).stream().filter(ce -> (ce instanceof OWLClass) || (ce instanceof OWLObjectOneOf)).forEach(ce -> temp.add(ce));
+					conceptSubsumersMap.get(C).stream().filter(ce -> (ce instanceof OWLObjectUnionOf)).forEach(ce -> temp.addAll(ce.asDisjunctSet()));
+					//System.out.println("temp size "+temp.size()); 
+					this.allQualifiers.addAll(temp);
+				//	System.out.println("allQualifiers size "+allQualifiers.size());
 				}
 			}
 
@@ -311,16 +315,16 @@ public class CplexModelGenerator {
 					if(rmpCplex.solve()){
 						isRMPFeasible = true;
 						relaxed_opt = rmpCplex.getObjValue();
-						System.out.println("relaxed_opt "+relaxed_opt);
-					for(int j=0; j<x.getSize(); j++)
-						System.out.println("x value  "+rmpCplex.getValue(x.getElement(j)));
+				//		System.out.println("relaxed_opt "+relaxed_opt);
+				//	for(int j=0; j<x.getSize(); j++)
+				//		System.out.println("x value  "+rmpCplex.getValue(x.getElement(j)));
 					
 					
 					/// generate and add a new column in RMP
 
 					double[] price = rmpCplex.getDuals(Constraint);
-					for(int j = 0 ; j < price.length ; j++)
-						System.out.println("dual value  "+price[j]);
+				//	for(int j = 0 ; j < price.length ; j++)
+				//		System.out.println("dual value  "+price[j]);
 					
 					IloLinearNumExpr objExpr = ppCplex.linearNumExpr();
 					for(int j = 0 ; j < b.length ; j++)
@@ -340,19 +344,19 @@ public class CplexModelGenerator {
 						
 						int cost = 0;
 						double[] rv = ppCplex.getValues(r);
-						System.out.println("------");
-						for(int j = 0 ; j < rv.length ; j++) {
-							System.out.println("r v  ["+j +"]"+ rv[j]);
+					//	System.out.println("------");
+						//for(int j = 0 ; j < rv.length ; j++) {
+						//	System.out.println("r v  ["+j +"]"+ rv[j]);
 							
-						}
+				//		}
 						
 						
 						double[] srv = ppCplex.getValues(sr);
 						
-						for(int j = 0 ; j < srv.length ; j++) {
-							System.out.println("sr v ["+j +"]"+ srv[j]);
+					//	for(int j = 0 ; j < srv.length ; j++) {
+					//		System.out.println("sr v ["+j +"]"+ srv[j]);
 							
-						}
+					//	}
 						for(int j = 0 ; j < bVal.length ; j++) {
 							//System.out.println("bVal " + bVal[j]);
 							cost += bVal[j];
@@ -375,7 +379,7 @@ public class CplexModelGenerator {
 					return returnSolution;
 				}
 			}
-				System.out.println("final relaxed_opt " + relaxed_opt);
+			//	System.out.println("final relaxed_opt " + relaxed_opt);
 			if( relaxed_opt < M ){
 				System.out.println("x.getSize() " + x.getSize());
 				for ( int i = 0; i < x.getSize(); i++ ) {
@@ -397,7 +401,7 @@ public class CplexModelGenerator {
 					Set<EdgeInformation> edgeInformationSet = new HashSet<EdgeInformation>();
 					
 					if( rmpCplex.getObjValue() < M){
-						System.out.println("rmpCplex.getObjValue() " + rmpCplex.getObjValue());
+						//System.out.println("rmpCplex.getObjValue() " + rmpCplex.getObjValue());
 						for(int i = 0; i < h.getSize(); i++){
 							double cardinality = rmpCplex.getValue(h.getElement(i));
 							//System.out.println("cardinality " + cardinality);
@@ -422,9 +426,9 @@ public class CplexModelGenerator {
 								System.out.println("non integer cardinality " + cardinality);
 							}
 							else {
-								System.out.println("x cardinality " + cardinality);
+							//	System.out.println("x cardinality " + cardinality);
 								if(cardinality > 0.0){
-									System.out.println("i value " + i);
+									//System.out.println("i value " + i);
 									
 									SubSet tempSubSet = subsets.get(i);
 									
@@ -441,18 +445,26 @@ public class CplexModelGenerator {
 												addIt = true;
 											}
 									}
-									System.out.println("tempClassSet "+tempClassSet.size());
+								//	System.out.println("tempClassSet "+tempClassSet.size());
+									Set<OWLClassExpression> temp = new HashSet<>();
+									temp.addAll(tempClassSet);
+									for(OWLClassExpression ce : temp) {
+										if(ilpPro.getAuxiliaryConcepts().contains(ce))
+											tempClassSet.addAll(ilpPro.getComplexASubsumers(ce));
+									}
+									tempClassSet.removeAll(ilpPro.getAuxiliaryConcepts());
 									if(addIt){
 											for(int j = 0 ; j < tempSubSet.getRolesIndexSet().length ; j++){
 												if(tempSubSet.getRolesIndexSet()[j] > 0) { // if r value is 1
 													System.out.println(" role "+qcrMap.get(j).role);
-													tempRoleSet.add(qcrMap.get(j).role);
+													if(qcrMap.get(j).role!=null)
+														tempRoleSet.add(qcrMap.get(j).role);
 												}
 											}
 											for(int j = 0 ; j < tempSubSet.getSupRolesIndexSet().length ; j++){
 												if(tempSubSet.getSupRolesIndexSet()[j] > 0) { // if sr value is 1
-													System.out.println("sr["+j+"]: "+tempSubSet.getSupRolesIndexSet()[j]);
-													System.out.println("sup role "+reverseRoles.get(j) );
+													//System.out.println("sr["+j+"]: "+tempSubSet.getSupRolesIndexSet()[j]);
+													//System.out.println("sup role "+reverseRoles.get(j) );
 													
 													tempSupRoleSet.add(reverseRoles.get(j));
 												}
@@ -842,13 +854,24 @@ public class CplexModelGenerator {
 				}
 			}
 			
-			final Map<OWLClassExpression, Set<OWLClassExpression>> conceptSubsumersMap = 
-					(Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>) conceptSubsumers.asMap();
+			
 			// Checking subsumers
 			for (OWLClassExpression C : allQualifiers){
 				if(conceptSubsumersMap.get(C) != null){
 					for(OWLClassExpression D : conceptSubsumersMap.get(C)){
-						ppCplex.addLe(b[qualifiers.get(C)], b[qualifiers.get(D)]);
+						if(D instanceof OWLObjectUnionOf) {
+							IloLinearNumExpr exprSub = ppCplex.linearNumExpr();
+							D.asDisjunctSet().stream().forEach(dj -> {
+								try {
+									exprSub.addTerm(1, b[qualifiers.get(dj)]);
+								} catch (IloException e) {
+									e.printStackTrace();
+								}
+							});
+							ppCplex.addLe(b[qualifiers.get(C)], exprSub);
+						}
+						else
+							ppCplex.addLe(b[qualifiers.get(C)], b[qualifiers.get(D)]);
 					}
 				}
 			}
@@ -856,7 +879,27 @@ public class CplexModelGenerator {
 			
 			final Map<OWLClassExpression, Set<OWLClassExpression>> conceptDisjointsMap = 
 					(Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>) conceptDisjoints.asMap();
-
+			// checking disjoint concepts
+			for (OWLClassExpression C : allQualifiers){
+				if(conceptDisjointsMap.get(C) != null){
+					for(OWLClassExpression D : conceptDisjointsMap.get(C)){
+						ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(C)]),
+								ppCplex.prod(1.0, b[qualifiers.get(D)])), 1);
+					}
+				}
+			}
+			// Checking disjoint groups          
+			if(disjointGroups != null){
+				//OWLClassExpression Nothing = OWLFunctionalSyntaxFactory.OWLNothing();
+				for (Set<OWLClassExpression> disjoints : disjointGroups){
+					IloLinearNumExpr exprDisjoints = ppCplex.linearNumExpr();
+					for(OWLClassExpression X : disjoints){
+						exprDisjoints.addTerm(1, b[qualifiers.get(X)]);
+					}
+					//exprDisjoints.addTerm(-1, b[qualifiers.get(Nothing)]);
+					ppCplex.addLe(exprDisjoints, disjoints.size() - 1);
+				}
+			}
 			
 			///
 			//ppCplex.addLe(b[qualifiers.get(qcrMap.get(0).qualifier)],b[qualifiers.get(qcrMap.get(3).qualifier)]);

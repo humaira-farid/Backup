@@ -19,6 +19,7 @@ public class Ontology {
 	Set<OWLObjectPropertyDomainAxiom> objdAx = new HashSet<>(); 
 	Set<OWLObjectPropertyRangeAxiom> objrAx = new HashSet<>();
 	Set<OWLSubClassOfAxiom> oneOfSubAx = new HashSet<>(); 
+	Set<OWLSubClassOfAxiom> eqSubAx = new HashSet<>(); 
 	Set<OWLEquivalentClassesAxiom> oneOfEqAx = new HashSet<>();
 	Set<OWLDisjointClassesAxiom> djAx = new HashSet<>(); 
 	Set<OWLDisjointUnionAxiom> djuAx = new HashSet<>(); 
@@ -28,18 +29,34 @@ public class Ontology {
     Set<OWLSubObjectPropertyOfAxiom> subObjProAx = new HashSet<>();
     SetMultimap<OWLObjectPropertyExpression, OWLObjectPropertyExpression> superRoles = HashMultimap.create();
     Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap = new HashMap<>();
+    Map<OWLClassExpression, Set<OWLClassExpression>> conceptSubsumersMap = new HashMap<>();
+    Map<OWLObjectOneOf, Set<OWLClassExpression>> nominalSubsumersMap = new HashMap<>();
+    SetMultimap<OWLObjectOneOf, OWLClassExpression> nominalSubsumers = HashMultimap.create();
     SetMultimap<OWLClassExpression, OWLClassExpression> subsumers = HashMultimap.create();
+    SetMultimap<OWLClassExpression, OWLClassExpression> conceptEq = HashMultimap.create();
+    SetMultimap<OWLClassExpression, OWLClassExpression> oneOfEq = HashMultimap.create();
+    Map<OWLClassExpression, Set<OWLClassExpression>> conceptEqMap = new HashMap<>();
+    Map<OWLClassExpression, Set<OWLClassExpression>> oneOfEqMap = new HashMap<>();
     SetMultimap<OWLClassExpression, OWLClassExpression> tuSubsumers = HashMultimap.create();
     SetMultimap<OWLClassExpression, OWLClassExpression> binarySubsumers = HashMultimap.create();
     SetMultimap<OWLClassExpression, OWLClassExpression> disjointConcepts = HashMultimap.create();
-    SetMultimap<OWLClassExpression, OWLClassExpression> disjointGroups = HashMultimap.create();
+    Set<Set<OWLClassExpression>> disjointGroups = new HashSet<>();
+    Set<Set<OWLClassExpression>> disjointNomGroups = new HashSet<>();
     SetMultimap<OWLClassExpression, OWLClassExpression> diffIndividuals = HashMultimap.create();
 
-	public Ontology(Set<OWLSubClassOfAxiom> subAx, Set<OWLEquivalentClassesAxiom> eqAx,
-			Set<OWLObjectPropertyDomainAxiom> objdAx, Set<OWLObjectPropertyRangeAxiom> objrAx,
-			Set<OWLSubClassOfAxiom> oneOfSubAx, Set<OWLEquivalentClassesAxiom> oneOfEqAx,
-			Set<OWLDisjointClassesAxiom> djAx, Set<OWLDisjointUnionAxiom> djuAx, Set<OWLSubClassOfAxiom> diffIndSubAx,
-			Set<OWLSubClassOfAxiom> aboxClassAss, Set<OWLSubClassOfAxiom> aboxObjProAss, Set<OWLSubObjectPropertyOfAxiom> subObjProAx, Set<OWLSubClassOfAxiom> tu, Set<OWLSubClassOfAxiom> tui) {
+	public Ontology(Set<OWLSubClassOfAxiom> subAx, 
+			Set<OWLEquivalentClassesAxiom> eqAx,
+			Set<OWLObjectPropertyDomainAxiom> objdAx, 
+			Set<OWLObjectPropertyRangeAxiom> objrAx,
+			Set<OWLSubClassOfAxiom> oneOfSubAx, 
+			Set<OWLEquivalentClassesAxiom> oneOfEqAx,
+			Set<OWLDisjointClassesAxiom> djAx, 
+			Set<OWLDisjointUnionAxiom> djuAx, 
+			Set<OWLSubClassOfAxiom> diffIndSubAx,
+			Set<OWLSubClassOfAxiom> aboxClassAss, 
+			Set<OWLSubClassOfAxiom> aboxObjProAss, 
+			Set<OWLSubObjectPropertyOfAxiom> subObjProAx, 
+			Set<OWLSubClassOfAxiom> tu, Set<OWLSubClassOfAxiom> tui) {
 		this.subAx = subAx;
 		this.Eq = eqAx;
 		this.objdAx = objdAx;
@@ -75,29 +92,95 @@ public class Ontology {
 		}
 		for(OWLSubClassOfAxiom sb : this.subAx) {
 			subsumers.put(sb.getSubClass(), sb.getSuperClass());
+			if(sb.getSubClass() instanceof OWLObjectOneOf) {
+				nominalSubsumers.put((OWLObjectOneOf)sb.getSubClass(), sb.getSuperClass());
+			}
 		}
+		nominalSubsumersMap = (Map<OWLObjectOneOf, Set<OWLClassExpression>>) (Map<?, ?>) nominalSubsumers.asMap();
+		for(OWLSubClassOfAxiom sb : this.subAx) {
+			for(OWLObjectOneOf c : nominalSubsumersMap.keySet()) {
+				if(nominalSubsumersMap.get(c).contains(sb.getSubClass())) {
+					nominalSubsumersMap.get(c).add(sb.getSuperClass());
+				}
+			}
+		}
+		
+		
 		for(OWLSubClassOfAxiom sb : this.Tu) {
 			tuSubsumers.put(sb.getSubClass(), sb.getSuperClass());
 		}
+		conceptSubsumersMap = (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>) tuSubsumers.asMap();
+		for(OWLSubClassOfAxiom sb : this.Tu) {
+			for(OWLClassExpression c : conceptSubsumersMap.keySet()) {
+				if(conceptSubsumersMap.get(c).contains(sb.getSubClass())) {
+					conceptSubsumersMap.get(c).add(sb.getSuperClass());
+				}
+			}
+		}
+		
 		for(OWLSubClassOfAxiom sb : this.Tui) {
 			binarySubsumers.put(sb.getSubClass(), sb.getSuperClass());
 		}
 		for(OWLDisjointClassesAxiom dj : this.djAx) {
-			dj.asOWLSubClassOfAxioms().forEach(sb -> disjointConcepts.put(sb.getSubClass(), sb.getSuperClass()));
+			dj.asOWLSubClassOfAxioms().forEach(sb -> disjointConcepts.put(sb.getSubClass(), sb.getSuperClass().getComplementNNF()));
 		}
 		for(OWLSubClassOfAxiom sb : this.Tu) {
 			if(!(sb.getSubClass() instanceof OWLObjectComplementOf) && (sb.getSuperClass() instanceof OWLObjectComplementOf) )
 				disjointConcepts.put(sb.getSubClass(), sb.getSuperClass().getComplementNNF());
 		}
+		//System.out.println("tui size "+Tui.size());
 		for(OWLSubClassOfAxiom sb : this.Tui) {
-			if((sb.getSuperClass() instanceof OWLObjectComplementOf) || (sb.getSuperClass().isOWLNothing()) )
-				disjointGroups.put(sb.getSubClass(), sb.getSuperClass());
+			if(sb.getSuperClass() instanceof OWLObjectComplementOf) {
+				Set<OWLClassExpression> dg = new HashSet<>(sb.getSubClass().asConjunctSet());
+				dg.add(sb.getSuperClass().getComplementNNF());
+				disjointGroups.add(dg);
+			}
+			else if(sb.getSuperClass().isOWLNothing())
+				disjointGroups.add(sb.getSubClass().asConjunctSet());
 		}
 		for(OWLSubClassOfAxiom sb : this.diffIndSubAx) {
 			diffIndividuals.put(sb.getSubClass(), sb.getSuperClass());
 		}
+		for(OWLEquivalentClassesAxiom eq : Eq) {
+			for(OWLSubClassOfAxiom sb : eq.asOWLSubClassOfAxioms()) {
+				eqSubAx.add(sb);
+				conceptEq.put(sb.getSubClass(), sb.getSuperClass());
+			}
+		}
+		
+		for(OWLEquivalentClassesAxiom eq : oneOfEqAx) {
+			for(OWLSubClassOfAxiom sb : eq.asOWLSubClassOfAxioms()){
+				eqSubAx.add(sb);
+				conceptEq.put(sb.getSubClass(), sb.getSuperClass());
+			}
+		}
+		conceptEqMap = (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>) conceptEq.asMap();
+		for(OWLSubClassOfAxiom sb : eqSubAx) {
+			for(OWLClassExpression c : conceptEqMap.keySet()) {
+				if(conceptEqMap.get(c).contains(sb.getSubClass())) {
+					conceptEqMap.get(c).add(sb.getSuperClass());
+				}
+			}
+		}
+		
 		
 	}
+	private Map<OWLClassExpression, Set<OWLClassExpression>> getConceptSubsumersMap() {
+		return conceptSubsumersMap;
+	}
+	public boolean hasNominal(OWLClassExpression ce) {
+		if(getAllSubsumers(ce)!=null) {
+			if(getAllSubsumers(ce).stream().anyMatch(c -> c instanceof OWLObjectOneOf));
+				return true;
+		}
+		return false;
+	}
+
+	private Map<OWLObjectOneOf, Set<OWLClassExpression>> getNominalSubsumersMap() {
+		return nominalSubsumersMap;
+	}
+
+
 	public Set<OWLClassExpression> getSubsumers(OWLObjectOneOf o){
 		Set<OWLClassExpression> sup = new HashSet<OWLClassExpression>();
 		this.subAx.stream().filter(sb -> sb.getSubClass().equals(o)).forEach(sb -> sup.add(sb.getSuperClass()));
@@ -116,6 +199,14 @@ public class Ontology {
 		return sup;
 	}
 	public Set<OWLClassExpression> getSubsumers(OWLClassExpression c){
+		if(c instanceof OWLClass)
+			return getSubsumers(c);
+		else if(c instanceof OWLObjectOneOf)
+			return getSubsumers((OWLObjectOneOf)c);
+		return new HashSet<OWLClassExpression>();
+	}
+	
+	public Set<OWLClassExpression> getSubsumers(OWLClass c){
 		Set<OWLClassExpression> ce = new HashSet<OWLClassExpression>();
 		this.Tu.stream().filter(sb -> sb.getSubClass().equals(c)).forEach(sb -> ce.add(sb.getSuperClass()));
 		for(OWLEquivalentClassesAxiom eq : this.Eq) {
@@ -130,6 +221,22 @@ public class Ontology {
 				}
 			}
 		}
+		return ce;
+	}
+	public Set<OWLClassExpression> getAllSubsumers(OWLClassExpression c){
+		Set<OWLClassExpression> ce = new HashSet<OWLClassExpression>();
+		if(this.conceptSubsumersMap.get(c) != null)
+			ce.addAll(conceptSubsumersMap.get(c));
+		if(this.conceptEqMap.get(c) != null)
+			ce.addAll(conceptEqMap.get(c));
+		return ce;
+	}
+	public Set<OWLClassExpression> getAllSubsumers(OWLObjectOneOf o){
+		Set<OWLClassExpression> ce = new HashSet<OWLClassExpression>();
+		if(this.nominalSubsumersMap.get(o) != null)
+			ce.addAll(nominalSubsumersMap.get(o));
+		if(this.conceptEqMap.get(o) != null)
+			ce.addAll(conceptEqMap.get(o));
 		return ce;
 	}
 	public Set<OWLClassExpression> getDisjointConcepts(OWLClassExpression ce){
@@ -161,6 +268,16 @@ public class Ontology {
 		}
 		return disjoints;
 	}
+	
+	public Set<Set<OWLClassExpression>> getDisjointGroups(Set<OWLClassExpression> setCe){
+		Set<Set<OWLClassExpression>> disjoints = new HashSet<>();
+		for(Set<OWLClassExpression> dg : this.disjointGroups) {
+			 if(setCe.containsAll(dg))
+				disjoints.add(dg);
+		}
+		return disjoints;
+	}
+	
 	public Set<OWLObjectAllValuesFrom> getRoleRange(OWLObjectPropertyExpression r) {
 		Set<OWLObjectAllValuesFrom> ranges = new HashSet<OWLObjectAllValuesFrom>();
 		for(OWLObjectPropertyRangeAxiom range: this.objrAx) {
@@ -262,7 +379,7 @@ public class Ontology {
 	}
 
 
-	public SetMultimap<OWLClassExpression, OWLClassExpression> getDisjointGroups() {
+	public Set<Set<OWLClassExpression>> getDisjointGroups() {
 		return disjointGroups;
 	}
 

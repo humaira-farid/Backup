@@ -127,7 +127,7 @@ public class Internalization {
 		    		}
 		    		else if(((sax).getSubClass() instanceof OWLObjectIntersectionOf && 
 		    				((OWLObjectIntersectionOf)(sax).getSubClass()).conjunctSet().allMatch(cj -> (cj instanceof OWLObjectOneOf) || (cj instanceof OWLClass)))) {
-			    		this.oneOfAll.add(sax);
+			    		this.Tui.add(sax);
 		    		}
 		    	/*	else if(ax.nestedClassExpressions().anyMatch(sbx -> sbx instanceof OWLObjectOneOf || sbx instanceof OWLObjectHasValue)) {
 		    			this.Tg.add(sax);
@@ -140,6 +140,7 @@ public class Internalization {
 		    				this.Tui.add(sax);
 		    			}//FIXME what if we have class and nominals
 		    			else if((sax).getSubClass() instanceof OWLObjectIntersectionOf && ((OWLObjectIntersectionOf)(sax).getSubClass()).conjunctSet().allMatch(cj -> cj instanceof OWLObjectOneOf)) {
+		    				this.Tui.add(sax);
 		    				this.oneOfIn.add(sax);
 		    				this.oneOfAll.add(sax);
 		    			}

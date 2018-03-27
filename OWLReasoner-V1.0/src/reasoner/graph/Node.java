@@ -47,7 +47,18 @@ public class Node implements Cloneable {
         blocked = null;
     }
     
-    public int getId() {
+    public Node(NodeType nodeType, int id) {
+    		this.nodeType = nodeType;
+        this.neighbour = new ArrayList<>();
+        this.outgoingEdge = new ArrayList<>();
+        this.incomingEdge = new ArrayList<>();
+        this.id = id;
+        this.nLabel = new NodeLabel();
+        blocker = null;
+        blocked = null;
+	}
+
+	public int getId() {
     	return id;
     }
     

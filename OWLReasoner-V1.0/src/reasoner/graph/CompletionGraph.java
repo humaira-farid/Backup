@@ -3,6 +3,7 @@ package reasoner.graph;
 import static reasoner.Helper.INITBRANCHINGLEVELVALUE;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import org.semanticweb.owlapi.model.*;
 
@@ -45,6 +46,14 @@ public class CompletionGraph implements Cloneable {
 	 }
 	public Node addNode(Node.NodeType nodeType, OWLClassExpression nodeLabel) {
 		 Node node = new Node(nodeType,nodeLabel, getnewId());
+		 nodeBase.add(node);
+		 node.init(branchingLevel);
+		 
+		 totalNodes++;
+		 return node;
+	 }
+	public Node addNode(Node.NodeType nodeType) {
+		 Node node = new Node(nodeType, getnewId());
 		 nodeBase.add(node);
 		 node.init(branchingLevel);
 		 
@@ -94,11 +103,36 @@ public class CompletionGraph implements Cloneable {
 		to.getOutgoingEdges().add(invEdge);
 		return edge;
 	 }
+	public Edge addEdge(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel, DependencySet ds) {
+		Edge edge = new Edge(from, to, edgeLabel, ds);
+		Set<OWLObjectPropertyExpression> invRoles = new HashSet<>(edgeLabel.stream().map(r -> r.getInverseProperty()).collect(Collectors.toSet()));
+		Edge invEdge = new Edge(to, from, invRoles, ds);
+		this.ctEdgeHeap.add(edge);
+		this.ctEdgeHeap.add(invEdge);
+		from.getNeighbour().add(edge);
+		from.getOutgoingEdges().add(edge);
+		from.getIncomingEdges().add(invEdge);
+		//to.getNeighbour().add(invEdge);
+		saveNode(from, branchingLevel);
+        saveNode(to, branchingLevel);
+		to.getIncomingEdges().add(edge);
+		to.getOutgoingEdges().add(invEdge);
+		return edge;
+	 }
 	 
 	 public Edge getEdge(Node from, OWLClassExpression nodeLabel, OWLObjectPropertyExpression edgeLabel) {
 		 for(Edge e : from.getOutgoingEdges()) {
 			 if(e.getLabel().contains(edgeLabel)) {
 				 if(e.getToNode().getLabel().contains(nodeLabel))
+					 return e;
+			 }
+		 }
+		 return null;
+	 }
+	 public Edge getEdge(Node from, Set<OWLClassExpression> nodeLabel, Set<OWLObjectPropertyExpression> edgeLabel) {
+		 for(Edge e : from.getOutgoingEdges()) {
+			 if(e.getLabel().containsAll(edgeLabel)) {
+				 if(e.getToNode().getLabel().containsAll(nodeLabel))
 					 return e;
 			 }
 		 }

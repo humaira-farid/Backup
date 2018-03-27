@@ -22,7 +22,14 @@ public class Edge {
 	        this.depSet = ds;
 	    }
 
-	    public void addLabel(OWLObjectPropertyExpression edgeLabel) {
+	    public Edge(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel2, DependencySet ds) {
+	    		this.node1 = from;
+	        this.node2 = to;
+	        this.edgeLabel.addAll(edgeLabel);
+	        this.depSet = ds;
+		}
+
+		public void addLabel(OWLObjectPropertyExpression edgeLabel) {
 	    	this.edgeLabel.add(edgeLabel);
 	    }
 	    public Node getFromNode() {
