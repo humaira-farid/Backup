@@ -5,11 +5,14 @@ import java.util.Set;
 import org.semanticweb.owlapi.model.OWLClassExpression;
 import org.semanticweb.owlapi.model.OWLObjectPropertyExpression;
 
+import reasoner.Dependencies.DependencySet;
+
 public class EdgeInformation
 {
   private final Set<OWLObjectPropertyExpression> edges;
   private final Set<OWLClassExpression> fillers;
   private int cardinality;
+  private DependencySet ds;
   
   public EdgeInformation(Set<OWLObjectPropertyExpression> roles, Set<OWLClassExpression> fillers, int card)
   {
@@ -22,6 +25,20 @@ public class EdgeInformation
     this.edges = roles;
     this.fillers = fillers;
     this.cardinality = (int) card;
+  }
+  public EdgeInformation(Set<OWLObjectPropertyExpression> roles, Set<OWLClassExpression> fillers, int card, DependencySet ds)
+  {
+    this.edges = roles;
+    this.fillers = fillers;
+    this.cardinality = card;
+    this.setDs(ds);
+  }
+  public EdgeInformation(Set<OWLObjectPropertyExpression> roles, Set<OWLClassExpression> fillers, double card, DependencySet ds)
+  {
+    this.edges = roles;
+    this.fillers = fillers;
+    this.cardinality = (int) card;
+    this.setDs(ds);
   }
   
   public Set<OWLObjectPropertyExpression> getEdges()
@@ -39,7 +56,13 @@ public class EdgeInformation
     return this.cardinality;
   }
   
-  public void modifyCardinality(int paramInt)
+  public DependencySet getDs() {
+	return ds;
+}
+public void setDs(DependencySet ds) {
+	this.ds = ds;
+}
+public void modifyCardinality(int paramInt)
   {
     this.cardinality = paramInt;
   }

@@ -10,10 +10,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.semanticweb.owlapi.model.*;
-
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.SetMultimap;
 
 import ilog.concert.IloException;
 import reasoner.Dependencies.DependencySet;
@@ -27,7 +24,7 @@ import reasoner.state.SaveStack;
 import reasoner.todolist.ToDoEntry;
 import reasoner.todolist.ToDoList;
 
-public class RuleEngine {
+public class RuleEngine1 {
 	Internalization intl;
 	CompletionGraph cg;
 	ToDoList todo;
@@ -38,301 +35,51 @@ public class RuleEngine {
 	Map<Integer, BranchHandler> branches = new HashMap<Integer, BranchHandler>();
 	Map<Integer, CompletionGraph> copies = new HashMap<Integer, CompletionGraph>();
 	Map<Integer, Multimap<Integer,OWLClassExpression>> branches2 = new HashMap<Integer, Multimap<Integer,OWLClassExpression>>();
-	SetMultimap<Node, ToDoEntry> nodeEntries = HashMultimap.create();
-	List<ToDoEntry> entries = new ArrayList<>();
-	SetMultimap<Node, ToDoEntry> nodeExistEntries = HashMultimap.create(); 
-	SetMultimap<Node, OWLObjectPropertyExpression> axiomRoles = HashMultimap.create();
-	SetMultimap<Node, ToDoEntry> nodeForAllEntries = HashMultimap.create();
-	SetMultimap<Node, ToDoEntry> relatedForAllEntries = HashMultimap.create();
-	Set<Edge> outgoingEdges = new HashSet<>();
-	Node currNode = null;
-	public RuleEngine(Internalization i, ToDoList todo, OWLDataFactory df) {
+	
+	public RuleEngine1(Internalization i, ToDoList todo, OWLDataFactory df) {
 		this.intl= i;
 		this.todo = todo;
-		this.cg = new CompletionGraph(this);
+		this.cg = null;//new CompletionGraph(this);
 		this.df = df;
 	}
 	
 	public void checkConsistency(OWLClassExpression tgAxiom) {
 		createFirstNode(tgAxiom);
-	/*	while(!todo.isEmpty()) {
+		if(!todo.isEmpty()) {
+			ToDoEntry entry = todo.getNextEntry();
+			this.applyRules(entry);
+		}
 			
-		 	ToDoEntry entry = todo.getNextEntry();
-		 	System.out.println("node id "+ entry.getNode().getId());
-			
-		 	System.out.println("while loop "+ entry.getClassExpression());
-			if(entry!=null) {
-	 			this.applyRules(entry);
-			}
-		}*/
-
-		
-		processToDoList();
-		
+		while(!todo.isEmpty()) {
+	    	 	//System.out.println("while loop "+ todo.entries());
+	    	 	ToDoEntry entry = todo.getNextEntry();
+	    	 	if(entry!=null) {
+	    	 		if(entry.getType().equals(NodeTag.OR)) {
+	    	 			System.out.println("expression with OR"+ entry.getClassExpression());
+	    	 			applyOrRule(entry.getNode(), (OWLObjectUnionOf)entry.getClassExpression(), entry.getDs());
+	    	 			//this.applyRules(entry);
+	    	 		}
+	    	 		else {
+		    	 		//check if we need ILP
+		    	 		if(needILPModule(entry))
+		    	 			callILP(entry);
+		    	 		else
+		    	 			this.applyRules(entry);
+	    	 		}
+	    	 	}
+		}
 		//System.out.println("No. of nodes : "+ cg.getTotalNodes());
 	}
-	private void processToDoList() {
-		while(!todo.isEmpty()) {
-		 	//System.out.println("while loop "+ todo.entries());
-		 	ToDoEntry entry = todo.getNextEntry();
-		 	if(entry!=null) {
-		 		Node n = entry.getNode();
-		 		//if(currNode!=null)
-		 		if(currNode!=null && currNode.equals(n)) {
-		 			processEntry(entry);
-		 		}
-		 		else {
-		 			if(!nodeExistEntries.get(currNode).isEmpty()) {
-		 				addRangeRestrictions(this.axiomRoles.get(currNode));
-		 				checkRelatedForAll(currNode, nodeForAllEntries.get(currNode), this.axiomRoles.get(currNode));
-		 					if(needILPModule(currNode)) {
-		 						List<ToDoEntry> entries = new ArrayList<>();
-		 						entries.addAll(nodeExistEntries.get(currNode));
-		 						entries.addAll(relatedForAllEntries.get(currNode));
-		 						nodeExistEntries.get(currNode).clear();
-		 						nodeForAllEntries.get(currNode).clear();
-		 						relatedForAllEntries.get(currNode).clear();
-		 						callILP(currNode, entries);
-		 						axiomRoles.get(currNode).clear();
-		 					}
-		 					else {
-		 						
-		 						for(ToDoEntry en : nodeExistEntries.get(currNode))
-		 							applyRules(en);
-		 						for(ToDoEntry en : nodeForAllEntries.get(currNode))
-		 							applyRules(en);
-		 						
-		 						nodeExistEntries.get(currNode).clear();
-		 						nodeForAllEntries.get(currNode).clear();
-		 						axiomRoles.get(currNode).clear();
-		 					}
-		 				
-		 			}
-		 			else if(!nodeForAllEntries.get(currNode).isEmpty()) {
-		 				
-		 				for(ToDoEntry en : nodeForAllEntries.get(currNode))
-		 					applyRules(en);
-		 				nodeForAllEntries.get(currNode).clear();
-		 			}
-		 			currNode = entry.getNode();
-		 			processEntry(entry);
-		 			
-		 		}
-		 		
-		 	}
-		 	/*	if(entry!=null) {
-		 		currNode = entry.getNode();
-		 		entries.add(entry);
-	    	 	entries.addAll(todo.getAllToDoEntry(currNode, NodeTag.AND));
-	    	 	entries.addAll(todo.getAllToDoEntry(currNode, NodeTag.OR));
-	    	 	entries.addAll(todo.getAllToDoEntry(currNode, NodeTag.FORALL));
-	    	 	entries.addAll(todo.getAllToDoEntry(currNode, NodeTag.EXISTS));
-	    	 	for(ToDoEntry en : entries) {
-	    	 		processEntry(en);
-	    	 	}
-	    	 	if(!nodeExistEntries.get(currNode).isEmpty()) {
-		 			if(needILPModule(currNode)) {
-		 				List<ToDoEntry> ILPEntries = new ArrayList<>();
-		 				ILPEntries.addAll(nodeExistEntries.get(currNode));
-		 				ILPEntries.addAll(nodeForAllEntries.get(currNode));
-		    	 			callILP(currNode, ILPEntries);
-		 			}
-		 			else {
-		 				for(ToDoEntry en : nodeExistEntries.get(currNode))
-		 					applyRules(en);
-		 				for(ToDoEntry en : nodeForAllEntries.get(currNode))
-		 					applyRules(en);
-		 				}
-		    	 	}
-		 	}
-		 	
-		 	
-		 /*	if(entry!=null) {
-		 		if(entry.getType().equals(NodeTag.OR)) {
-		 			System.out.println("expression with OR"+ entry.getClassExpression());
-		 			applyOrRule(entry.getNode(), (OWLObjectUnionOf)entry.getClassExpression(), entry.getDs());
-		 			//this.applyRules(entry);
-		 		}
-		 		else {
-	    	 		//check if we need ILP
-	    	 		if(needILPModule(entry))
-	    	 			callILP(entry);
-	    	 		else
-	    	 			this.applyRules(entry);
-		 		}
-		 	}*/
-		}
-		if(!nodeExistEntries.get(currNode).isEmpty()) {
-			addRangeRestrictions(this.axiomRoles.get(currNode));
-			checkRelatedForAll(currNode, nodeForAllEntries.get(currNode), this.axiomRoles.get(currNode));
-				if(needILPModule(currNode)) {
-					List<ToDoEntry> entries = new ArrayList<>();
-					entries.addAll(nodeExistEntries.get(currNode));
-					entries.addAll(relatedForAllEntries.get(currNode));
-					nodeExistEntries.get(currNode).clear();
-					nodeForAllEntries.get(currNode).clear();
-					relatedForAllEntries.get(currNode).clear();
-					callILP(currNode, entries);
-					axiomRoles.get(currNode).clear();
-				}
-				else {
-					
-					for(ToDoEntry en : nodeExistEntries.get(currNode))
-						applyRules(en);
-					for(ToDoEntry en : nodeForAllEntries.get(currNode))
-						applyRules(en);
-					
-					nodeExistEntries.get(currNode).clear();
-					nodeForAllEntries.get(currNode).clear();
-					axiomRoles.get(currNode).clear();
-				}
-				if(!todo.isEmpty())
-					processToDoList();
-		}
-		else if(!nodeForAllEntries.get(currNode).isEmpty()) {
-			
-				for(ToDoEntry en : nodeForAllEntries.get(currNode))
-					applyRules(en);
-				nodeForAllEntries.get(currNode).clear();
-			
-			if(!todo.isEmpty())
-				processToDoList();
-		}
-	}
-
-	private void processEntry(ToDoEntry entry) {
-		if(entry.getType().equals(NodeTag.OR) || entry.getType().equals(NodeTag.AND)) {
- 			this.applyRules(entry);
- 		}
-		else if(entry.getType().equals(NodeTag.EXISTS)) {
-			nodeExistEntries.put(currNode, entry);
-			OWLObjectPropertyExpression obj = ((OWLObjectSomeValuesFrom)entry.getClassExpression()).getProperty(); 
-			//System.out.println("obj pro "+ obj);
-			this.axiomRoles.put(currNode, obj);
-				
-			
-		}
-		else if(entry.getType().equals(NodeTag.FORALL)) 
-			nodeForAllEntries.put(currNode, entry);
-		
-	}
-	public void addRangeRestrictions(Set<OWLObjectPropertyExpression> roles) {
-		//System.out.println("forall: "+ nodeForAllEntries.get(currNode).size());
-		for(OWLObjectPropertyExpression obj : roles) {
-			if(!(intl.getOntology().getRoleRange(obj).isEmpty())) {
-				for(OWLObjectAllValuesFrom rr : intl.getOntology().getRoleRange(obj)) {
-					//System.out.println("obj pro range "+ rr);
-					ConceptNDepSet cnds = new ConceptNDepSet(rr, DependencySet.create());
-					nodeForAllEntries.put(currNode, new ToDoEntry(currNode, cnds, NodeTag.FORALL));
-				}
-			}
-			if(intl.getOntology().getSuperRolesMap().containsKey(obj)) { 
-				for(OWLObjectPropertyExpression r : intl.getOntology().getSuperRolesMap().get(obj)) {
-					if(!(intl.getOntology().getRoleRange(r).isEmpty())) {
-						for(OWLObjectAllValuesFrom rr : intl.getOntology().getRoleRange(r)) {
-							ConceptNDepSet cnds = new ConceptNDepSet(rr, DependencySet.create());
-							nodeForAllEntries.put(currNode, new ToDoEntry(currNode, cnds, NodeTag.FORALL));
-						}
-					}
-				}
-			}
-		}
-	//	System.out.println("after forall: "+ nodeForAllEntries.get(currNode).size());
-		
-	}
-	public boolean needILPModule(Node n) {
-	//	forAllCheck = false;
-	//	isExistential = false;
-		if(!n.isBlocked()) {
-			for(ToDoEntry entry : nodeExistEntries.get(n)) {
-				OWLClassExpression ce = entry.getClassExpression();
-				
-				if(ce instanceof OWLObjectSomeValuesFrom) {
-					
-				//	isExistential = true;
-					if(hasNominal((OWLObjectSomeValuesFrom) ce)) 
-						return true;
-				}
-				else if(ce instanceof OWLObjectHasValue) {
-					
-					return true;
-				}
-			}
-			
-			if(!relatedForAllEntries.get(n).isEmpty()) {
-			
-				for(ToDoEntry entry : relatedForAllEntries.get(n)) {
-					
-					OWLClassExpression ce = entry.getClassExpression();
-					if(ce instanceof OWLObjectAllValuesFrom) {
-						if(hasNominal((OWLObjectAllValuesFrom) ce)) {
-							//forAllCheck = true;
-							return true;
-						}
-					}
-				}
-			}
-			/*if(forAllCheck && isExistential)
-				return true;*/
-		}
-		return false;
-	}
-	private void checkRelatedForAll(Node n, Set<ToDoEntry> forAllEntries, Set<OWLObjectPropertyExpression> roles) {
-		//Set<OWLObjectAllValuesFrom> forAll = new HashSet<>();
-		outgoingEdges.clear();
-		//System.out.println("related forall: "+ relatedForAllEntries.get(currNode).size());
-		//System.out.println("roles  "+ roles);
-		//forAllEntries.stream().forEach(en -> forAll.add((OWLObjectAllValuesFrom)en.getClassExpression()));
-		for(ToDoEntry en : forAllEntries) {
-			//System.out.println("entry for all "+en);
-			OWLObjectAllValuesFrom av = (OWLObjectAllValuesFrom)en.getClassExpression();
-			OWLObjectPropertyExpression role = av.getProperty();
-			if(roles.contains(role)){
-				
-				relatedForAllEntries.put(n, en);
-				for(Edge e : n.getOutgoingEdges()) {
-					//System.out.println("e  "+ e.getLabel());
-					if(e.getLabel().contains(role))
-						outgoingEdges.add(e);
-				}
-				//return true;
-			}
-			else{
-				for(OWLObjectPropertyExpression r : intl.getOntology().getSuperRolesMap().keySet()) {
-					if(roles.contains(r)) {
-						if(intl.getOntology().getSuperRolesMap().get(r).contains(role)) {
-							relatedForAllEntries.put(n, en);
-							for(Edge e : n.getOutgoingEdges()) {
-								if(e.getLabel().contains(role))
-									outgoingEdges.add(e);
-							}
-							//return true;
-						}
-					}
-				}
-			}
-		}
-	//	System.out.println("after related forall: "+ relatedForAllEntries.get(currNode).size());
-		
-		//System.out.println("outgoingEdges "+ outgoingEdges.size());
-		//return false;
-	}
-		
-
-	public boolean blockNode(Node n){
-		Node blocker =  findBlocker(n);
-		if(blocker != null) {
-			cg.setNodeBlocked(n, blocker);
-			return true;
-		}
-		return false;
-	}
 	public boolean needILPModule(ToDoEntry entry) {
+		/* if AND : get conjuncts and check ---->
+		 * 1) if Exists then check fillers, if any one has nominal then we will call ilp, 
+		 * 2) check for universal 
+		 * 3) if OR 
+		 */
 		forAllCheck = false;
 		isExistential = false;
 		Node n = entry.getNode();
 		if(!n.isBlocked()) {
-			
 			if(entry.getType().equals(NodeTag.AND)) {
 				for(OWLClassExpression ce : entry.getClassExpression().asConjunctSet()) {
 					if(ce instanceof OWLObjectHasValue)
@@ -518,9 +265,33 @@ public class RuleEngine {
 			return true;
 		}
 		else if(filler instanceof OWLClass) {
-			//System.out.println("class expression "+filler);
+			//return isNominal(filler);
+			System.out.println("class expression "+filler);
 			if(intl.getOntology().hasNominal(filler))
 				return true;
+			//System.out.println("class expression "+filler+ " size: "+ sup.size());
+			/*if(sup.size()!=0) {
+				for(OWLClassExpression c : sup) {
+					if(c instanceof OWLObjectOneOf) {
+						return true;
+					}
+					else if(c instanceof OWLClass) {
+						return hasNominal(c);
+					}
+					else if(c instanceof OWLObjectIntersectionOf) {
+						for(OWLClassExpression objIn : c.asConjunctSet()) {
+							if(hasNominal(objIn))
+									return true;
+						}
+					}
+					else if(c instanceof OWLObjectUnionOf) {
+						for(OWLClassExpression objUn : c.asDisjunctSet()) {
+							if(hasNominal(objUn))
+								return true;
+						}
+					}
+				}
+			}*/
 		}
 		else if(filler instanceof OWLObjectIntersectionOf) {
 			for(OWLClassExpression objIn : filler.asConjunctSet()) {
@@ -547,101 +318,39 @@ public class RuleEngine {
 		
 		return false;
 	}
-		
-	public void callILP(Node n, List<ToDoEntry> entries) {
-		System.out.println("Calling ILP module..."+ entries.size());
-		//entries.stream().forEach(e -> System.out.println(e.getClassExpression()));
-		
-		ILPPreprocessor ilpPro = new ILPPreprocessor(entries, this.intl, this.df, n, outgoingEdges);
-		ILPSolution sol = null;
-		try {
-			sol = ilpPro.callILP();
-		} catch (IloException e) {
-			e.printStackTrace();
-		}
-		if(sol.isSolved()) {
-			for(EdgeInformation ei : sol.getEdgeInformation()) {
-				DependencySet ds = ei.getDs();
-				Set<OWLObjectPropertyExpression> roles = ei.getEdges();
-				Edge e = this.cg.findEdge(n, ei.getFillers(), roles);
-				Node to = null;
-				if(e == null) {
-					Node blocker =  findBlocker(n);
-					if(blocker != null) {
-						cg.setNodeBlocked(n, blocker);
-						return;
-					}
-					if(ei.getFillers().stream().anyMatch(ce -> ce instanceof OWLObjectOneOf)) {
-						Set<Node> nomNodes = new HashSet<>();
-						for(OWLObjectOneOf filler : ei.getFillers().stream().filter(ce -> ce instanceof OWLObjectOneOf).map(ax -> (OWLObjectOneOf)ax).collect(Collectors.toSet())) {
-							OWLClassExpression ci = df.getOWLObjectOneOf(filler.individuals().iterator().next());
-							Node nom = findNominalNode(ci);
-							if(nom != null) {
-								nomNodes.add(nom);
-							}
-						}
-						if(!nomNodes.isEmpty()) {
-							if(nomNodes.size()==1) {
-								System.err.println("node exists");
-								to = nomNodes.iterator().next();
-								//System.err.println("node label" + to.getLabel());
-								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
-							//	e = this.cg.addEdge(n, to, roles, ds);
-							}
-							else {
-								System.err.println("Sorry! it needs Merging!");
-								Main.getExecutionTime();
-								System.exit(0);
-							}
-						}
-						else {
-							to =this.cg.addNode(NodeType.NOMINAL);
-							e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
-							//e = this.cg.addEdge(n, to, roles, ds);
-						}
-					}
-					else {
-						to =this.cg.addNode(NodeType.BLOCKABLE);
-						e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
-						//e = this.cg.addEdge(n, to, roles, ds);
-					}
-					addLabel(n, to, ei.getFillers(), ds);
-				}
-				else {
-					to = e.getToNode();
-					updateEdgeDepSet(ds, e);
 
-					Set<OWLClassExpression> newCE = new HashSet<>();
-					for(OWLClassExpression c : ei.getFillers()) {
-						if(!to.getLabel().contains(c))
-							newCE.add(c);
-					}
-					if(!newCE.isEmpty())
-						addLabel(n, to, newCE, ds);
-				}
-				
-			}
+	/*private boolean isNominal(OWLClassExpression ce) {
+		if(ce instanceof OWLObjectOneOf) {
+			return true; 
 		}
 		else {
-			isInconsistent(n);
-		}
-	}
-	private Set<OWLObjectPropertyExpression> getAllRoles(Set<OWLObjectPropertyExpression> roles) {
-		Set<OWLObjectPropertyExpression> allRoles = new HashSet<>(roles);
-		roles.stream().forEach(r -> allRoles.addAll(intl.getOntology().getSuperRoles(r)));
-		roles.stream().forEach(r -> allRoles.addAll(intl.getOntology().getInvOfInvSuperRoles(r)));
+			Set<OWLClassExpression> sup = this.intl.findConcept(ce);
 		
-		roles.stream().forEach(r -> allRoles.addAll(intl.getOntology().getInverseOfInverseProperty(r)));
-		return allRoles;
-	}
-	private Set<OWLObjectPropertyExpression> getAllRoles(OWLObjectPropertyExpression role) {
-		Set<OWLObjectPropertyExpression> allRoles = new HashSet<>();
-		allRoles.add(role);
-		allRoles.addAll(intl.getOntology().getSuperRoles(role));
-		allRoles.addAll(intl.getOntology().getInvOfInvSuperRoles(role));
-		allRoles.addAll(intl.getOntology().getInverseOfInverseProperty(role));
-		return allRoles;
-	}
+			if(sup.size()!=0) {
+				for(OWLClassExpression c : sup) {
+					if(c instanceof OWLObjectOneOf) {
+						return true;
+					}
+					else if(c instanceof OWLClass) {
+						return isNominal(c);
+					}
+					else if(c instanceof OWLObjectIntersectionOf) {
+						for(OWLClassExpression objIn : c.asConjunctSet()) {
+							if(isNominal(objIn))
+									return true;
+						}
+					}
+					else if(c instanceof OWLObjectUnionOf) {
+						for(OWLClassExpression objUn : c.asDisjunctSet()) {
+							if(isNominal(objUn))
+								return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}*/
 
 	public void callILP(ToDoEntry entry) {
 		System.out.println("Calling ILP module...");
@@ -657,7 +366,7 @@ public class RuleEngine {
 		if(sol.isSolved()) {
 			for(EdgeInformation ei : sol.getEdgeInformation()) {
 				Set<OWLObjectPropertyExpression> roles = ei.getEdges();
-				Edge e = this.cg.findEdge(n, ei.getFillers(), roles);
+				Edge e = this.cg.getEdge(n, ei.getFillers(), roles);
 				Node to = null;
 				if(e == null) {
 					Node blocker =  findBlocker(n);
@@ -677,8 +386,7 @@ public class RuleEngine {
 						if(!nomNodes.isEmpty()) {
 							if(nomNodes.size()==1) {
 								to = nomNodes.iterator().next();
-								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
-								//e = this.cg.addEdge(n, to, roles, ds);
+								e = this.cg.addEdge(n, to, roles, ds);
 							}
 							else {
 								System.err.println("Sorry! it needs Merging!");
@@ -688,36 +396,28 @@ public class RuleEngine {
 						}
 						else {
 							to =this.cg.addNode(NodeType.NOMINAL);
-							e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
-							//e = this.cg.addEdge(n, to, roles, ds);
+							e = this.cg.addEdge(n, to, roles, ds);
 						}
 					}
 					else {
 						to =this.cg.addNode(NodeType.BLOCKABLE);
-						e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
-						//e = this.cg.addEdge(n, to, roles, ds);
+						e = this.cg.addEdge(n, to, roles, ds);
 					}
-					addLabel(n, to, ei.getFillers(), ds);
+					
 				}
 				else {
 					to = e.getToNode();
 					updateEdgeDepSet(ds, e);
-					Set<OWLClassExpression> newCE = new HashSet<>();
-					for(OWLClassExpression c : ei.getFillers()) {
-						if(!to.getLabel().contains(c))
-							newCE.add(c);
-					}
-					if(!newCE.isEmpty())
-						addLabel(n, to, newCE, ds);
+					
 				}
-				
+				addLabel(to, ei.getFillers(), ds);
 			}
 		}
 		else {
 			isInconsistent(n);
 		}
 	}
-	private void addLabel(Node from, Node n, Set<OWLClassExpression> fillers, DependencySet ds) {
+	private void addLabel(Node n, Set<OWLClassExpression> fillers, DependencySet ds) {
 		for(OWLClassExpression ce : fillers) {
 			if(isConceptExist(n, ce)) {
 				updateConceptDepSet(n, ds, ce);
@@ -765,8 +465,6 @@ public class RuleEngine {
 				}
 			}
 		}
-		//processForAll(n);
-		//processForAll(from);
 	}
 
 	public void createFirstNode(OWLClassExpression tgAxiom) {
@@ -805,13 +503,11 @@ public class RuleEngine {
 
 	public void applyExistentialRule(Node from, OWLObjectSomeValuesFrom objSV, DependencySet ds) {
 		System.out.println("Applying exist Rule...");
-		System.out.println("nid: "+from.getId()+" blocked "+ from.isBlocked());
 		if(!from.isBlocked()) {
 			OWLObjectPropertyExpression role = objSV.getProperty();
 			OWLClassExpression filler = objSV.getFiller();
 			Edge e = this.cg.getEdge(from, filler, role);
 			if(e == null) {
-				System.out.println("nid: "+from.getId()+" node label " + from.getLabel());
 				Node blocker =  findBlocker(from);
 				if(blocker != null) {
 					cg.setNodeBlocked(from, blocker);
@@ -821,8 +517,7 @@ public class RuleEngine {
 					OWLClassExpression ci = df.getOWLObjectOneOf(((OWLObjectOneOf)filler).individuals().iterator().next());
 					Node nom = findNominalNode(ci);
 					if(nom != null) {
-						e = this.cg.addEdge(from, nom, getAllRoles(role), ds);
-						//e = this.cg.addEdge(from, nom, role, ds);
+						e = this.cg.addEdge(from, nom, role, ds);
 						updateConceptDepSet(nom, ds, ci);
 						processForAll(from);
 						processForAll(nom);
@@ -831,8 +526,7 @@ public class RuleEngine {
 						Node to =this.cg.addNode(NodeType.NOMINAL, ci);
 						to.setConceptsDependencies(ci, ds);
 						ConceptNDepSet cnds = new ConceptNDepSet(ci, ds);
-						e = this.cg.addEdge(from, to, getAllRoles(role), ds);
-						//e = this.cg.addEdge(from, to, role, ds);
+						e = this.cg.addEdge(from, to, role, ds);
 						this.cg.addConceptToNode(to, cnds);
 						processForAll(from);
 						absorbNominal(ci, to, ds);
@@ -844,8 +538,7 @@ public class RuleEngine {
 					Node to =this.cg.addNode(NodeType.BLOCKABLE, filler);
 					to.setConceptsDependencies(filler, ds);
 					ConceptNDepSet cnds = new ConceptNDepSet(filler, ds);
-					e = this.cg.addEdge(from, to, getAllRoles(role), ds);
-					//e = this.cg.addEdge(from, to, role, ds);
+					e = this.cg.addEdge(from, to, role, ds);
 					this.cg.addConceptToNode(to, cnds);
 					processForAll(from);
 					if(filler instanceof OWLClass) { 
@@ -858,9 +551,7 @@ public class RuleEngine {
 				}
 			}
 			else {
-				
 				Node to = e.getToNode();
-				System.out.println("nid: "+from.getId()+" nid exists "+to.getId()+" node label " + from.getLabel());
 				updateConceptDepSet(to, ds, filler);
 				updateEdgeDepSet(ds, e);
 				if(!(filler instanceof OWLClass))
@@ -885,21 +576,19 @@ public class RuleEngine {
 			OWLClassExpression ci = df.getOWLObjectOneOf(((OWLObjectOneOf)filler).individuals().iterator().next());
 			Node nom = findNominalNode(ci);
 			if(nom != null) {
-				e = this.cg.addEdge(from, nom, getAllRoles(role), ds);
-				//e = this.cg.addEdge(from, nom, role, ds);
-				updateConceptDepSet(nom, ds, ci);
+				e = this.cg.addEdge(from, nom, role, ds);
+				updateConceptDepSet(nom, ds, filler);
 				processForAll(from);
 				processForAll(nom);
 			}
 			else {
-				Node to =this.cg.addNode(NodeType.NOMINAL, ci);
-				to.setConceptsDependencies(ci, ds);
-				ConceptNDepSet cnds = new ConceptNDepSet(ci, ds);
-				e = this.cg.addEdge(from, to, getAllRoles(role), ds);
-				//e = this.cg.addEdge(from, to, role, ds);
+				Node to =this.cg.addNode(NodeType.NOMINAL, filler);
+				to.setConceptsDependencies(filler, ds);
+				ConceptNDepSet cnds = new ConceptNDepSet(filler, ds);
+				e = this.cg.addEdge(from, to, role, ds);
 				this.cg.addConceptToNode(to, cnds);
 				processForAll(from);
-				absorbNominal(ci, to, ds);
+				absorbNominal(filler, to, ds);
 			}
 		}
 		else {
@@ -1190,7 +879,7 @@ public class RuleEngine {
 		
 			int level = clashSet.getMax();
 			System.out.println("level" + level);
-		//	System.out.println(cg.getTotalNodes());
+			System.out.println(cg.getTotalNodes());
 			restore(level);
 			if( branches.get(level).hasNextOption()) {
 				save(cg.getCurrNode());
@@ -1326,6 +1015,7 @@ public class RuleEngine {
 	public void absorbRule1(OWLClassExpression ce, Node n, DependencySet ds) {
 		//System.out.println("applying absorbRule 1 : "+ ce);
 		Set<OWLClassExpression> sup = this.intl.findConcept(ce);
+		
 		if(sup.size()!=0) {
 			for(OWLClassExpression c : sup) {
 				if(isConceptExist(n, c)) {
@@ -1335,7 +1025,7 @@ public class RuleEngine {
 				}
 				else {
 					ConceptNDepSet cnds = new ConceptNDepSet(c, ds);
-					if(c instanceof OWLObjectOneOf) {
+					if(ce instanceof OWLObjectOneOf) {
 						processNominal(c, n, cnds, ds);
 					}
 					else {
@@ -1349,7 +1039,7 @@ public class RuleEngine {
 								addToDoEntry(n, c, cnds);
 						}
 						else {
-							DependencySet clashSet = getClashSet(n, c, c.getComplementNNF());
+							DependencySet clashSet = getClashSet(n, ce, ce.getComplementNNF());
 							if(!clashSet.isEmpty()) {
 								if(!clashHandler(clashSet))
 									isInconsistent(n);
@@ -1421,7 +1111,7 @@ public class RuleEngine {
 	}
 
 	private void absorbNominal(OWLClassExpression ce, Node n, DependencySet ds) {
-		System.out.println("applying absorb Nominal : "+ ce);
+		//System.out.println("applying absorb Nominal : "+ ce);
 		Set<OWLClassExpression> sup = this.intl.findIndividual(ce);
 		//System.out.println("contains "+ sup.size());
 		
@@ -1637,13 +1327,12 @@ public class RuleEngine {
 		public void checkAboxConsistency(Set<OWLSubClassOfAxiom> aboxClassAss) {
 			for(OWLSubClassOfAxiom asb : aboxClassAss) {
 				createAboxNode(asb);
-				processToDoList();
-				/*while(!todo.isEmpty()) {
+				while(!todo.isEmpty()) {
 		    	 //	System.out.println("while loop "+ todo.entries());
 			    	 	ToDoEntry entry = todo.getNextEntry();
 			    	 	if(entry!=null)
 			    	 			this.applyRules(entry);
-				}*/
+				}
 			}
 			
 		}

@@ -66,7 +66,7 @@ public class CplexModelGenerator2 {
 			subroles  = new HashMap<Integer, QCR>();
 			qcr_map = new HashMap<Integer, OWLObjectCardinalityRestriction>();
 			for(OWLObjectCardinalityRestriction qcr : qcr_list){
-				subroles.put(subrolenum, new QCR(qcr));
+				subroles.put(subrolenum, new QCR(qcr, null));
 				qcr_map.put(subrolenum, qcr);
 				++subrolenum;
 			}

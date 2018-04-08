@@ -90,7 +90,7 @@ public class ILPPreprocessor2 {
 		int i = 0;
 		for(OWLObjectCardinalityRestriction q : getCardRes()) {
 			crMap.put(i, q);
-			QCR qcr = new QCR(q);
+			QCR qcr = new QCR(q, null);
 			qcrMap.put(i, qcr);
 			//System.out.println(i +"  "+ qcr.qualifier);
 			qcrs.add(qcr);

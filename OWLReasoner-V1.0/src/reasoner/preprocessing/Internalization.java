@@ -65,10 +65,13 @@ public class Internalization {
 	    Set<OWLSubClassOfAxiom> oneOfSubAx = new HashSet<>();
 	    Set<OWLEquivalentClassesAxiom> oneOfEqAx = new HashSet<>();
 	    Set<OWLSubObjectPropertyOfAxiom> subObjProAx = new HashSet<>();
+	    Set<OWLInverseObjectPropertiesAxiom> invObjProAx = new HashSet<>();
 	    Set<OWLSubClassOfAxiom> newSbAx = new HashSet<OWLSubClassOfAxiom>();
 		   
 	    for (OWLAxiom ax : (Iterable<OWLAxiom>)ont.axioms()::iterator) {
-		    	ax = ax.getNNF();
+		   // 	System.out.println("ax: "+ax);
+	    		ax = ax.getNNF();
+	    	//	System.out.println("nnf ax:  "+ax);
 		    if(ax instanceof OWLSubClassOfAxiom) {
 		    		OWLSubClassOfAxiom sax = (OWLSubClassOfAxiom)ax;
 		    		subAx.add(sax);
@@ -272,8 +275,8 @@ public class Internalization {
 	 //   ont.axioms().filter(ax -> ax instanceof OWLEquivalentClassesAxiom).forEach(ax -> eqAx.add((OWLEquivalentClassesAxiom) ax));
 	 //   ont.axioms().filter(ax -> ax instanceof OWLDisjointClassesAxiom).forEach(ax -> djAx.add((OWLDisjointClassesAxiom) ax));
 	    ont.axioms().filter(ax -> ax instanceof OWLSubObjectPropertyOfAxiom).forEach(ax -> subObjProAx.add((OWLSubObjectPropertyOfAxiom) ax));
-	
-	    	ontology = new Ontology(subAx, Eq, objdAx, objrAx, oneOfSubAx, oneOfEqAx, djAx, djuAx, diffInd, aboxClassAss, aboxObjProAss, subObjProAx, this.Tu, this.Tui);
+	    ont.axioms().filter(ax -> ax instanceof OWLInverseObjectPropertiesAxiom).forEach(ax -> invObjProAx.add((OWLInverseObjectPropertiesAxiom) ax));
+	    ontology = new Ontology(subAx, Eq, objdAx, objrAx, oneOfSubAx, oneOfEqAx, djAx, djuAx, diffInd, aboxClassAss, aboxObjProAss, subObjProAx, invObjProAx, this.Tu, this.Tui);
 	    	return ontology;
 	}
 	

@@ -25,7 +25,7 @@ public class Edge {
 	    public Edge(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel2, DependencySet ds) {
 	    		this.node1 = from;
 	        this.node2 = to;
-	        this.edgeLabel.addAll(edgeLabel);
+	        this.edgeLabel.addAll(edgeLabel2);
 	        this.depSet = ds;
 		}
 

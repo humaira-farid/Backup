@@ -28,7 +28,7 @@ public class PriorityMatrix {
     public void initPriorities(String options) {
         // check for correctness
         if (options.length() < 5) {
-            throw new ReasonerInternalException("ToDo List option string should have length 7");
+            throw new ReasonerInternalException("ToDo List option string should have length 5");
         }
         // init values by symbols loaded
         indexAnd = 1; // options.charAt(1) - '0';

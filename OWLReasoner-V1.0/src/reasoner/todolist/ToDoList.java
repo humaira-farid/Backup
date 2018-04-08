@@ -3,7 +3,9 @@ package reasoner.todolist;
 import static reasoner.todolist.PriorityMatrix.NREGULAROPTIONS;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.semanticweb.owlapi.model.OWLClassExpression;
 
@@ -59,17 +61,35 @@ public class ToDoList {
         }*/
         // check regular queues
         else {
-        	 --noe;
-        for (int i = 0; i < NREGULAROPTIONS; ++i) {
-            RegQueue arrayQueue = waitQueue.get(i);
-            if (!arrayQueue.isEmpty()) {
-                return arrayQueue.get();
-            }
-        }
-        // that's impossible, but still...
-        return null;
+	        	 --noe;
+	        	 System.out.println("entry remaining : "+noe);
+	        for (int i = 0; i < NREGULAROPTIONS; ++i) {
+	            RegQueue arrayQueue = waitQueue.get(i);
+	            if (!arrayQueue.isEmpty()) {
+	                return arrayQueue.get();
+	            }
+	        }
+	        // that's impossible, but still...
+	        return null;
         }
     }
+	public Set<ToDoEntry> getAllToDoEntry(Node n, NodeTag type) {
+		if(isEmpty())
+    			return new HashSet<>();
+		else {
+       	 	--noe;
+			Set<ToDoEntry> entries = new HashSet<>();
+			int index = matrix.getIndex(type);
+			RegQueue arrayQueue = waitQueue.get(index);
+			if (!arrayQueue.isEmpty()) {
+				entries.addAll(arrayQueue.getNodeEntry(n));
+			}
+			noe = noe - entries.size();
+			System.out.println("entries size : "+entries.size());
+			System.out.println("entries remaining : "+noe);
+	        return entries;
+		}
+	}
 	/** @return check if Todo table is empty */
     public boolean isEmpty() {
         return noe == 0;
@@ -135,5 +155,5 @@ public class ToDoList {
         			forEach(entry -> entry.setDs(DependencySet.plus(entry.getDs(), ds)));
 		
 	}
-
+	
 }

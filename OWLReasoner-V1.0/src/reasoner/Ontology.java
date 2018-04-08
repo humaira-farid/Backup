@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.semanticweb.owlapi.model.*;
 
@@ -26,6 +27,7 @@ public class Ontology {
 	Set<OWLSubClassOfAxiom> diffIndSubAx = new HashSet<>();
 	Set<OWLSubClassOfAxiom> aboxClassAss = new HashSet<>(); 
 	Set<OWLSubClassOfAxiom> aboxObjProAss = new HashSet<>();
+	Set<OWLInverseObjectPropertiesAxiom> invObjProAx = new HashSet<>();
     Set<OWLSubObjectPropertyOfAxiom> subObjProAx = new HashSet<>();
     SetMultimap<OWLObjectPropertyExpression, OWLObjectPropertyExpression> superRoles = HashMultimap.create();
     Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap = new HashMap<>();
@@ -56,6 +58,7 @@ public class Ontology {
 			Set<OWLSubClassOfAxiom> aboxClassAss, 
 			Set<OWLSubClassOfAxiom> aboxObjProAss, 
 			Set<OWLSubObjectPropertyOfAxiom> subObjProAx, 
+			Set<OWLInverseObjectPropertiesAxiom> invObjProAx, 
 			Set<OWLSubClassOfAxiom> tu, Set<OWLSubClassOfAxiom> tui) {
 		this.subAx = subAx;
 		this.Eq = eqAx;
@@ -71,12 +74,56 @@ public class Ontology {
 		this.allEqAx.addAll(eqAx);
 		this.allEqAx.addAll(oneOfEqAx);
 		this.subObjProAx = subObjProAx;
+		this.invObjProAx = invObjProAx;
 		this.Tu = tu;
 		this.Tui = tui;
 		createMaps();
 	}
+	public Set<OWLObjectPropertyExpression> getSuperRoles(OWLObjectPropertyExpression r){
+		Set<OWLObjectPropertyExpression> supRoles = new HashSet<>();
+		if(this.getSuperRolesMap().get(r) != null)
+			supRoles.addAll(this.getSuperRolesMap().get(r));
+		return supRoles;
+	}
+	public Set<OWLObjectPropertyExpression> getInvOfInvSuperRoles(OWLObjectPropertyExpression r){
+		Set<OWLObjectPropertyExpression> supRoles = new HashSet<>();
+		if(this.getSuperRolesMap().get(r.getInverseProperty()) != null) {
+			this.getSuperRolesMap().get(r.getInverseProperty()).stream().forEach(ir -> supRoles.add(ir.getInverseProperty()));
+		}
+		return supRoles;
+	}
+	public Set<OWLObjectPropertyExpression> getInverseProperty(OWLObjectPropertyExpression r){
+		Set<OWLObjectPropertyExpression> invRoles = new HashSet<>();
+		for(OWLInverseObjectPropertiesAxiom inv : getInvObjProAx()) {
+			if(inv.properties().anyMatch(ir -> ir.equals(r))) {
+				if(inv.getFirstProperty().equals(r))
+					invRoles.add(inv.getSecondProperty());
+				else
+					invRoles.add(inv.getFirstProperty());
+			}
+		}
+		return invRoles;
+	}
+	public Set<OWLObjectPropertyExpression> getInverseOfInverseProperty(OWLObjectPropertyExpression r){
+		Set<OWLObjectPropertyExpression> invRoles = new HashSet<>();
+		for(OWLInverseObjectPropertiesAxiom inv : getInvObjProAx()) {
+			if(inv.properties().anyMatch(ir -> ir.equals(r))) {
+				if(inv.getFirstProperty().equals(r))
+					invRoles.add(inv.getSecondProperty().getInverseProperty());
+				else
+					invRoles.add(inv.getFirstProperty().getInverseProperty());
+			}
 
-
+			else if(inv.properties().anyMatch(ir -> ir.equals(r.getInverseProperty()))) {
+				if(inv.getFirstProperty().equals(r.getInverseProperty()))
+					invRoles.add(inv.getSecondProperty());
+				else
+					invRoles.add(inv.getFirstProperty());
+			}
+		}
+		return invRoles;
+	}
+	
 	private void createMaps() {
 		for(OWLSubObjectPropertyOfAxiom obj : getSubObjProAx()) {
 			superRoles.put(obj.getSubProperty(), obj.getSuperProperty());
@@ -139,7 +186,8 @@ public class Ontology {
 				disjointGroups.add(sb.getSubClass().asConjunctSet());
 		}
 		for(OWLSubClassOfAxiom sb : this.diffIndSubAx) {
-			diffIndividuals.put(sb.getSubClass(), sb.getSuperClass());
+			//System.out.println("diff "+sb.getSubClass()+" - "+sb.getSuperClass().getComplementNNF());
+			diffIndividuals.put(sb.getSubClass(), sb.getSuperClass().getComplementNNF());
 		}
 		for(OWLEquivalentClassesAxiom eq : Eq) {
 			for(OWLSubClassOfAxiom sb : eq.asOWLSubClassOfAxioms()) {
@@ -170,8 +218,21 @@ public class Ontology {
 	}
 	public boolean hasNominal(OWLClassExpression ce) {
 		if(getAllSubsumers(ce)!=null) {
-			if(getAllSubsumers(ce).stream().anyMatch(c -> c instanceof OWLObjectOneOf));
+			if(getAllSubsumers(ce).stream().anyMatch(c -> c instanceof OWLObjectOneOf))
 				return true;
+			else if(getAllSubsumers(ce).stream().anyMatch(c -> c instanceof OWLObjectUnionOf)){
+				//getAllSubsumers(ce).stream().filter(c -> c instanceof OWLObjectUnionOf).map(c -> (OWLObjectUnionOf)c).collect(Collectors.toSet());
+				for(OWLClassExpression sp : getAllSubsumers(ce).stream().filter(c -> c instanceof OWLObjectUnionOf).collect(Collectors.toSet())) {
+					if(sp.asDisjunctSet().stream().anyMatch(dj -> dj instanceof OWLObjectOneOf))
+							return true;
+				}
+			}
+			else if(getAllSubsumers(ce).stream().anyMatch(c -> c instanceof OWLObjectIntersectionOf)) {
+				for(OWLClassExpression sp : getAllSubsumers(ce).stream().filter(c -> c instanceof OWLObjectIntersectionOf).collect(Collectors.toSet())) {
+					if(sp.asConjunctSet().stream().anyMatch(cj -> cj instanceof OWLObjectOneOf))
+							return true;
+				}
+			}
 		}
 		return false;
 	}
@@ -229,6 +290,12 @@ public class Ontology {
 			ce.addAll(conceptSubsumersMap.get(c));
 		if(this.conceptEqMap.get(c) != null)
 			ce.addAll(conceptEqMap.get(c));
+		Set<OWLClassExpression> ce2 = new HashSet<OWLClassExpression>();
+		for(OWLClassExpression sp : ce) {
+			if(this.conceptEqMap.get(sp) != null)
+				ce2.addAll(conceptEqMap.get(sp));
+		}
+		ce.addAll(ce2);
 		return ce;
 	}
 	public Set<OWLClassExpression> getAllSubsumers(OWLObjectOneOf o){
@@ -256,7 +323,7 @@ public class Ontology {
 	public Set<OWLClassExpression> getDisjointConcepts(OWLObjectOneOf o){
 		Set<OWLClassExpression> disjoints = new HashSet<OWLClassExpression>();
 		this.disjointConcepts.keySet().stream().filter(c -> c.equals(o)).forEach(c -> disjoints.addAll(disjointConcepts.get(c)));
-		this.diffIndividuals.keySet().stream().filter(c -> c.equals(o)).forEach(c -> disjoints.addAll(disjointConcepts.get(c)));
+		this.diffIndividuals.keySet().stream().filter(c -> c.equals(o)).forEach(c -> disjoints.addAll(diffIndividuals.get(c)));
 		for(OWLEquivalentClassesAxiom eq : this.oneOfEqAx) {
 			if(eq.contains(o)) {
 				for(OWLSubClassOfAxiom eqsb : eq.asOWLSubClassOfAxioms()) {
@@ -343,6 +410,10 @@ public class Ontology {
 		return aboxClassAss;
 	}
 
+
+	private Set<OWLInverseObjectPropertiesAxiom> getInvObjProAx() {
+		return invObjProAx;
+	}
 
 	public Set<OWLSubClassOfAxiom> getAboxObjProAss() {
 		return aboxObjProAss;

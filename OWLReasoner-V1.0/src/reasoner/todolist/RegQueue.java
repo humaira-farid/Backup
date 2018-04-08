@@ -25,8 +25,28 @@ public class RegQueue {
 
 	 public ToDoEntry get() {
 	        return wait.get(sPointer++);
+	   }
+	 public  Set<ToDoEntry> getNodeEntry(Node n) {
+		/* Set<ToDoEntry> entries = new HashSet<>();
+		 for(ToDoEntry en : wait) {
+			 if(en.getNode().equals(n)) {
+				 entries.add(en);
+				 sPointer++;
+			 }
+		 }
+		 return entries;*/
+		
+		 
+		 Set<ToDoEntry> entries = new HashSet<>();
+		 
+		 for(int i = sPointer; i<wait.size(); i++) {
+			 if(wait.get(sPointer).getNode().equals(n)) {
+				 
+			 }
+		 }
+		 return entries;
 	    }
-	 
+	
 	 public void setsPointer(int sPointer) {
 	        this.sPointer = sPointer;
 	    }

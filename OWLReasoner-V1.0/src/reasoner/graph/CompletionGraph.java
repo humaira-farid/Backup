@@ -103,9 +103,36 @@ public class CompletionGraph implements Cloneable {
 		to.getOutgoingEdges().add(invEdge);
 		return edge;
 	 }
-	public Edge addEdge(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel, DependencySet ds) {
+/*	public Edge addEdge(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel, DependencySet ds, Set<OWLObjectPropertyExpression> invEdgeLabel) {
+		// System.err.println("edge label to be added " + edgeLabel);
 		Edge edge = new Edge(from, to, edgeLabel, ds);
-		Set<OWLObjectPropertyExpression> invRoles = new HashSet<>(edgeLabel.stream().map(r -> r.getInverseProperty()).collect(Collectors.toSet()));
+		//Set<OWLObjectPropertyExpression> invRoles = new HashSet<>(edgeLabel.stream().map(r -> r.getInverseProperty()).collect(Collectors.toSet()));
+		//Set<OWLObjectPropertyExpression> invRoles = new HashSet<>();
+		//edgeLabel.stream().forEach(r -> invRoles.add(r.getInverseProperty()));
+		//System.err.println("inverse roles " + invRoles);
+		Edge invEdge = new Edge(to, from, invEdgeLabel, ds);
+		this.ctEdgeHeap.add(edge);
+		this.ctEdgeHeap.add(invEdge);
+		from.getNeighbour().add(edge);
+		from.getOutgoingEdges().add(edge);
+		from.getIncomingEdges().add(invEdge);
+		//to.getNeighbour().add(invEdge);
+		saveNode(from, branchingLevel);
+        saveNode(to, branchingLevel);
+		to.getIncomingEdges().add(edge);
+		//System.err.println("getOutgoingEdges " + to.getOutgoingEdges().size());
+		
+		to.getOutgoingEdges().add(invEdge);
+		//System.err.println("getOutgoingEdges " + to.getOutgoingEdges().size());
+		return edge;
+	 }*/
+	public Edge addEdge(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel, DependencySet ds) {
+		// System.err.println("edge label to be added " + edgeLabel);
+		Edge edge = new Edge(from, to, edgeLabel, ds);
+		//Set<OWLObjectPropertyExpression> invRoles = new HashSet<>(edgeLabel.stream().map(r -> r.getInverseProperty()).collect(Collectors.toSet()));
+		Set<OWLObjectPropertyExpression> invRoles = new HashSet<>();
+		edgeLabel.stream().forEach(r -> invRoles.add(r.getInverseProperty()));
+		//System.err.println("inverse roles " + invRoles);
 		Edge invEdge = new Edge(to, from, invRoles, ds);
 		this.ctEdgeHeap.add(edge);
 		this.ctEdgeHeap.add(invEdge);
@@ -116,10 +143,12 @@ public class CompletionGraph implements Cloneable {
 		saveNode(from, branchingLevel);
         saveNode(to, branchingLevel);
 		to.getIncomingEdges().add(edge);
+		//System.err.println("getOutgoingEdges " + to.getOutgoingEdges().size());
+		
 		to.getOutgoingEdges().add(invEdge);
+		//System.err.println("getOutgoingEdges " + to.getOutgoingEdges().size());
 		return edge;
 	 }
-	 
 	 public Edge getEdge(Node from, OWLClassExpression nodeLabel, OWLObjectPropertyExpression edgeLabel) {
 		 for(Edge e : from.getOutgoingEdges()) {
 			 if(e.getLabel().contains(edgeLabel)) {
@@ -133,6 +162,19 @@ public class CompletionGraph implements Cloneable {
 		 for(Edge e : from.getOutgoingEdges()) {
 			 if(e.getLabel().containsAll(edgeLabel)) {
 				 if(e.getToNode().getLabel().containsAll(nodeLabel))
+					 return e;
+			 }
+		 }
+		 return null;
+	 }
+	 public Edge findEdge(Node from, Set<OWLClassExpression> nodeLabel, Set<OWLObjectPropertyExpression> edgeLabel) {
+		 for(Edge e : from.getOutgoingEdges()) {
+			// System.out.println("edge label: " +e.getLabel());
+			// System.out.println("node label: " +e.getToNode().getLabel());
+			// System.out.println("new edge label: " +edgeLabel);
+			// System.out.println("new node label: " +nodeLabel);
+			 if(e.getLabel().containsAll(edgeLabel)) {
+				 if(nodeLabel.containsAll(e.getToNode().getLabel()))
 					 return e;
 			 }
 		 }

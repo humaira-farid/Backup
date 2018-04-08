@@ -29,7 +29,7 @@ public class TestReasoner{
 	 Ontology ontology;
 	 public TestReasoner(/*File file*/) {
 		 man = OWLManager.createOWLOntologyManager();
-		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/testOnt8_O_EU_fun.owl");
+		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/testOnt10_OI_neg.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {
@@ -65,8 +65,9 @@ public class TestReasoner{
 	     	 	
 	 	//   System.out.println( tgAxiom);
 	 	   
-		re.checkAboxConsistency(intr.getAboxClassAss());
+		
 	 	re.checkConsistency(tgAxiom);
+	 	re.checkAboxConsistency(intr.getAboxClassAss());
 	    System.out.println("Ontology is Consistent");
 	        
 	        man.removeOntology(ont);
