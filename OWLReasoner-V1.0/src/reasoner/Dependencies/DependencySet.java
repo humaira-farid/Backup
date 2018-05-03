@@ -2,13 +2,15 @@ package reasoner.Dependencies;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
 public class DependencySet {
 
 	private int branchPoint;
-	private ArrayList<Integer> bpList = new ArrayList<Integer>();
+	private Set<Integer> bpList = new HashSet<Integer>();
 	
 	protected DependencySet(){
 		
@@ -17,11 +19,11 @@ public class DependencySet {
         return new DependencySet();
     }
 	
-	 protected DependencySet(ArrayList<Integer> bpList) {
+	 protected DependencySet(Set<Integer> bpList) {
 		 this.bpList.addAll(bpList);
 	    }
 	 
-	 public static DependencySet create(ArrayList<Integer> bpList) {
+	 public static DependencySet create(Set<Integer> bpList) {
 	        return new DependencySet(bpList);
 	    }
 	 protected DependencySet(int i) {
@@ -57,10 +59,25 @@ public class DependencySet {
 	        toReturn.add(ds2);
 	        return toReturn;
 	    }
-	 
+	 public static DependencySet update(@Nullable DependencySet ds1, @Nullable DependencySet ds2) {
+	        if (ds1 == null && ds2 == null) {
+	            return new DependencySet();
+	        }
+	        if(ds1.isEmpty() || ds2.isEmpty()) {
+	        		return new DependencySet();
+	        }
+	        
+	        DependencySet toReturn = new DependencySet();
+	        toReturn.add(ds1);
+	        toReturn.add(ds2);
+	        return toReturn;
+	    }
 	 public boolean isEmpty() {
 	        return this.bpList.size() == 0;
 	    }
+	 public Set<Integer> getbpList(){
+		 return this.bpList;
+	 }
 	 public void clear() {
 		 this.bpList.clear();
 	 }
@@ -71,12 +88,14 @@ public class DependencySet {
 	        }
 	        if (bpList.size() == 0) {
 	        	bpList = toAdd.bpList;
+	        	branchPoint = getMax();
 	            return;
 	        }
 	        if (bpList.equals(toAdd.bpList)) {
 	            return;
 	        }
 	        bpList.addAll(toAdd.bpList);
+	        branchPoint = getMax();
 	    }
 	public int getBranchPoint() {
 		return branchPoint;
@@ -85,10 +104,13 @@ public class DependencySet {
 		this.branchPoint = branchPoint;
 	}
 	public int getMax() {
+		if(bpList.isEmpty())
+			return 0;
 		return Collections.max(bpList);
 	}
 	public void removeLevel(int level) {
 		bpList.remove((Integer)level);
+		branchPoint = getMax();
 		
 	}
 	

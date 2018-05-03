@@ -1249,7 +1249,7 @@ public class RuleEngine1 {
 		// System.out.println("saving currentBranchingPoint : "+getCurLevel() +" Neighbour : "+cg.getCurrNode().getNeighbour().size()+" total nodes : "+ cg.getTotalNodes());
 
 		 cg.save();
-		 todo.save();
+		 todo.save(getCurLevel() );
 		// currentBranchingPoint = currentBranchingPoint+1;
 		// System.out.println("currentBranchingPoint : "+currentBranchingPoint);
 	 }

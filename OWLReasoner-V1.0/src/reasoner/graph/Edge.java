@@ -12,7 +12,8 @@ public class Edge {
 
 	    private Node node2;
 	    private DependencySet depSet;
-
+	    /** true if the edge going from a predecessor to a successor */
+	    private boolean succEdge = true;
 	    private Set<OWLObjectPropertyExpression> edgeLabel = new HashSet<OWLObjectPropertyExpression>();;
 
 	    public Edge(Node node1, Node node2, OWLObjectPropertyExpression edgeLabel, DependencySet ds) {
@@ -30,7 +31,7 @@ public class Edge {
 		}
 
 		public void addLabel(OWLObjectPropertyExpression edgeLabel) {
-	    	this.edgeLabel.add(edgeLabel);
+	    		this.edgeLabel.add(edgeLabel);
 	    }
 	    public Node getFromNode() {
 	        return node1;
@@ -55,10 +56,31 @@ public class Edge {
 		public void setDepSet(DependencySet depSet) {
 			this.depSet = depSet;
 		}
-
+		public void updateDepSet(DependencySet depSet) {
+			this.depSet.add(depSet);
+		}
 		public boolean isIBlocked() {
 			if(this.edgeLabel.isEmpty())
 				return true;
 			return false;
+		}
+		
+		
+	    public void setSuccEdge(boolean val) {
+	        succEdge = val;
+	    }
+
+	    /** @return true if the edge is the successor one */
+	    public boolean isSuccEdge() {
+	        return succEdge;
+	    }
+	    /** @return true if the edge is the predecessor one */
+	    public boolean isPredEdge() {
+	        return !succEdge;
+	    }
+
+		public void addLabel(Set<OWLObjectPropertyExpression> label) {
+			this.edgeLabel.addAll(label);
+			
 		}
 }

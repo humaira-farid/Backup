@@ -29,7 +29,7 @@ public class TestReasoner{
 	 Ontology ontology;
 	 public TestReasoner(/*File file*/) {
 		 man = OWLManager.createOWLOntologyManager();
-		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/testOnt10_OI_neg.owl");
+		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/testOnt12_DDBT.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {

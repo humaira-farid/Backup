@@ -1,5 +1,7 @@
 package reasoner.state;
 
+import reasoner.graph.Node;
+
 public class CGSaveState {
 	 /** number of valid nodes */
     private int nNodes = 0;
@@ -7,7 +9,7 @@ public class CGSaveState {
     private int sNodes = 0;
     /** number of used edges */
     private int nEdges = 0;
-
+    private Node currNode;
     /** @return nNodes */
     public int getnNodes() {
         return nNodes;
@@ -21,11 +23,19 @@ public class CGSaveState {
         this.nNodes = nNodes;
     }
 
+    /** @return current Node */
+    public Node getCurrNode() {
+        return currNode;
+    }
+
+    public void setCurrNode(Node n) {
+        this.currNode = n;
+    }
+
     /** @return s nodes */
     public int getsNodes() {
         return sNodes;
     }
-
     /**
      * @param sNodes
      *        sNodes

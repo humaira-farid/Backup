@@ -3,8 +3,10 @@ package reasoner.todolist;
 import static reasoner.todolist.PriorityMatrix.NREGULAROPTIONS;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.semanticweb.owlapi.model.OWLClassExpression;
@@ -20,6 +22,7 @@ public class ToDoList {
 	private final SaveStack<TDLSaveState> saveStack = new SaveStack<>();
 	/** number of un-processed entries */
     private int noe;
+    private Map<Integer, TDLSaveState> saveMap = new HashMap<>();
 	public ToDoList() {
 		noe = 0;
 		for (int i = 0; i < NREGULAROPTIONS; i++) {
@@ -131,12 +134,13 @@ public class ToDoList {
      //   waitQueue.get(6).restore(tss.backup6key, tss.backup6value);
         noe = tss.noe;
     }
-    /** save current state using internal stack */
-    public void save() {
+    /** save current state using internal stack 
+     * @param level */
+    public void save(int level) {
     	TDLSaveState state = new TDLSaveState();
         saveState(state);
-        saveStack.push(state);
-       
+       // saveStack.push(state);
+       saveMap.put(level, state);
        // saveStack.push(state, level);
     }
     
@@ -144,7 +148,8 @@ public class ToDoList {
      * restore state to the given level using internal stack
      */
     public void restore(int level) {
-    		restoreState(saveStack.pop(level));
+    		//restoreState(saveStack.pop(level));
+    		restoreState(saveMap.get(level));
     		//restoreState(saveStack.pop1(level));
     }
 
@@ -152,8 +157,61 @@ public class ToDoList {
 		int index = matrix.getIndex(type);
         waitQueue.get(index).wait.stream().
         		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).
+        			forEach(entry -> entry.setDs(DependencySet.update(entry.getDs(), ds)));
+		
+	}
+	public void plusToDoEntry(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
+		int index = matrix.getIndex(type);
+        waitQueue.get(index).wait.stream().
+        		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).
         			forEach(entry -> entry.setDs(DependencySet.plus(entry.getDs(), ds)));
 		
+	}
+	public boolean isToDoEntry1(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
+		int index = matrix.getIndex(type);
+		return waitQueue.get(index).hasEntry(n, c);
+        /*return waitQueue.get(index).wait.stream().
+        		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).findAny().isPresent();*/
+        		
+		
+	}
+	public boolean hasToDoEntry3(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
+		int index = matrix.getIndex(type);
+		return waitQueue.get(index).hasEntry(n, c);
+        /*return waitQueue.get(index).wait.stream().
+        		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).findAny().isPresent();*/
+        		
+		
+	}
+	public boolean hasToDoEntry(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
+		int index = matrix.getIndex(type);
+		ToDoEntry en = waitQueue.get(index).hasEntry2(n, c);
+		
+		if(en != null) {
+			removeEntry(index, en);
+			return true;
+		}
+		else 
+			return false;
+        /*return waitQueue.get(index).wait.stream().
+        		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).findAny().isPresent();*/
+        		
+		
+	}
+	/*public void updateToDoEntry(Node n, Node to, NodeTag type, OWLClassExpression c, DependencySet ds) {
+		int index = matrix.getIndex(type);
+        waitQueue.get(index).wait.stream().
+        		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).
+        			forEach(entry -> {
+        				entry.setDs(DependencySet.update(entry.getDs(), ds));
+        				entry.setNode(to);
+        			});
+		
+	}*/
+
+	private void removeEntry(int index, ToDoEntry entry) {
+		
+		waitQueue.get(index).remove(entry);
 	}
 	
 }

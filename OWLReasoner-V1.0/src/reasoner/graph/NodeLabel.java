@@ -34,4 +34,9 @@ public class NodeLabel {
     public void save(SaveState ss) {
         ss.setCc(cndList.save());
     }
+
+	public void init() {
+		cndList.init();
+		
+	}
 }

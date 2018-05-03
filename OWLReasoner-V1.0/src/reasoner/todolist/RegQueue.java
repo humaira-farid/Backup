@@ -46,7 +46,26 @@ public class RegQueue {
 		 }
 		 return entries;
 	    }
-	
+	public void remove(ToDoEntry entry) {
+		wait.remove(entry);
+		//sPointer++;
+	}
+	public boolean hasEntry(Node n, OWLClassExpression c) {
+		for(int i = sPointer; i< wait.size(); i++) {
+			ToDoEntry en = wait.get(i);
+			if(en.getNode().equals(n) && en.getClassExpression().equals(c))
+				return true;
+		}
+		return false;
+	}
+	public ToDoEntry hasEntry2(Node n, OWLClassExpression c) {
+		for(int i = sPointer; i< wait.size(); i++) {
+			ToDoEntry en = wait.get(i);
+			if(en.getNode().equals(n) && en.getClassExpression().equals(c))
+				return en;
+		}
+		return null;
+	}
 	 public void setsPointer(int sPointer) {
 	        this.sPointer = sPointer;
 	    }

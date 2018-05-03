@@ -34,6 +34,7 @@ public class Node implements Cloneable {
   
     /** pointer to last saved node */
     private final SaveList saves = new SaveList();
+    private Map<Integer, NodeSaveState> saveMap = new HashMap<>();
     
     public Node(Node.NodeType nodeType, OWLClassExpression nodeLabel, int id) {
         this.nodeType = nodeType;
@@ -65,6 +66,10 @@ public class Node implements Cloneable {
     
     public void init(int level) {
     	 curLevel = level;
+    	 saves.clear();
+    	 saveMap.clear();
+    	 neighbour.clear();
+    	 nLabel.init();
     }
 	
   /*  public void addEdge(Node node, OWLObjectPropertyExpression edgeLabel) {
@@ -106,8 +111,14 @@ public class Node implements Cloneable {
     	this.nodeLabel.remove(OWLClassExpression);
     }
     
-    public Set<OWLClassExpression> getLabel() {
+    public Set<OWLClassExpression> getLabel2() {
     		return this.nodeLabel;
+    }
+    public Set<OWLClassExpression> getLabel() {
+    		return getnLabel().getCndList().getConcepts();
+    }
+    public ConceptNDepList getLabel3() {
+		return getnLabel().getCndList();
     }
     public List<Edge> getNeighbour() {
     		return this.neighbour;
@@ -173,9 +184,12 @@ public class Node implements Cloneable {
      */
     public void save(int level) {
     	NodeSaveState node = new NodeSaveState();
-        saves.push(node);
+//      saves.push(node);
         save(node);
+        saveMap.put(level-1, node);
+        System.out.println("node: node "+ this.getId() + " currlevel " + curLevel);
         curLevel = level;
+        System.err.println(" changed to " + curLevel);
     }
 
     /**
@@ -184,6 +198,7 @@ public class Node implements Cloneable {
      * @return check if node needs to be restored
      */
     public boolean needRestore(int restLevel) {
+    	System.out.println("n id"+ this.getId()+" need restore? curr level: "+ curLevel + " restore level "+ restLevel);
         return curLevel > restLevel;
     }
 
@@ -192,7 +207,8 @@ public class Node implements Cloneable {
      *        level number restore node to given level
      */
     public void restore(int level) {
-        restore(saves.pop(level));
+       // restore(saves.pop(level));
+    		restore(saveMap.get(level));
     }
 	
 	 private void save(NodeSaveState nss) {
@@ -209,8 +225,10 @@ public class Node implements Cloneable {
 	        }
 	        // level restore
 	        curLevel = nss.getCurLevel();
+	        System.out.println("restore node: currlevel "+ curLevel +" restore level"+ nss.getCurLevel()); 
 	        // label restore
-	        nLabel.restore(nss.getLab(), curLevel);
+	        nLabel.restore(nss.getLab(), nss.getCurLevel());
+	        //nLabel.restore(nss.getLab(), curLevel);
 	        // remove new neighbours
 	       // if (!options.isUseDynamicBackjumping()) {
 	        resize(neighbour, nss.getnNeighbours(), null);
@@ -229,7 +247,7 @@ public class Node implements Cloneable {
 	        
 	    }
 	 public void remove() {
-		 
+		 this.neighbour.clear();
 		 this.incomingEdge.clear();
 		 this.outgoingEdge.clear();
 	 }
