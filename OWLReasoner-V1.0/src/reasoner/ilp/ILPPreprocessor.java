@@ -205,7 +205,7 @@ public class ILPPreprocessor {
 				addIntersectionConcepts(sb.getSubClass(), sb.getSuperClass(), ds);
 			}
 			else if(sb.getSuperClass() instanceof OWLObjectUnionOf) {
-				if(sb.getSuperClass().asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass))) {
+				if(sb.getSuperClass().asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf))) {
 					
 					this.simpleASubsumers.put(sb.getSubClass(), sb.getSuperClass());
 					for(OWLClassExpression c : sb.getSuperClass().asDisjunctSet()) {
@@ -215,7 +215,7 @@ public class ILPPreprocessor {
 							nominalDs.put((OWLObjectOneOf)c, ds);
 							conceptDs.put(c, ds);
 						}
-						else if(c instanceof OWLClass) {
+						else if((c instanceof OWLClass) || (c instanceof OWLObjectComplementOf)) {
 							simpleConcepts.add(c);
 							conceptDs.put(c, ds);
 						}

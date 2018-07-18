@@ -48,7 +48,7 @@ public class CompletionGraph implements Cloneable {
 	public Node addNode(Node.NodeType nodeType, OWLClassExpression nodeLabel) {
 		 Node node = new Node(nodeType,nodeLabel, getnewId());
 		 node.init(branchingLevel);
-		 System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel);
+		// System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel);
 		 nodeBase.add(node); 
 		 ++totalNodes;
 		 return node;
@@ -56,7 +56,7 @@ public class CompletionGraph implements Cloneable {
 	public Node addNode(Node.NodeType nodeType) {
 		 Node node = new Node(nodeType, getnewId());
 		 node.init(branchingLevel);
-		 System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel);
+		// System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel);
 		 nodeBase.add(node);
 		 ++totalNodes;
 		 return node;
@@ -212,7 +212,7 @@ public class CompletionGraph implements Cloneable {
 		// 1. For all x: x->FROM make x->TO
 		// 2. For all nominal x: FROM->x make TO->x
 		 //saveNode(from);
-		 Set<Edge> succEdges = new HashSet<>();
+		  Set<Edge> succEdges = new HashSet<>();
 		 from.getNeighbour().forEach(q -> {
 	           if(!q.getToNode().equals(to)) { 
 	        	   if (q.isPredEdge()) {
@@ -244,6 +244,7 @@ public class CompletionGraph implements Cloneable {
 	               // purgeEdge(p, to, ds);
 	            }
 	        });*/
+		 
 	 }
 	 
 	 private void moveEdge(Node to, Edge q, boolean isPredEdge, DependencySet ds) {
@@ -433,7 +434,7 @@ public class CompletionGraph implements Cloneable {
 	        s.setnNodes(totalNodes);
 	        s.setsNodes(savedNodes.size());
 	        s.setnEdges(ctEdgeHeap.size());
-	        System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+ savedNodes.size());
+	       // System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+ savedNodes.size());
 
 	        s.setCurrNode(currNode);
 	        saveMap.put(branchingLevel, s);
@@ -449,9 +450,9 @@ public class CompletionGraph implements Cloneable {
 	        totalNodes = s.getnNodes();
 	        lastRestorednNodes = s.getnNodes();
 	        currNode = s.getCurrNode();
-	        System.out.println(level + " restore graph curr node" + s.getCurrNode().getId());
+	      //  System.out.println(level + " restore graph curr node" + s.getCurrNode().getId());
 	        int nSaved = s.getsNodes();
-	        System.out.println("total nodes: "+ totalNodes + " nsaved: "+ nSaved+ "saved nodes: "+ savedNodes.size());
+	      //  System.out.println("total nodes: "+ totalNodes + " nsaved: "+ nSaved+ "saved nodes: "+ savedNodes.size());
 	        if (totalNodes < Math.abs(savedNodes.size() - nSaved)) {
 	            // it's cheaper to restore all nodes
 	            nodeBase.stream().limit(totalNodes).forEach(p -> restoreNode(p, level));

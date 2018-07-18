@@ -187,9 +187,9 @@ public class Node implements Cloneable {
 //      saves.push(node);
         save(node);
         saveMap.put(level-1, node);
-        System.out.println("node: node "+ this.getId() + " currlevel " + curLevel);
+       // System.out.println("node: node "+ this.getId() + " currlevel " + curLevel);
         curLevel = level;
-        System.err.println(" changed to " + curLevel);
+       // System.err.println(" changed to " + curLevel);
     }
 
     /**
@@ -198,7 +198,7 @@ public class Node implements Cloneable {
      * @return check if node needs to be restored
      */
     public boolean needRestore(int restLevel) {
-    	System.out.println("n id"+ this.getId()+" need restore? curr level: "+ curLevel + " restore level "+ restLevel);
+   // 	System.out.println("n id"+ this.getId()+" need restore? curr level: "+ curLevel + " restore level "+ restLevel);
         return curLevel > restLevel;
     }
 
@@ -225,7 +225,7 @@ public class Node implements Cloneable {
 	        }
 	        // level restore
 	        curLevel = nss.getCurLevel();
-	        System.out.println("restore node: currlevel "+ curLevel +" restore level"+ nss.getCurLevel()); 
+	      //  System.out.println("restore node: currlevel "+ curLevel +" restore level"+ nss.getCurLevel()); 
 	        // label restore
 	        nLabel.restore(nss.getLab(), nss.getCurLevel());
 	        //nLabel.restore(nss.getLab(), curLevel);

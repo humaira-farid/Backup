@@ -17,6 +17,7 @@ import reasoner.preprocessing.Internalization;
 import reasoner.todolist.ToDoList;
 
 public class TestReasoner{
+	private static long startTime;
 	ToDoList todo; 
 	Internalization intr;
 	OWLOntology ont;
@@ -29,7 +30,7 @@ public class TestReasoner{
 	 Ontology ontology;
 	 public TestReasoner(/*File file*/) {
 		 man = OWLManager.createOWLOntologyManager();
-		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/testOnt12_DDBT.owl");
+		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/cp.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {
@@ -43,12 +44,16 @@ public class TestReasoner{
 		intr.setPrefixManager(prefixManager);
 		re = new RuleEngine(intr, todo, df);
 	}
-	
+	 public static void getExecutionTime() {
+			long endTime = System.currentTimeMillis();
+	        System.out.println("It took " + (endTime - startTime) + " milliseconds");
+		}
 	public void useReasoner() throws OWLOntologyCreationException {
 		 
 	     
 		    
 	     reasoner = reasonerFactory.createReasoner(ont);
+	     startTime = System.currentTimeMillis();
 	       // intr.test(ont);
 	      checkExpressivity();
 	     ontology =  intr.internalize(ont, df);
@@ -63,13 +68,13 @@ public class TestReasoner{
 	 	  //for (OWLSubClassOfAxiom sbg : intr.getTu()) 
 	 	//   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	     	 	
-	 	//   System.out.println( tgAxiom);
+	 	   System.out.println( tgAxiom);
 	 	   
 		
 	 	re.checkConsistency(tgAxiom);
-	 	re.checkAboxConsistency(intr.getAboxClassAss());
+	 	re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
 	    System.out.println("Ontology is Consistent");
-	        
+	    getExecutionTime();
 	        man.removeOntology(ont);
 	}
 	

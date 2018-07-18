@@ -65,7 +65,7 @@ public class ToDoList {
         // check regular queues
         else {
 	        	 --noe;
-	        	 System.out.println("entry remaining : "+noe);
+	        	// System.out.println("entry remaining : "+noe);
 	        for (int i = 0; i < NREGULAROPTIONS; ++i) {
 	            RegQueue arrayQueue = waitQueue.get(i);
 	            if (!arrayQueue.isEmpty()) {
@@ -88,8 +88,8 @@ public class ToDoList {
 				entries.addAll(arrayQueue.getNodeEntry(n));
 			}
 			noe = noe - entries.size();
-			System.out.println("entries size : "+entries.size());
-			System.out.println("entries remaining : "+noe);
+			//System.out.println("entries size : "+entries.size());
+			//System.out.println("entries remaining : "+noe);
 	        return entries;
 		}
 	}

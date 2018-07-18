@@ -50,7 +50,7 @@ public class Main {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}*/
-		getExecutionTime();
+		//getExecutionTime();
 	}
 	public static void getExecutionTime() {
 		long endTime = System.currentTimeMillis();

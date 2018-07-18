@@ -148,7 +148,7 @@ public class CplexModelGenerator {
 				}
 			}
 			
-			M = 100;
+			
 			int tempQN = 0;
 			for(OWLClassExpression C : allQualifiers){
 				qualifiers.put(C, tempQN);
@@ -167,6 +167,8 @@ public class CplexModelGenerator {
 			totalQCR = qcrs.size();
 			totalNominals = nominals.size();
 			totalVar = totalQCR;//+totalNominals;
+			M = 100*totalVar;
+			//System.out.println("M value "+M);
 		}
 		/*try {
 			cplexModel= new IloCplex();
@@ -323,7 +325,7 @@ public class CplexModelGenerator {
 		IloNumVar[] sr = ppModel.getSR();
 		IloNumVar[] b = ppModel.getB();
 		
-		
+		System.out.println("solving...");
 
 		/// Generating new columns ///
 
@@ -400,10 +402,10 @@ public class CplexModelGenerator {
 					return returnSolution;
 				}
 			}
-				System.out.println("final relaxed_opt " + relaxed_opt);
+				//System.out.println("final relaxed_opt " + relaxed_opt);
 			if( relaxed_opt < M ){
 				
-				System.out.println("x.getSize() " + x.getSize());
+				//System.out.println("x.getSize() " + x.getSize());
 				boolean nonInteger = false;
 				for ( int i = 0; i < x.getSize(); i++ ) {
 					double cardinality = rmpCplex.getValue(x.getElement(i));
@@ -500,7 +502,7 @@ public class CplexModelGenerator {
 										DependencySet ds = DependencySet.create();
 											for(int j = 0 ; j < tempSubSet.getRolesIndexSet().length ; j++){
 												if(tempSubSet.getRolesIndexSet()[j] > 0) { // if r value is 1
-													System.out.println(" role "+qcrMap.get(j).role);
+													//System.out.println(" role "+qcrMap.get(j).role);
 													if(qcrMap.get(j).role!=null) {
 														tempRoleSet.add(qcrMap.get(j).role);
 														ds.add(qcrMap.get(j).ds);
@@ -537,7 +539,7 @@ public class CplexModelGenerator {
 						}
 						
 						// Adding complement to ensure at most restrictions
-						Set<QCR> tempMaxQcrs = qcrMap.values().stream().filter(qcr -> qcr.type.equals("MAX")).collect(Collectors.toSet());
+					/*	Set<QCR> tempMaxQcrs = qcrMap.values().stream().filter(qcr -> qcr.type.equals("MAX")).collect(Collectors.toSet());
 						Map<QCR , Integer> check_complement = new HashMap<>();
 						for(QCR q : tempMaxQcrs){
 							check_complement.put(q, q.cardinality);
@@ -586,7 +588,7 @@ public class CplexModelGenerator {
 								if(!reserveEdgeInformations.contains(e))
 									e.addFiller(q.qualifier.getComplementNNF());
 							}
-						}
+						}*/
 
 						Map<EdgeInformation , Integer> edge_map = new HashMap<>();
 						for(EdgeInformation e : edgeInformationSet){
