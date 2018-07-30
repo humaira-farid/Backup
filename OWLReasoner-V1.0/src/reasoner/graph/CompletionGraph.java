@@ -3,10 +3,7 @@ package reasoner.graph;
 import static reasoner.Helper.INITBRANCHINGLEVELVALUE;
 
 import java.util.*;
-import java.util.stream.Collectors;
-
 import org.semanticweb.owlapi.model.*;
-
 import reasoner.SaveStackRare;
 import reasoner.Dependencies.DependencySet;
 import reasoner.state.*;
@@ -70,11 +67,25 @@ public class CompletionGraph implements Cloneable {
 		 n.addConcept(cnd);
 		 checkBlockedStatus(n);
 	 }
-	
-	 public void checkBlockedStatus(Node n) {
+	public void unblockNode(Node node) {
+		node.setUnblock();
+		Node blocker = node.getBlocker();
+		if(blocker !=null)
+			blocker.setBlocked(null);
+		re.processUnblockedNode(node);
+		unblockNodeChildren(node);
+	}
+	 private void unblockNodeChildren(Node node) {
+		 node.getNeighbour().stream().filter(q -> q.unblockable())
+         // all of them are i-blocked
+         .forEach(q -> unblockNode(q.getToNode()));
+		
+	}
+
+	public void checkBlockedStatus(Node n) {
 		if(n.isBlocked()) {
-			n.setUnblock();
-			re.processUnblockedNode(n);
+			unblockNode(n);
+			
 		}
 		else if(n.isBlockingNode()) {
 			Node blocked = n.getBlocked();
@@ -346,15 +357,13 @@ public class CompletionGraph implements Cloneable {
 	public Node findAnywhereBlocker(Node n) {
 		
 		if(n.isBlockableNode()) {
-			for (int i = 0; i < lastRestorednNodes && i != n.getId(); i++) {
-				if(nodeBase.get(i).getLabel().equals(n.getLabel()))
-					return nodeBase.get(i);
-			}
-			/*
 			for(int i = 0 ; i < nodeBase.size() && i < n.getId(); i++) {
-				if(nodeBase.get(i).getLabel().equals(n.getLabel()))
-					return nodeBase.get(i);
-			}*/
+				Node p = nodeBase.get(i);
+				if(p.isBlockableNode() && !p.isBlocked()) {
+					if(p.getLabel().equals(n.getLabel()))
+						return nodeBase.get(i);
+				}
+			}
 		}
 		return null;
 	}
@@ -365,8 +374,8 @@ public class CompletionGraph implements Cloneable {
 	
 	private void setNodeDBlocked(Node node, Node blocker) {
         node.setdBlocked(blocker);
-       // propagateIBlockedStatus(node, blocker);
-        removeTree(node);
+        propagateIBlockedStatus(node, blocker);
+       // removeTree(node);
     }
 	private void removeTree(Node n) {
 		//n.getNeighbour().stream().filter(q -> q.getToNode().isBlockableNode()).forEach(q -> removeNode(n, q.getToNode(), q));
@@ -377,13 +386,14 @@ public class CompletionGraph implements Cloneable {
 			return;
 		else {
 			Node p = to;
+			
 			to.remove();
 			to = null;
+		
 			from.getNeighbour().remove(q);
 			removeTree(p);
 		}
 	}
-
 	private void propagateIBlockedStatus(Node node, Node blocker) {
        
 		 node.getNeighbour().stream().filter(q -> q.getToNode().isBlockableNode() && q.isSuccEdge() && !q.isIBlocked()).forEach(q -> setNodeIBlocked(q.getToNode(), blocker));

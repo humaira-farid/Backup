@@ -16,7 +16,9 @@ public class Internalization {
 
 	private Set<OWLSubClassOfAxiom> Tu;
 	private Set<OWLSubClassOfAxiom> Tui;
+	private Set<OWLClassExpression> tuConcepts;
 	private Set<OWLSubClassOfAxiom> Tg;
+    Set<OWLSubClassOfAxiom> oneOfSubAx;
 	private Set<OWLEquivalentClassesAxiom> Eq;
 	private Set<OWLSubClassOfAxiom> oneOf;
 	private Set<OWLSubClassOfAxiom> oneOfIn;
@@ -31,11 +33,14 @@ public class Internalization {
     DefaultPrefixManager prefixManager = new DefaultPrefixManager();
 	 
     Ontology ontology;
-	
-	public Internalization(){
+    OWLDataFactory df;
+    
+	public Internalization(OWLDataFactory df){
 		this.Tu = new HashSet<OWLSubClassOfAxiom>();
 		this.Tui = new HashSet<OWLSubClassOfAxiom>();
 		this.Tg = new HashSet<OWLSubClassOfAxiom>();
+		this.tuConcepts = new HashSet<>();
+		this.oneOfSubAx = new HashSet<>();
 		this.Eq = new HashSet<OWLEquivalentClassesAxiom>();
 		this.setOneOf(new HashSet<OWLSubClassOfAxiom>());
 		this.setOneOfIn(new HashSet<OWLSubClassOfAxiom>());
@@ -46,6 +51,7 @@ public class Internalization {
 		aboxObjProAss = new HashSet<>();
 		djAx = new HashSet<>();
 		djuAx = new HashSet<>();
+		this.df = df;
 		
 	}
 	public void test(OWLOntology ont) {
@@ -60,171 +66,238 @@ public class Internalization {
 		    }
 	    }
 	}
+	
+	public boolean handleQualifiedRangeRestriction(OWLClassExpression sub, OWLClassExpression sup) {
+		OWLClassExpression filler = ((OWLObjectSomeValuesFrom)sub).getFiller();
+		// --> R some A SubClassOf B -- OR -- R some A SubClassOf (B and C) 
+		if(sup instanceof OWLClass || sup instanceof OWLObjectOneOf || (sup instanceof OWLObjectIntersectionOf && 
+					((OWLObjectIntersectionOf)sup).conjunctSet().allMatch(cj -> (cj instanceof OWLClass) || (cj instanceof OWLObjectOneOf)))) {
+			// --> if A is an instance of OWLClass
+			if(filler instanceof OWLClass) {
+				OWLObjectPropertyExpression role = ((OWLObjectSomeValuesFrom)sub).getProperty();
+				tuConcepts.add(filler);
+				if(sup instanceof OWLClass || sup instanceof OWLObjectOneOf) {
+					OWLClassExpression sp = df.getOWLObjectAllValuesFrom(role.getInverseProperty(), sup);
+	    				this.Tu.add(df.getOWLSubClassOfAxiom(filler, sp));
+				}
+				else if(sup instanceof OWLObjectIntersectionOf) {
+					sup.asConjunctSet().forEach(cj -> this.Tu.add(df.getOWLSubClassOfAxiom(filler, 
+							df.getOWLObjectAllValuesFrom(role.getInverseProperty(), cj))));
+				}
+				return true;
+			}
+			// --> if A is a nominal
+			else if(filler instanceof OWLObjectOneOf) {
+				OWLObjectPropertyExpression role = ((OWLObjectSomeValuesFrom)sub).getProperty();
+				if(sup instanceof OWLClass || sup instanceof OWLObjectOneOf) {
+					OWLClassExpression sp = df.getOWLObjectAllValuesFrom(role.getInverseProperty(), sup);
+				    	this.oneOfSubAx.add(df.getOWLSubClassOfAxiom(filler, sp));
+				}
+				else if(sup instanceof OWLObjectIntersectionOf) {
+					sup.asConjunctSet().forEach(cj -> this.oneOfSubAx.add(df.getOWLSubClassOfAxiom(filler, 
+							df.getOWLObjectAllValuesFrom(role.getInverseProperty(), cj))));
+				}
+				return true;
+			}
+			// --> if A is an instance of OWLObjectUnionOf 
+			else if(filler instanceof OWLObjectUnionOf && filler.disjunctSet().allMatch(dj -> (dj instanceof OWLClass) || (dj instanceof OWLObjectOneOf))) {
+				OWLObjectPropertyExpression role = ((OWLObjectSomeValuesFrom)sub).getProperty();
+				if(sup instanceof OWLClass || sup instanceof OWLObjectOneOf) {
+					OWLClassExpression sp = df.getOWLObjectAllValuesFrom(role.getInverseProperty(), sup);
+	    				for(OWLClassExpression ce : ((OWLObjectUnionOf)sub).asDisjunctSet()) {
+	    					if(ce instanceof OWLClass) {
+	    						tuConcepts.add(ce);
+	    						this.Tu.add(df.getOWLSubClassOfAxiom(ce, sp));
+	    					}
+	    					else if(ce instanceof OWLObjectOneOf) {
+	    						this.oneOfSubAx.add(df.getOWLSubClassOfAxiom(ce, sp));
+	    					}
+	    				}	
+				}
+				else if(sup instanceof OWLObjectIntersectionOf) {
+					for(OWLClassExpression ce : ((OWLObjectIntersectionOf)sup).asConjunctSet()) {
+	    					OWLClassExpression sp = df.getOWLObjectAllValuesFrom(role.getInverseProperty(), ce);
+	    					for(OWLClassExpression ce2 : ((OWLObjectUnionOf)sub).asDisjunctSet()) {
+	    						if(ce2 instanceof OWLClass) {
+		    						tuConcepts.add(ce2);
+		    						this.Tu.add(df.getOWLSubClassOfAxiom(ce2, sp));
+		    					}
+		    					else if(ce2 instanceof OWLObjectOneOf) {
+		    						this.oneOfSubAx.add(df.getOWLSubClassOfAxiom(ce2, sp));
+		    					}
+	    					}
+					}
+				}
+				return true;
+			}
+			// --> if A is an instance of OWLObjectIntersectionOf 
+			else if(filler instanceof OWLObjectIntersectionOf && filler.conjunctSet().allMatch(cj -> (cj instanceof OWLClass) || (cj instanceof OWLObjectOneOf))){
+				OWLObjectPropertyExpression role = ((OWLObjectSomeValuesFrom)sub).getProperty();
+				if(sup instanceof OWLClass || sup instanceof OWLObjectOneOf) {
+					OWLClassExpression sp = df.getOWLObjectAllValuesFrom(role.getInverseProperty(), sup);
+					this.Tui.add(df.getOWLSubClassOfAxiom(filler, sp));
+				}
+				else if(sup instanceof OWLObjectIntersectionOf) {
+					for(OWLClassExpression ce : ((OWLObjectIntersectionOf)sup).asConjunctSet()) {
+	    					OWLClassExpression sp = df.getOWLObjectAllValuesFrom(role.getInverseProperty(), ce);
+	    					this.Tui.add(df.getOWLSubClassOfAxiom(filler, sp));
+					}
+				}
+			}
+			return true;
+		}
+				
 		
-	public Ontology internalize(OWLOntology ont, OWLDataFactory df) {
+		return false;
+	}
+	
+	public boolean handleNominal(OWLClassExpression sub, OWLClassExpression sup) {
+		if(sup instanceof OWLClass || sup instanceof OWLObjectOneOf || (sup instanceof OWLObjectIntersectionOf && 
+				((OWLObjectIntersectionOf)sup).conjunctSet().allMatch(cj -> (cj instanceof OWLClass) || (cj instanceof OWLObjectOneOf)))) {					
+			OWLIndividual ind = ((OWLObjectHasValue)sub).getFiller();
+			OWLObjectPropertyExpression role = ((OWLObjectHasValue)sub).getProperty();
+			OWLClassExpression sp = df.getOWLObjectAllValuesFrom(role.getInverseProperty(), sup);
+			OWLClassExpression sb = df.getOWLObjectOneOf(ind);
+			oneOfSubAx.add(df.getOWLSubClassOfAxiom(sb, sp));
+			return true;
+		}
+		return false;
+	}
+	public void processDisjunction(OWLClassExpression sub, OWLClassExpression sup) {
+		for(OWLClassExpression ce : ((OWLObjectUnionOf)sub).asDisjunctSet()) {
+			if(ce instanceof OWLObjectOneOf)
+				oneOfSubAx.add(df.getOWLSubClassOfAxiom(ce, sup));
+			else if(ce instanceof OWLClass) {
+				tuConcepts.add(ce);
+				if(sup instanceof OWLObjectIntersectionOf) {
+					sup.asConjunctSet().forEach(cj -> this.Tu.add(df.getOWLSubClassOfAxiom(ce, cj)));
+				}
+				else
+					this.Tu.add(df.getOWLSubClassOfAxiom(ce, sup));
+			}
+			else if(ce instanceof OWLObjectIntersectionOf && 
+					ce.conjunctSet().allMatch(cj -> (cj instanceof OWLClass) || (cj instanceof OWLObjectOneOf))) {
+				if(sup instanceof OWLObjectIntersectionOf) {
+						sup.asConjunctSet().forEach(cj -> this.Tui.add(df.getOWLSubClassOfAxiom(ce, cj)));
+					}
+				else
+					this.Tui.add(df.getOWLSubClassOfAxiom(ce, sup));
+			}
+			else if(ce instanceof OWLObjectSomeValuesFrom) {
+				if(!handleQualifiedRangeRestriction(ce, sup)) {
+					this.Tg.add(df.getOWLSubClassOfAxiom(ce, sup)); 
+				}
+			}	
+			else if(ce instanceof OWLObjectHasValue) {
+				if(!handleNominal(ce, sup)) {
+					this.Tg.add(df.getOWLSubClassOfAxiom(ce, sup)); 
+				}
+			}	
+			else
+				this.Tg.add(df.getOWLSubClassOfAxiom(ce, sup)); 
+		}
+	}
+	public Ontology internalize(OWLOntology ont) {
 		
 		Set<OWLSubClassOfAxiom> subAx = new HashSet<>();
-		Set<OWLClassExpression> tuConcepts = new HashSet<>();
-	    Set<OWLEquivalentClassesAxiom> eqAx = new HashSet<>();
+		 Set<OWLEquivalentClassesAxiom> eqAx = new HashSet<>();
 	    Set<OWLObjectPropertyDomainAxiom> objdAx = new HashSet<>();
-	    Set<OWLSubClassOfAxiom> oneOfSubAx = new HashSet<>();
 	    Set<OWLEquivalentClassesAxiom> oneOfEqAx = new HashSet<>();
 	    Set<OWLSubObjectPropertyOfAxiom> subObjProAx = new HashSet<>();
 	    Set<OWLInverseObjectPropertiesAxiom> invObjProAx = new HashSet<>();
 	    //Set<OWLSubClassOfAxiom> newSbAx = new HashSet<OWLSubClassOfAxiom>();
 		   
 	    for (OWLAxiom ax : (Iterable<OWLAxiom>)ont.axioms()::iterator) {
-		   // 	System.out.println("ax: "+ax);
-	    		ax = ax.getNNF();
-	    	//	System.out.println("nnf ax:  "+ax);
-	    		 if(ax instanceof OWLSubClassOfAxiom) {
-		    		OWLSubClassOfAxiom sax = (OWLSubClassOfAxiom)ax;
-		    		subAx.add(sax);
-		    		if(((sax).getSubClass() instanceof OWLObjectOneOf) || ((sax).getSubClass() instanceof OWLObjectUnionOf && 
-		    				((OWLObjectUnionOf)(sax).getSubClass()).disjunctSet().allMatch(dj -> dj instanceof OWLObjectOneOf))) {
+		   ax = ax.getNNF();
+		  
+		   // --> SubClassOf Axiom
+		   if(ax instanceof OWLSubClassOfAxiom) {
+			   OWLSubClassOfAxiom sax = (OWLSubClassOfAxiom)ax;
+			   subAx.add(sax);
+			   OWLClassExpression sub = sax.getSubClass();
+			   OWLClassExpression sup = sax.getSuperClass();
+			   
+			   // --> A SubClassOf (ClassExpression)
+			   if(sub instanceof OWLClass) {
+				   tuConcepts.add(sub);
+				   if(sup instanceof OWLObjectIntersectionOf)
+					   sup.asConjunctSet().forEach(cj -> this.Tu.add(df.getOWLSubClassOfAxiom(sub, cj)));
+				   else
+					   this.Tu.add(sax);
+	   			}
+				// --> o SubClassOf (ClassExpression) -- OR -- (o1 or o2) SubClassOf (ClassExpression)
+		    		else if((sub instanceof OWLObjectOneOf) || (sub instanceof OWLObjectUnionOf && 
+			    			((OWLObjectUnionOf)sub).disjunctSet().allMatch(dj -> dj instanceof OWLObjectOneOf))) {
 			    		oneOfSubAx.add(sax);
 			    		//this.oneOfAll.add(sax);
 		    		}
-		    		else if((sax).getSubClass() instanceof OWLObjectSomeValuesFrom && 
-		    				((((OWLObjectSomeValuesFrom)(sax).getSubClass()).getFiller() instanceof OWLObjectOneOf) ||
-		    					(((OWLObjectSomeValuesFrom)(sax).getSubClass()).getFiller() instanceof OWLObjectUnionOf && 
-		    							((OWLObjectUnionOf)((OWLObjectSomeValuesFrom)(sax).getSubClass()).getFiller()).disjunctSet().allMatch(dj -> dj instanceof OWLObjectOneOf)))) {
-		    			OWLClassExpression sb = ((OWLObjectSomeValuesFrom)(sax).getSubClass()).getFiller();
-		    			OWLObjectPropertyExpression role = ((OWLObjectSomeValuesFrom)(sax).getSubClass()).getProperty();
-		    			OWLClassExpression sp = df.getOWLObjectAllValuesFrom(role.getInverseProperty(), (sax).getSuperClass());
-		    			oneOfSubAx.add(df.getOWLSubClassOfAxiom(sb, sp));
-		    			//this.oneOfAll.add(df.getOWLSubClassOfAxiom(sb, sp));
+			   
+				// --> (A or B) SubClassOf C
+		    		else if(sub instanceof OWLObjectUnionOf) {
+		    			processDisjunction(sub, sup);
 		    		}
-
-		    		else if((sax).getSuperClass() instanceof OWLObjectSomeValuesFrom && 
-		    				((((OWLObjectSomeValuesFrom)(sax).getSuperClass()).getFiller() instanceof OWLObjectOneOf) ||
-		    					(((OWLObjectSomeValuesFrom)(sax).getSuperClass()).getFiller() instanceof OWLObjectUnionOf && 
-		    							((OWLObjectUnionOf)((OWLObjectSomeValuesFrom)(sax).getSuperClass()).getFiller()).disjunctSet().allMatch(dj -> dj instanceof OWLObjectOneOf)))) {
-		    			OWLClassExpression sb = ((OWLObjectSomeValuesFrom)(sax).getSuperClass()).getFiller();
-		    			OWLObjectPropertyExpression role = ((OWLObjectSomeValuesFrom)(sax).getSuperClass()).getProperty();
-		    			OWLClassExpression sp = df.getOWLObjectAllValuesFrom(role.getInverseProperty(), (sax).getSubClass());
-		    			oneOfSubAx.add(df.getOWLSubClassOfAxiom(sb, sp));
-		    			//this.oneOfAll.add(df.getOWLSubClassOfAxiom(sb, sp));
+		    		
+			// --> R some A SubClassOf C 
+			    	else if(sub instanceof OWLObjectSomeValuesFrom) {
+			    		if(!handleQualifiedRangeRestriction(sub, sup)) {
+    						this.Tg.add(df.getOWLSubClassOfAxiom(sub, sup)); 
+    					}
+			    	}
+			// --> R hasValue o SubClassOf C
+		    		else if(sub instanceof OWLObjectHasValue) {
+		    			if(!handleNominal(sub, sup)) {
+    						this.Tg.add(df.getOWLSubClassOfAxiom(sub, sup)); 
+    					}
 		    		}
-		    		else if(sax.getSubClass() instanceof OWLObjectHasValue) {
-		    			OWLIndividual ind = ((OWLObjectHasValue)(sax).getSubClass()).getFiller();
-		    			OWLObjectPropertyExpression role = ((OWLObjectHasValue)(sax).getSubClass()).getProperty();
-		    			OWLClassExpression sp = df.getOWLObjectAllValuesFrom(role.getInverseProperty(), (sax).getSuperClass());
-		    			OWLClassExpression sb = df.getOWLObjectOneOf(ind);
-		    			oneOfSubAx.add(df.getOWLSubClassOfAxiom(sb, sp));
-		    			//this.oneOfAll.add(df.getOWLSubClassOfAxiom(sb, sp));
-		    		}
-		    		else if((sax).getSuperClass() instanceof OWLObjectHasValue) {
-		    			OWLIndividual ind = ((OWLObjectHasValue)(sax).getSuperClass()).getFiller();
-		    			OWLObjectPropertyExpression role = ((OWLObjectHasValue)(sax).getSuperClass()).getProperty();
-		    			OWLClassExpression sp = df.getOWLObjectAllValuesFrom(role.getInverseProperty(), (sax).getSubClass());
-		    			OWLClassExpression sb = df.getOWLObjectOneOf(ind);
-		    			oneOfSubAx.add(df.getOWLSubClassOfAxiom(sb, sp));
-		    			//this.oneOfAll.add(df.getOWLSubClassOfAxiom(sb, sp));
-		    		}
-		    		else if(sax.getSubClass() instanceof OWLObjectUnionOf) {
-		    			for(OWLClassExpression ce : ((OWLObjectUnionOf)(sax).getSubClass()).asDisjunctSet()) {
-		    				if(ce instanceof OWLObjectOneOf)
-		    					oneOfSubAx.add(df.getOWLSubClassOfAxiom(ce, (sax).getSuperClass()));
-		    				else if(ce instanceof OWLClass) {
-		    					tuConcepts.add(ce);
-	    						if(sax.getSuperClass() instanceof OWLObjectIntersectionOf) {
-	    							sax.getSuperClass().asConjunctSet().forEach(cj -> this.Tu.add(df.getOWLSubClassOfAxiom(ce, cj)));
-	    						}
-	    						else
-	    							this.Tu.add(df.getOWLSubClassOfAxiom(ce, (sax).getSuperClass()));
-		    				}
-	    					else
-	    						this.Tg.add(df.getOWLSubClassOfAxiom(ce, (sax).getSuperClass())); 
-		    			}
-		    		}
-		    		/*else if(((sax).getSubClass() instanceof OWLObjectUnionOf && 
-		    				((OWLObjectUnionOf)(sax).getSubClass()).disjunctSet().anyMatch(dj -> dj instanceof OWLObjectOneOf))) {
-		    			for(OWLClassExpression ce : ((OWLObjectUnionOf)(sax).getSubClass()).asDisjunctSet()) {
-		    				if(ce instanceof OWLObjectOneOf)
-		    					this.oneOfAll.add(df.getOWLSubClassOfAxiom(ce, (sax).getSuperClass()));//FIXME might be we need to add it in oneOfSubAx
-		    				else if(ce instanceof OWLClass)
-	    						this.Tu.add(df.getOWLSubClassOfAxiom(ce, (sax).getSuperClass()));
-	    					else
-	    						this.Tg.add(df.getOWLSubClassOfAxiom(ce, (sax).getSuperClass())); 
-		    			}
-		    		}*/
-		    		else if(((sax).getSubClass() instanceof OWLObjectIntersectionOf && 
-		    				((OWLObjectIntersectionOf)(sax).getSubClass()).conjunctSet().allMatch(cj -> (cj instanceof OWLObjectOneOf) || (cj instanceof OWLClass)))) {
-		    			if(sax.getSuperClass() instanceof OWLObjectIntersectionOf)
-							sax.getSuperClass().asConjunctSet().forEach(cj -> this.Tui.add(df.getOWLSubClassOfAxiom((sax).getSubClass(), cj)));
+			   
+			// --> (A and B) SubClassOf C -- OR -- (o1 and o2) SubClassOf C -- OR -- (A and o1) SubClassOf C
+		    		else if((sub instanceof OWLObjectIntersectionOf && 
+		    				((OWLObjectIntersectionOf)sub).conjunctSet().allMatch(cj -> (cj instanceof OWLObjectOneOf) || (cj instanceof OWLClass)))) {
+		    			if(sup instanceof OWLObjectIntersectionOf)
+							sup.asConjunctSet().forEach(cj -> this.Tui.add(df.getOWLSubClassOfAxiom(sub, cj)));
 					else
 		    				this.Tui.add(sax);
 		    		}
-		    	/*	else if(ax.nestedClassExpressions().anyMatch(sbx -> sbx instanceof OWLObjectOneOf || sbx instanceof OWLObjectHasValue)) {
-		    			this.Tg.add(sax);
-		    		}*/
 		    		else {
-		    			if((sax).getSubClass() instanceof OWLClass) {
-		    				tuConcepts.add((sax).getSubClass());
-		    				if(sax.getSuperClass() instanceof OWLObjectIntersectionOf)
-								sax.getSuperClass().asConjunctSet().forEach(cj -> this.Tu.add(df.getOWLSubClassOfAxiom((sax).getSubClass(), cj)));
-						else
-		    					this.Tu.add(sax);
-		    			}
-		    			/*else if((sax).getSubClass() instanceof OWLObjectIntersectionOf && ((OWLObjectIntersectionOf)(sax).getSubClass()).conjunctSet().allMatch(cj -> cj instanceof OWLClass)) {
-		    				//if(isSimpleObjectIntersectionOf(((OWLObjectIntersectionOf)(sax).getSubClass()).asConjunctSet()))
-		    				this.Tui.add(sax);
-		    			}//FIXME what if we have class and nominals
-		    			else if((sax).getSubClass() instanceof OWLObjectIntersectionOf && ((OWLObjectIntersectionOf)(sax).getSubClass()).conjunctSet().allMatch(cj -> cj instanceof OWLObjectOneOf)) {
-		    				this.Tui.add(sax);
-		    				this.oneOfIn.add(sax);
-		    				//this.oneOfAll.add(sax);
-		    			}
-		    			else if((sax).getSubClass() instanceof OWLObjectUnionOf && ((OWLObjectUnionOf)(sax).getSubClass()).disjunctSet().anyMatch(cj -> cj instanceof OWLClass)) {
-		    				for(OWLClassExpression ce : ((OWLObjectUnionOf)(sax).getSubClass()).asDisjunctSet()) {
-		    					if(ce instanceof OWLClass)
-		    						this.Tu.add(df.getOWLSubClassOfAxiom(ce, (sax).getSuperClass()));
-		    					else
-		    						this.Tg.add(df.getOWLSubClassOfAxiom(ce, (sax).getSuperClass())); 
-		    						
-		    				}
-		    			}//FIXME what if we have class and nominals*/
-		    			else
-			    			this.Tg.add(sax);
+		    			// --> (ClassExpression) SubClassOf (ClassExpression)
+		    			this.Tg.add(sax);
 		    		}
 		    }
+		   // -->  EquivalentClasses Axiom
 		    	else if(ax instanceof OWLEquivalentClassesAxiom) {
 		    		OWLEquivalentClassesAxiom eax = (OWLEquivalentClassesAxiom)ax;
-		    		if((eax).operands().anyMatch(eq -> (eq instanceof OWLObjectOneOf) || ((eq instanceof OWLObjectUnionOf) && 
-		    				(((OWLObjectUnionOf)(eq)).disjunctSet().allMatch(dj -> dj instanceof OWLObjectOneOf))))) {
+		    		if(eax.operands().anyMatch(eq -> (eq instanceof OWLObjectOneOf) || ((eq instanceof OWLObjectUnionOf) && 
+		    				(((OWLObjectUnionOf)eq).disjunctSet().allMatch(dj -> dj instanceof OWLObjectOneOf))))) {
 		    			oneOfEqAx.add(eax);
 		    			for(OWLSubClassOfAxiom eqsb : eax.asOWLSubClassOfAxioms()) {
-		    				if(((eqsb).getSubClass() instanceof OWLObjectOneOf) || ((eqsb).getSubClass() instanceof OWLObjectUnionOf && 
-				    				((OWLObjectUnionOf)(eqsb).getSubClass()).disjunctSet().allMatch(dj -> dj instanceof OWLObjectOneOf)))
+		    				if((eqsb.getSubClass() instanceof OWLObjectOneOf) || (eqsb.getSubClass() instanceof OWLObjectUnionOf && 
+				    				((OWLObjectUnionOf)eqsb.getSubClass()).disjunctSet().allMatch(dj -> dj instanceof OWLObjectOneOf)))
 		    					oneOfSubAx.add(eqsb);
-		    				else if((eqsb).getSubClass() instanceof OWLClass) {
-		    					tuConcepts.add((eqsb).getSubClass());
+		    				else if(eqsb.getSubClass() instanceof OWLClass) {
+		    					tuConcepts.add(eqsb.getSubClass());
 		    					this.Tu.add(eqsb);
-		    					/*boolean eqTag = false;
-			    		    		for(OWLSubClassOfAxiom sb : this.Tu) {
-			    		    			if((eqsb).getSubClass().equals(sb.getSubClass())) {
-			    		    				eqTag = true;
-			    		    				newSbAx.add(eqsb);
-			    		    				break;
-			    		    			}
-			    		    		}
-			    		    		if(!eqTag) {
-			    		    			this.Eq.add(eax);
-			    		    		}*/
+		    				}
+		    				else if(eqsb.getSubClass() instanceof OWLObjectIntersectionOf 
+		    						&& eqsb.getSubClass().conjunctSet().allMatch(cj -> (cj instanceof OWLObjectOneOf) || (cj instanceof OWLClass))) {
+		    					this.Tui.add(eqsb);
+		    				}
+		    				else if(eqsb.getSubClass() instanceof OWLObjectUnionOf) {
+		    					processDisjunction(eqsb.getSubClass(), eqsb.getSuperClass());
+		    				}
+		    				else if(eqsb.getSubClass() instanceof OWLObjectSomeValuesFrom) {
+					    		if(!handleQualifiedRangeRestriction(eqsb.getSubClass(), eqsb.getSuperClass())) {
+		    						this.Tg.add(eqsb); 
+		    					}
 		    				}
 		    				else
 		    					Tg.add(eqsb);
 		    			}
 		    		}
-		    		/*else if(eax.nestedClassExpressions().anyMatch(sbx -> sbx instanceof OWLObjectOneOf || sbx instanceof OWLObjectHasValue)) {
-		    			for(OWLSubClassOfAxiom eqsb : eax.asOWLSubClassOfAxioms()) {
-		    				this.Tg.add(eqsb);
-		    			}
-		    		}*/
 		    		else
 		    			eqAx.add((OWLEquivalentClassesAxiom) ax);
-		    	}	
+		    	}
+		   
+		   // --> DisjointClasses Axiom
 		    	else if(ax instanceof OWLDisjointClassesAxiom) {
 		    		djAx.add((OWLDisjointClassesAxiom) ax);
 		    		//((OWLDisjointClassesAxiom) ax).operands().forEach(o -> System.out.println("operand "+o));
@@ -238,6 +311,7 @@ public class Internalization {
 				    		this.Tg.add(djsb);
 		    			}
 		    		}
+		   // --> DisjointUnion Axiom
 		    	else if(ax instanceof OWLDisjointUnionAxiom) {
 		    		djuAx.add((OWLDisjointUnionAxiom) ax);
 		    		eqAx.add(((OWLDisjointUnionAxiom) ax).getOWLEquivalentClassesAxiom());
@@ -250,33 +324,37 @@ public class Internalization {
 				    		this.Tg.add(djusb);
 		    		}
 		    	}
+		   // --> Domain Axiom
 		    	else if(ax instanceof OWLObjectPropertyDomainAxiom) {
 		    		objdAx.add((OWLObjectPropertyDomainAxiom) ax);
 			    	this.Tg.add(((OWLObjectPropertyDomainAxiom) ax).asOWLSubClassOfAxiom());
 		    	}
+		   // --> Range Axiom
 		    	else if(ax instanceof OWLObjectPropertyRangeAxiom) {
 		    		objrAx.add((OWLObjectPropertyRangeAxiom) ax);
 		    		this.Tg.add(((OWLObjectPropertyRangeAxiom) ax).asOWLSubClassOfAxiom());
 		    	}
-		    
+		   // --> DifferentIndividuals Axiom
 		    	else if(ax instanceof OWLDifferentIndividualsAxiom) {
 			 	((OWLDifferentIndividualsAxiom)ax).asOWLSubClassOfAxioms().forEach(s -> diffInd.add(s));
 			 	subAx.addAll(((OWLDifferentIndividualsAxiom)ax).asOWLSubClassOfAxioms());
 	    		
 			 }
+		   // --> Class Assertion Axiom
 		    	else if(ax instanceof OWLClassAssertionAxiom) {
 		    		aboxClassAss.add(((OWLClassAssertionAxiom)ax).asOWLSubClassOfAxiom());
 		    		oneOfSubAx.add(((OWLClassAssertionAxiom)ax).asOWLSubClassOfAxiom());
 		    		subAx.add(((OWLClassAssertionAxiom)ax).asOWLSubClassOfAxiom());
 		    }
+		   // --> role Assertion Axiom
 		    else if(ax instanceof OWLObjectPropertyAssertionAxiom) {
 	    			aboxObjProAss.add(((OWLObjectPropertyAssertionAxiom)ax).asOWLSubClassOfAxiom());
-	    			oneOfSubAx.add(((OWLClassAssertionAxiom)ax).asOWLSubClassOfAxiom());
+	    			oneOfSubAx.add(((OWLObjectPropertyAssertionAxiom)ax).asOWLSubClassOfAxiom());
 	    			subAx.add(((OWLObjectPropertyAssertionAxiom)ax).asOWLSubClassOfAxiom());
 		    }
 	    		
 	    }
-	    
+	    // --> remaining Equivalent class axioms
 	    List<OWLClassExpression>  eqConcepts = new ArrayList<>();
 	    eqAx.forEach(eq -> eqConcepts.addAll(eq.operands().collect(Collectors.toList())));
 	    
@@ -292,9 +370,7 @@ public class Internalization {
 							else
 	    							Tu.add(eqsb);
 	    					}
-	    					/*else if(eqsb.getSubClass() instanceof OWLObjectIntersectionOf) {
-	    						Tui.add(eqsb);
-	    					}*/
+	    					
 	    					else
 	    						this.Tg.add(eqsb);
 	    				}
@@ -309,41 +385,9 @@ public class Internalization {
 	    				
 	    		}
 	    }
-	   /* for(OWLEquivalentClassesAxiom eq : eqAx) {
-	    		boolean eqTag = false;
-	    		
-	    		for(OWLSubClassOfAxiom sb : this.Tu) {
-	    			if(eq.contains(sb.getSubClass())) {
-	    				eqTag = true;
-	    				for(OWLSubClassOfAxiom eqsb : eq.asOWLSubClassOfAxioms()) {
-	    					if(eqsb.getSubClass() instanceof OWLClass) {
-	    						newSbAx.add(eqsb);
-	    					}
-	    					else
-	    						this.Tg.add(eqsb);
-	    				}
-	    				break;
-	    			}
-	    		}
-	    		if(!eqTag) {
-	    			if(eq.asOWLSubClassOfAxioms().stream().filter(esb -> (esb.getSubClass() instanceof OWLClass) || (esb.getSuperClass() instanceof OWLClass)).findAny().isPresent())
-	    				this.Eq.add(eq);
-	    			else
-	    				eq.asOWLSubClassOfAxioms().stream().forEach(esb -> this.Tg.add(esb)); 
-	    				
-	    		}
-	    }*/
-
-		//System.out.println("tg size:  "+ Tg.size());
-	  /*  for(OWLSubClassOfAxiom nsb : newSbAx)
-	    		this.Tu.add(nsb);*/
-	   // this.Tu.addAll(newSbAx);
-	    	processOneOfAx(oneOfSubAx, df);
+	    	processOneOfAx(oneOfSubAx);
 	    
-	 //   ont.axioms().filter(ax -> ax instanceof OWLSubClassOfAxiom).forEach(ax -> subAx.add((OWLSubClassOfAxiom) ax));
-	 //   ont.axioms().filter(ax -> ax instanceof OWLEquivalentClassesAxiom).forEach(ax -> eqAx.add((OWLEquivalentClassesAxiom) ax));
-	 //   ont.axioms().filter(ax -> ax instanceof OWLDisjointClassesAxiom).forEach(ax -> djAx.add((OWLDisjointClassesAxiom) ax));
-	    ont.axioms().filter(ax -> ax instanceof OWLSubObjectPropertyOfAxiom).forEach(ax -> subObjProAx.add((OWLSubObjectPropertyOfAxiom) ax));
+	    	ont.axioms().filter(ax -> ax instanceof OWLSubObjectPropertyOfAxiom).forEach(ax -> subObjProAx.add((OWLSubObjectPropertyOfAxiom) ax));
 	    ont.axioms().filter(ax -> ax instanceof OWLInverseObjectPropertiesAxiom).forEach(ax -> invObjProAx.add((OWLInverseObjectPropertiesAxiom) ax));
 	    ontology = new Ontology(subAx, Eq, objdAx, objrAx, oneOfSubAx, oneOfEqAx, oneOf, djAx, djuAx, diffInd, aboxClassAss, aboxObjProAss, subObjProAx, invObjProAx, this.Tu, this.Tui);
 	    	return ontology;
@@ -361,7 +405,7 @@ public class Internalization {
 	public Ontology getOntology() {
 		return ontology;
 	}
-	private void processOneOfAx(Set<OWLSubClassOfAxiom> oneOfSubAx, OWLDataFactory df ) {
+	private void processOneOfAx(Set<OWLSubClassOfAxiom> oneOfSubAx) {
 		for(OWLSubClassOfAxiom sb : oneOfSubAx) {
 			if((sb.getSubClass() instanceof OWLObjectOneOf) && (sb.getSuperClass() instanceof OWLObjectIntersectionOf)) {
 				sb.getSuperClass().asConjunctSet().forEach(cj -> this.oneOf.add(df.getOWLSubClassOfAxiom(sb.getSubClass(), cj)));
@@ -437,15 +481,30 @@ public class Internalization {
 		this.djuAx.stream().filter(dj -> dj.getOWLDisjointClassesAxiom().contains(c)).forEach(dj -> ce.addAll(dj.getOWLDisjointClassesAxiom().getClassExpressionsMinus(c)));
 		return ce;
 	}
-	public OWLClassExpression getTgAxiom(OWLDataFactory df) {
-		OWLClassExpression union;
-	 	Set<OWLClassExpression> unionSet = new HashSet<>();
-		for (OWLSubClassOfAxiom sb : this.getTg()) {
-	    		union = df.getOWLObjectUnionOf(sb.getSubClass().getComplementNNF(), sb.getSuperClass());
-	    		unionSet.add(union);
+	public OWLClassExpression getTgAxiom() {
+		if(this.getTg().isEmpty()) {
+			return null;
 		}
-		OWLClassExpression intersection = df.getOWLObjectIntersectionOf(unionSet);
-		return intersection;
+		else {
+			OWLClassExpression union = null;
+		 	Set<OWLClassExpression> unionSet = new HashSet<>();
+		 	
+		 	if(this.getTg().size()==1) {
+		 		for (OWLSubClassOfAxiom sb : this.getTg()) {
+		 			union = df.getOWLObjectUnionOf(sb.getSubClass().getComplementNNF(), sb.getSuperClass());
+		 		}
+		 		if(union.asDisjunctSet().size()==1) {
+		 			return union.asDisjunctSet().iterator().next();
+		 		}
+		 		return union;
+		 	}
+			for (OWLSubClassOfAxiom sb : this.getTg()) {
+		    		union = df.getOWLObjectUnionOf(sb.getSubClass().getComplementNNF(), sb.getSuperClass());
+		    		unionSet.add(union);
+			}
+			OWLClassExpression intersection = df.getOWLObjectIntersectionOf(unionSet);
+			return intersection;
+		}
 	}
 	public Set<OWLObjectAllValuesFrom> getRoleRange(OWLObjectPropertyExpression r) {
 		Set<OWLObjectAllValuesFrom> ranges = new HashSet<OWLObjectAllValuesFrom>();

@@ -65,7 +65,9 @@ public class Edge {
 			return false;
 		}
 		
-		
+		public boolean unblockable() {
+	        return isSuccEdge() && !isIBlocked();
+	    }
 	    public void setSuccEdge(boolean val) {
 	        succEdge = val;
 	    }

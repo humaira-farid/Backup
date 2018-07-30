@@ -384,6 +384,10 @@ public class CplexModelGenerator {
 							//System.out.println("bVal " + bVal[j]);
 							cost += bVal[j];
 						}
+						/*if(cost>5) {
+							cost += cost-1;
+						}*/
+							
 						//System.out.println("cost " + cost);
 						IloColumn column = rmpCplex.column(obj, cost);//Creates and returns a column from the specified objective and value.
 						for ( int i = 0; i < totalVar; i++ )
@@ -446,7 +450,7 @@ public class CplexModelGenerator {
 					Set<EdgeInformation> edgeInformationSet = new HashSet<EdgeInformation>();
 					
 					if( rmpCplex.getObjValue() < M){
-						System.out.println("rmpCplex.getObjValue() " + rmpCplex.getObjValue());
+						//System.out.println("rmpCplex.getObjValue() " + rmpCplex.getObjValue());
 						for(int i = 0; i < h.getSize(); i++){
 							double cardinality = rmpCplex.getValue(h.getElement(i));
 							//System.out.println("cardinality " + cardinality);
@@ -745,8 +749,8 @@ public class CplexModelGenerator {
 		public RMPModel generateRmpModel() throws IloException {
 			
 			
-			System.out.println("total var : "+totalVar);
-			System.out.println("qcrmap size : "+qcrMap.size());
+			//System.out.println("total var : "+totalVar);
+			//System.out.println("qcrmap size : "+qcrMap.size());
 			for (int i = 0; i < totalVar; i++) {
 				if(qcrMap.get(i).type.equals("MIN")){
 					Constraint[i] = rmpCplex.addGe(expr[i], qcrMap.get(i).cardinality);
@@ -895,7 +899,7 @@ public class CplexModelGenerator {
 				}
 			}
 			//For All Restrictions -- Semantics 
-			System.out.println("forAll restrictions : "+forAllMaps.keySet().size());
+			//System.out.println("forAll restrictions : "+forAllMaps.keySet().size());
 			
 			for (OWLObjectPropertyExpression role : forAllMaps.keySet()){
 				//System.out.println("forAll restrictions : "+forAllMaps.keySet().size());

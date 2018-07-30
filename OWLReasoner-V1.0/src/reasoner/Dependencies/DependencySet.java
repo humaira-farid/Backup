@@ -60,7 +60,7 @@ public class DependencySet {
 	        return toReturn;
 	    }
 	 public static DependencySet update(@Nullable DependencySet ds1, @Nullable DependencySet ds2) {
-	        if (ds1 == null && ds2 == null) {
+	        if (ds1 == null || ds2 == null) {
 	            return new DependencySet();
 	        }
 	        if(ds1.isEmpty() || ds2.isEmpty()) {

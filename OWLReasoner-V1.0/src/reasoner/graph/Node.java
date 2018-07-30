@@ -58,12 +58,30 @@ public class Node implements Cloneable {
         blocker = null;
         blocked = null;
 	}
-
+  /*  public Node(Node n) {
+        this.nodeType = n.getNodeType();
+        this.nodeLabel = n.getLabel();
+        this.neighbour = n.getNeighbour();
+        this.outgoingEdge = n.getOutgoingEdges();
+        this.incomingEdge = n.getIncomingEdges();
+        this.id = n.getId();
+        this.nLabel = n.getnLabel();
+        blocker = n.getBlocker();
+        blocked = n.getBlocked();
+    }*/
 	public int getId() {
     	return id;
     }
     
-    
+
+	public NodeType getNodeType() {
+		return nodeType;
+	}
+
+	public void setNodeType(NodeType nodeType) {
+		this.nodeType = nodeType;
+	}
+
     public void init(int level) {
     	 curLevel = level;
     	 saves.clear();

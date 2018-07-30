@@ -30,7 +30,7 @@ public class TestReasoner{
 	 Ontology ontology;
 	 public TestReasoner(/*File file*/) {
 		 man = OWLManager.createOWLOntologyManager();
-		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/cp.owl");
+		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/TestOn-Cons-n-40b.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {
@@ -40,7 +40,7 @@ public class TestReasoner{
 		df = man.getOWLDataFactory();
 	    reasonerFactory = new ReasonerFactory();
 		todo = new ToDoList();
-		intr = new Internalization();
+		intr = new Internalization(df);
 		intr.setPrefixManager(prefixManager);
 		re = new RuleEngine(intr, todo, df);
 	}
@@ -56,8 +56,8 @@ public class TestReasoner{
 	     startTime = System.currentTimeMillis();
 	       // intr.test(ont);
 	      checkExpressivity();
-	     ontology =  intr.internalize(ont, df);
-	     OWLClassExpression tgAxiom = intr.getTgAxiom(df);
+	     ontology =  intr.internalize(ont);
+	     OWLClassExpression tgAxiom = intr.getTgAxiom();
 	    // for (OWLSubClassOfAxiom sbg : intr.getTg()) 
 	    // 	 	System.out.println("TG: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	 	    	 	
@@ -68,11 +68,15 @@ public class TestReasoner{
 	 	  //for (OWLSubClassOfAxiom sbg : intr.getTu()) 
 	 	//   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	     	 	
-	 	   System.out.println( tgAxiom);
+	 	  // System.out.println( tgAxiom);
 	 	   
-		
-	 	re.checkConsistency(tgAxiom);
-	 	re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
+	    if(tgAxiom !=null) {
+	    		re.checkConsistency(tgAxiom);
+		 	re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
+	    }
+	    else {
+	    		re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
+	    }
 	    System.out.println("Ontology is Consistent");
 	    getExecutionTime();
 	        man.removeOntology(ont);
@@ -97,16 +101,16 @@ public class TestReasoner{
 		}*/
 		if(ont.axioms().anyMatch(ax -> ax.nestedClassExpressions().anyMatch(c -> c instanceof OWLObjectMaxCardinality || c instanceof OWLObjectMinCardinality))) {
 			System.err.println("Reasoner cannot Proccess your Ontology. It contains Cardinatilty Restriction.");
-			Main.getExecutionTime();
+			getExecutionTime();
 			System.exit(0);
 		}
-		if(ont.axioms().anyMatch(ax -> ax instanceof OWLTransitiveObjectPropertyAxiom || ax instanceof OWLFunctionalObjectPropertyAxiom)) {
+		if(ont.axioms().anyMatch(ax -> ax instanceof OWLFunctionalObjectPropertyAxiom)) {
 			System.err.println("Reasoner cannot Proccess your Ontology. It contains unhandled object property axioms.");
-			Main.getExecutionTime();
+			getExecutionTime();
 			System.exit(0);
 		}
-		
 	}
+	
 
 }
 

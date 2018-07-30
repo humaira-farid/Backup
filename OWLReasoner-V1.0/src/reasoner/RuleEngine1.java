@@ -390,7 +390,7 @@ public class RuleEngine1 {
 							}
 							else {
 								System.err.println("Sorry! it needs Merging!");
-								Main.getExecutionTime();
+								TestReasoner.getExecutionTime();
 								System.exit(0);
 							}
 						}
@@ -708,7 +708,7 @@ public class RuleEngine1 {
 						}
 						else {
 							System.err.println("Sorry! it needs Merging!");
-							Main.getExecutionTime();
+							TestReasoner.getExecutionTime();
 							System.exit(0);
 						}
 					}
@@ -746,7 +746,7 @@ public class RuleEngine1 {
 	private void isInconsistent(Node n) {
 		//if(n.isNominalNode()) {
 			System.err.println("Your ontology is inconsistent");
-			Main.getExecutionTime();
+			TestReasoner.getExecutionTime();
 			System.exit(0);
 		//}
 		
@@ -866,7 +866,7 @@ public class RuleEngine1 {
 		}
 		else {
 			System.err.println("Sorry! it needs Merging!");
-			Main.getExecutionTime();
+			TestReasoner.getExecutionTime();
 			System.exit(0);
 		}
 		

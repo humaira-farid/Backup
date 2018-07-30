@@ -11,13 +11,10 @@ import reasoner.ilp.ILPPreprocessor;
 
 public class Main {
   
-	private static long startTime;
-	
 	public static void main(String[] args) throws OWLOntologyCreationException {
 
-		System.out.println("******************** ALCOI Reasoner *****************************");
-		
-		startTime = System.currentTimeMillis();
+		System.out.println("**************     Cicada: A Tableau-based Algebraic Reasoner for DL SHOI     **************");
+		System.out.println("");
 		
 		/*Options options = new Options();
 
@@ -50,11 +47,6 @@ public class Main {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}*/
-		//getExecutionTime();
+		
 	}
-	public static void getExecutionTime() {
-		long endTime = System.currentTimeMillis();
-        System.out.println("It took " + (endTime - startTime) + " milliseconds");
-	}
-
 }
