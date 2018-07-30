@@ -810,6 +810,7 @@ public class RuleEngine {
 		applyAbsorption(to, fillers, ds);
 		
 		processForAll(to);
+		applyTransitiveRule(from, to, cg.getEdge(from, to).getLabel(), ds);
 		//processForAll(from);
 	}
 	
@@ -943,6 +944,8 @@ public class RuleEngine {
 						updateConceptDepSet(nom, ds, ci);
 						processForAll(from);
 						processForAll(nom);
+						applyTransitiveRule(from, nom, e.getLabel(), ds);
+						
 					}
 					else {
 						Node to =this.cg.addNode(NodeType.NOMINAL, ci);
@@ -954,6 +957,7 @@ public class RuleEngine {
 						this.cg.addConceptToNode(to, cnds);
 						processForAll(from);
 						absorbNominal(ci, to, ds);
+						applyTransitiveRule(from, to, e.getLabel(), ds);
 						
 					}
 				}
@@ -966,6 +970,7 @@ public class RuleEngine {
 					e = this.cg.addEdge(from, to, getAllRoles(role), ds);
 					//e = this.cg.addEdge(from, to, role, ds);
 					this.cg.addConceptToNode(to, cnds);
+					
 					processForAll(from);
 					if(filler instanceof OWLClass) { 
 						to.addSimpleLabel(filler);
@@ -974,6 +979,7 @@ public class RuleEngine {
 					}
 					else 
 						addToDoEntry(to, filler, cnds);
+					applyTransitiveRule(from, to, e.getLabel(), ds);
 				}
 			}
 			else {
@@ -1009,9 +1015,11 @@ public class RuleEngine {
 			if(nom != null) {
 				e = this.cg.addEdge(from, nom, getAllRoles(role), ds);
 				//e = this.cg.addEdge(from, nom, role, ds);
+				
 				updateConceptDepSet(nom, ds, ci);
 				processForAll(from);
 				processForAll(nom);
+				applyTransitiveRule(from, nom, e.getLabel(), ds);
 			}
 			else {
 				Node to =this.cg.addNode(NodeType.NOMINAL, ci);
@@ -1021,8 +1029,10 @@ public class RuleEngine {
 				e = this.cg.addEdge(from, to, getAllRoles(role), ds);
 				//e = this.cg.addEdge(from, to, role, ds);
 				this.cg.addConceptToNode(to, cnds);
+				
 				processForAll(from);
 				absorbNominal(ci, to, ds);
+				applyTransitiveRule(from, to, e.getLabel(), ds);
 			}
 		}
 		else {
@@ -1032,7 +1042,32 @@ public class RuleEngine {
 		}
 		}
 	}
-
+	private void applyTransitiveRule(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel, DependencySet ds) {
+		
+		for(OWLObjectPropertyExpression role : edgeLabel.stream().filter(r -> r instanceof OWLTransitiveObjectPropertyAxiom).collect(Collectors.toSet())) {
+			for(OWLObjectAllValuesFrom forAll : from.getLabel().stream().filter(l -> l instanceof OWLObjectAllValuesFrom).map(l -> (OWLObjectAllValuesFrom)l).collect(Collectors.toSet())) {
+				if(edgeLabel.contains(forAll.getProperty())) {
+					OWLObjectAllValuesFrom fa = df.getOWLObjectAllValuesFrom(role, forAll.getFiller());
+					ConceptNDepSet cnds = new ConceptNDepSet(fa, ds);
+					this.cg.addConceptToNode(to, cnds);
+					if(!checkClash(to, fa)) {
+						addToDoEntry(to, fa, cnds);
+					}
+					else {
+						DependencySet clashSet = getClashSet(to, fa, fa.getComplementNNF());
+						if(!clashSet.isEmpty()) {
+							if(!clashHandler(clashSet))
+								isInconsistent(to);
+						}
+						else
+							isInconsistent(to);
+						return;
+							
+					}
+				}
+			}
+		}
+	} 
 
 	public void applyForAllRule(Node from, OWLObjectAllValuesFrom objAV, DependencySet ds) {
 	//	System.out.println("Applying for all Rule...");
@@ -1301,6 +1336,8 @@ public class RuleEngine {
 			}
 		}
 	}
+	
+	
 	private void processForAll(Node node) {
 		//node.getLabel().stream().filter(l -> l instanceof OWLObjectAllValuesFrom).
 		//	forEach(l -> applyForAllRule(node, (OWLObjectAllValuesFrom)l, node.getnLabel().getCndList().getCdSet().stream().filter(cds -> cds.getCe().equals(l)).iterator().next().getDs()));
