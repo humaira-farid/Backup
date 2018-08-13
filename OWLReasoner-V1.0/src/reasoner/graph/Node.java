@@ -132,11 +132,16 @@ public class Node implements Cloneable {
     public Set<OWLClassExpression> getLabel2() {
     		return this.nodeLabel;
     }
-    public Set<OWLClassExpression> getLabel() {
+   /* public Set<OWLClassExpression> getLabel() {
     		return getnLabel().getCndList().getConcepts();
-    }
+    }*/
     public ConceptNDepList getLabel3() {
 		return getnLabel().getCndList();
+    }
+    public Set<OWLClassExpression> getLabel() {
+    	Set<OWLClassExpression> concepts = new HashSet<>();
+    	getnLabel().getCndList().getCdSet().forEach(cds -> concepts.add(cds.getCe()));
+		return concepts;
     }
     public List<Edge> getNeighbour() {
     		return this.neighbour;

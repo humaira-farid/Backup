@@ -15,8 +15,8 @@ public class Main {
 
 		System.out.println("**************     Cicada: A Tableau-based Algebraic Reasoner for DL SHOI     **************");
 		System.out.println("");
-		
-		/*Options options = new Options();
+	 /*	
+		Options options = new Options();
 
         Option input = new Option("i", "input", true, "input file path");
         input.setRequired(true);
@@ -39,14 +39,10 @@ public class Main {
         }
         String inputFilePath = cmd.getOptionValue("input");
         File file = new File(inputFilePath);
-		new TestReasoner(file).useReasoner();*/
+		new TestReasoner(file).useReasoner();
+		*/
+		
 		new TestReasoner().useReasoner();
-		/*try {
-			new ILPPreprocessor().callILP();
-		} catch (IloException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}*/
 		
 	}
 }

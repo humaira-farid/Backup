@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import org.semanticweb.owlapi.apibinding.OWLManager;
@@ -28,9 +29,10 @@ public class TestReasoner{
 	 OWLOntologyManager man ;
 	 DefaultPrefixManager prefixManager = new DefaultPrefixManager();
 	 Ontology ontology;
-	 public TestReasoner(/*File file*/) {
+//	 public TestReasoner(File file) {
+	 public TestReasoner() {
 		 man = OWLManager.createOWLOntologyManager();
-		 File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/TestOn-Cons-n-40b.owl");
+		File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/test-non-integer.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {
@@ -56,6 +58,8 @@ public class TestReasoner{
 	     startTime = System.currentTimeMillis();
 	       // intr.test(ont);
 	      checkExpressivity();
+	      Set<OWLObjectPropertyExpression> trans = getTransitiveRoles();
+	      
 	     ontology =  intr.internalize(ont);
 	     OWLClassExpression tgAxiom = intr.getTgAxiom();
 	    // for (OWLSubClassOfAxiom sbg : intr.getTg()) 
@@ -69,7 +73,7 @@ public class TestReasoner{
 	 	//   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	     	 	
 	 	  // System.out.println( tgAxiom);
-	 	   
+	 	   re.setTransitiveRoles(trans);
 	    if(tgAxiom !=null) {
 	    		re.checkConsistency(tgAxiom);
 		 	re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
@@ -83,6 +87,12 @@ public class TestReasoner{
 	}
 	
 	
+	private Set<OWLObjectPropertyExpression> getTransitiveRoles() {
+		Set<OWLObjectPropertyExpression> trans = new HashSet<>();
+		for(OWLAxiom axiom : ont.axioms().filter(ax -> ax instanceof OWLTransitiveObjectPropertyAxiom).collect(Collectors.toSet()))
+			trans.add(((OWLTransitiveObjectPropertyAxiom)axiom).getProperty());
+		return trans;
+	}
 	public Ontology getOntology() {
 		return ontology;
 	}

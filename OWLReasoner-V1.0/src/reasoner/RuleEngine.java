@@ -51,12 +51,18 @@ public class RuleEngine {
 	AboxReasoner ar;
 	OWLClassExpression tgAxiom;
 	int currRestore = 0;
+	Set<OWLObjectPropertyExpression> transitiveRoles = new HashSet<>();
+	
 	public RuleEngine(Internalization i, ToDoList todo, OWLDataFactory df) {
 		this.intl= i;
 		this.todo = todo;
 		this.cg = new CompletionGraph(this);
 		this.df = df;
 		currentBranchingPoint = INITBRANCHINGLEVELVALUE;
+	}
+	public void setTransitiveRoles(Set<OWLObjectPropertyExpression> trans) {
+		this.transitiveRoles = trans;
+		
 	}
 	/**
 	 * checking ontology consistency
@@ -808,9 +814,10 @@ public class RuleEngine {
 			}
 		}
 		applyAbsorption(to, fillers, ds);
-		
 		processForAll(to);
-		applyTransitiveRule(from, to, cg.getEdge(from, to).getLabel(), ds);
+		Edge e = cg.getEdge(from, to);
+		if(e != null)
+			applyTransitiveRule(from, to, e.getLabel(), ds);
 		//processForAll(from);
 	}
 	
@@ -970,7 +977,6 @@ public class RuleEngine {
 					e = this.cg.addEdge(from, to, getAllRoles(role), ds);
 					//e = this.cg.addEdge(from, to, role, ds);
 					this.cg.addConceptToNode(to, cnds);
-					
 					processForAll(from);
 					if(filler instanceof OWLClass) { 
 						to.addSimpleLabel(filler);
@@ -1043,26 +1049,31 @@ public class RuleEngine {
 		}
 	}
 	private void applyTransitiveRule(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel, DependencySet ds) {
-		
-		for(OWLObjectPropertyExpression role : edgeLabel.stream().filter(r -> r instanceof OWLTransitiveObjectPropertyAxiom).collect(Collectors.toSet())) {
-			for(OWLObjectAllValuesFrom forAll : from.getLabel().stream().filter(l -> l instanceof OWLObjectAllValuesFrom).map(l -> (OWLObjectAllValuesFrom)l).collect(Collectors.toSet())) {
-				if(edgeLabel.contains(forAll.getProperty())) {
-					OWLObjectAllValuesFrom fa = df.getOWLObjectAllValuesFrom(role, forAll.getFiller());
-					ConceptNDepSet cnds = new ConceptNDepSet(fa, ds);
-					this.cg.addConceptToNode(to, cnds);
-					if(!checkClash(to, fa)) {
-						addToDoEntry(to, fa, cnds);
-					}
-					else {
-						DependencySet clashSet = getClashSet(to, fa, fa.getComplementNNF());
-						if(!clashSet.isEmpty()) {
-							if(!clashHandler(clashSet))
-								isInconsistent(to);
+		//System.out.println("transitive roles");
+		if(!this.transitiveRoles.isEmpty()) {
+			for(OWLObjectPropertyExpression role : edgeLabel) {
+				//System.out.println("role "+role+" inverse "+ role.getInverseProperty());
+				if(this.transitiveRoles.contains(role) || this.transitiveRoles.contains(role.getInverseProperty())) {
+					Set<OWLObjectPropertyExpression> supRoles = this.getAllRoles(role);
+					for(OWLObjectAllValuesFrom forAll : from.getLabel().stream().filter(l -> l instanceof OWLObjectAllValuesFrom).map(l -> (OWLObjectAllValuesFrom)l).collect(Collectors.toSet())) {
+						if(supRoles.contains(forAll.getProperty())) {
+							OWLObjectAllValuesFrom fa = df.getOWLObjectAllValuesFrom(role, forAll.getFiller());
+							ConceptNDepSet cnds = new ConceptNDepSet(fa, ds);
+							this.cg.addConceptToNode(to, cnds);
+							if(!checkClash(to, fa)) {
+								addToDoEntry(to, fa, cnds);
+							}
+							else {
+								DependencySet clashSet = getClashSet(to, fa, fa.getComplementNNF());
+								if(!clashSet.isEmpty()) {
+									if(!clashHandler(clashSet))
+										isInconsistent(to);
+								}
+								else
+									isInconsistent(to);
+								return;
+							}
 						}
-						else
-							isInconsistent(to);
-						return;
-							
 					}
 				}
 			}
@@ -1178,7 +1189,7 @@ public class RuleEngine {
 		Node n = n1;
 		if(!n.isBlocked()) {
 			for(OWLClassExpression ce : objIn.asConjunctSet()) {
-		//		System.out.println("AND RULE ce "+ ce);
+				//System.out.println("AND RULE ce "+ ce);
 				boolean flag = false;
 				if(isConceptExist(n, ce)) {
 					flag = true;
@@ -1287,6 +1298,7 @@ public class RuleEngine {
 		//	System.out.println("node  "+n.getId()+" or expression selected : "+ce);
 		//	System.out.println(" ds "+ds.getMax());
 		//	System.out.println("node  "+n.getLabel());
+		if(ce != null) {
 		boolean flag = false;
 		if(isConceptExist(n, ce)) {
 			flag = true;
@@ -1334,6 +1346,7 @@ public class RuleEngine {
 					return;
 				}
 			}
+		}
 		}
 	}
 	
@@ -1450,7 +1463,7 @@ public class RuleEngine {
 						else {
 							//addToDoEntry(to, c, cnd);
 							if(isToDoEntryDepSet(from, c, newCnd.getDs())) {
-								System.err.println("find entry "+ c);
+								//System.err.println("find entry "+ c);
 								addToDoEntry(to, c, newCnd);
 							}
 						}
@@ -2070,6 +2083,9 @@ public class RuleEngine {
 			return ce;
 		}
 		protected OWLClassExpression getNextOption() {
+			if(size >= branchIndex + 1){
+				
+			
 			OWLClassExpression ce = applicableOrEntries.get(branchIndex);
 			if(this.djTaken.contains(ce)) {
 				++branchIndex;
@@ -2078,6 +2094,8 @@ public class RuleEngine {
 			//applicableOrEntries.remove(ce);
 			++branchIndex;
 			return ce;
+		}
+			return null;
 		}
 		protected Node getNode() {
 			return this.n;
@@ -2184,6 +2202,7 @@ public class RuleEngine {
 			}
 			
 		}
+		
 	
 }
 
