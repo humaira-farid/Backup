@@ -32,7 +32,7 @@ public class TestReasoner{
 //	 public TestReasoner(File file) {
 	 public TestReasoner() {
 		 man = OWLManager.createOWLOntologyManager();
-		File file = new File("/Users/temp/Desktop/PhD/PhD Research/OWL-API/test-non-integer.owl");
+		File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/integer-only-1a-nom-test-sat-inc.fowl.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {

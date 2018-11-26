@@ -1390,6 +1390,7 @@ public class RuleEngine {
 			else {
 				System.out.println("Needs Merging! " );//+ n.getId() + " into "+nom.getId());
 				Node to = mergeNodes(n, nom, ci, ds);
+				processForAll(to);
 				return to;
 			}
 			/*System.err.println("Sorry! it needs Merging!");
