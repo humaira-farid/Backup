@@ -1030,10 +1030,10 @@ public class ILPPreprocessor {
 		//System.out.println("simpleASubsumers "+ simpleASubsumers);
 		disjoints.putAll(conceptDisjoints);
 		disjoints.putAll(nominalDisjoints);
-		CplexModelGenerator6 cmg = new CplexModelGenerator6(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH);
+		CplexModelGenerator7 cmg = new CplexModelGenerator7(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH);
 		ILPSolution sol = cmg.getILPSolution();
 		System.out.println("Solved: "+sol.isSolved());
-		for(EdgeInformation ei : sol.getEdgeInformation()) {
+	//	for(EdgeInformation ei : sol.getEdgeInformation()) {
 			/*Set<OWLClassExpression> temp = new HashSet<>();
 			temp.addAll(ei.getFillers());
 			for(OWLClassExpression ce : temp) {
@@ -1041,8 +1041,8 @@ public class ILPPreprocessor {
 					ei.getFillers().addAll(this.complexASubsumers.get(ce));
 			}
 			ei.getFillers().removeAll(auxiliaryConcepts);*/
-			System.out.println("Roles: " + ei.getEdges() +" Qualifications: " + ei.getFillers() +" cardinality : "+ ei.getCardinality());
-		}
+		//	System.out.println("Roles: " + ei.getEdges() +" Qualifications: " + ei.getFillers() +" cardinality : "+ ei.getCardinality());
+	//	}
 		return sol;
 	}
 	

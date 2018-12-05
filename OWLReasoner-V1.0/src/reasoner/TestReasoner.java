@@ -29,10 +29,10 @@ public class TestReasoner{
 	 OWLOntologyManager man ;
 	 DefaultPrefixManager prefixManager = new DefaultPrefixManager();
 	 Ontology ontology;
-//	 public TestReasoner(File file) {
+	// public TestReasoner(File file) {
 	 public TestReasoner() {
 		 man = OWLManager.createOWLOntologyManager();
-		File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/integer-only-1a-nom-test-sat-inc.fowl.owl");
+		 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/canadian-parliament-ALCO-2.fowl.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {

@@ -40,7 +40,7 @@ public class Main {
         String inputFilePath = cmd.getOptionValue("input");
         File file = new File(inputFilePath);
 		new TestReasoner(file).useReasoner();
-		*/
+	//	*/
 		
 		new TestReasoner().useReasoner();
 		
