@@ -29,10 +29,10 @@ public class TestReasoner{
 	 OWLOntologyManager man ;
 	 DefaultPrefixManager prefixManager = new DefaultPrefixManager();
 	 Ontology ontology;
-	// public TestReasoner(File file) {
-	 public TestReasoner() {
+	 public TestReasoner(File file) {
+	// public TestReasoner() {
 		 man = OWLManager.createOWLOntologyManager();
-		 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/canadian-parliament-ALCO-2.fowl.owl");
+	//	 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/CQU-example-unsat-ALCO-v2.fowl.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {
@@ -62,15 +62,15 @@ public class TestReasoner{
 	      
 	     ontology =  intr.internalize(ont);
 	     OWLClassExpression tgAxiom = intr.getTgAxiom();
-	    // for (OWLSubClassOfAxiom sbg : intr.getTg()) 
-	    // 	 	System.out.println("TG: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
+	 //    for (OWLSubClassOfAxiom sbg : intr.getTg()) 
+	   //  	 	System.out.println("TG: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	 	    	 	
-	  //   for (OWLSubClassOfAxiom sbg : intr.getTui()) 
-	    // 	 	System.out.println("Tui: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
+//	     for (OWLSubClassOfAxiom sbg : intr.getTui()) 
+//	     	 	System.out.println("Tui: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	 	  
 	 	    
-	 	  //for (OWLSubClassOfAxiom sbg : intr.getTu()) 
-	 	//   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
+//	 	  for (OWLSubClassOfAxiom sbg : intr.getTu()) 
+//	 	   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	     	 	
 	 	  // System.out.println( tgAxiom);
 	 	   re.setTransitiveRoles(trans);

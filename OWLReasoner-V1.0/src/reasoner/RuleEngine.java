@@ -99,7 +99,9 @@ public class RuleEngine {
 		while(!todo.isEmpty()) {
 		 	//System.out.println("while loop "+ todo.entries());
 		 	ToDoEntry entry = todo.getNextEntry();
+		 //	System.out.println("processToDoList ");
 		 	if(entry!=null) {
+		 //		System.out.println("entry "+ entry.getClassExpression());
 		 		Node n = entry.getNode();
 		 		//if(currNode!=null)
 		 		if(currNode!=null && currNode.equals(n)) {
@@ -594,6 +596,7 @@ public class RuleEngine {
 		} catch (IloException e) {
 			e.printStackTrace();
 		}
+		//System.out.print("hi there");
 		if(sol.isSolved()) {
 				
 			for(EdgeInformation ei : sol.getEdgeInformation()) {

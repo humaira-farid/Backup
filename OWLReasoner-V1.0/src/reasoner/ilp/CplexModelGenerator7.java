@@ -446,8 +446,8 @@ public class CplexModelGenerator7 {
 				boolean nonInteger = false;
 				for ( int i = 0; i < x.getSize(); i++ ) {
 					double cardinality = rmpCplex.getValue(x.getElement(i));
-					//System.out.println("cardinality! first "+ cardinality);
-					if(!isInteger(cardinality)) {
+					//System.out.println("x"+i +": "+ Math.round(cardinality * 100000D) / 100000D);
+					if(!isInteger(Math.round(cardinality * 100000D) / 100000D)) {
 						nonInteger = true;
 						break;
 					}
@@ -535,12 +535,12 @@ public class CplexModelGenerator7 {
 						
 						for(int i = 0; i < x.getSize(); i++){
 							double cardinality = rmpCplex.getValue(x.getElement(i));
-							if(!isInteger(cardinality)) {
-								System.out.println("non integer cardinality " + cardinality);
+							if(!isInteger(Math.round(cardinality * 100000D) / 100000D)) {
+								System.out.println("non integer cardinality " + Math.round(cardinality * 100000D) / 100000D);
 							}
 							else {
 							//	System.out.println("x cardinality " + cardinality);
-								if(cardinality > 0.0){
+								if((Math.round(cardinality * 100000D) / 100000D) > 0.0){
 									//System.out.println("i value " + i);
 									
 									SubSet tempSubSet = subsets.get(i);
@@ -735,23 +735,26 @@ public class CplexModelGenerator7 {
 		IloNumVarArray x = new IloNumVarArray(x1);
 		IloNumVarArray h = new IloNumVarArray(h1);
 		ArrayList<SubSet> subsets = new ArrayList<SubSet>(subsets1);
-	//	int size = x.getSize();
+		int size = x.getSize();
 	//	System.out.println("x size :"+ size);
 	//	System.out.println("start :"+ start);
 		
 		
 		for ( int i = start+1; i < x.getSize(); i++ ) {
+		//for ( int i = start+1; i < subsets.size(); i++ ) {
 			start++;
+		//	System.out.println("i : "+i);
+		//	System.out.println("obj : "+rmpCplex.getObjValue());
 		//	rmpCplex.solve();
 			double cardinality = rmpCplex.getValue(x.getElement(i));
 		  
 		//	System.out.println("cardinality second :"+ cardinality);
 			
-			if(!isInteger(cardinality)) {
+			if(!isInteger(Math.round(cardinality * 100000D) / 100000D)) {
 			
 				
 			//  System.out.println("Trying value number "+ i);			
-			 subsets = new ArrayList<SubSet>(subsets1);
+			// subsets = new ArrayList<SubSet>(subsets1);
 			
 			
 			
@@ -759,6 +762,12 @@ public class CplexModelGenerator7 {
 				double fractional = cardinality % 1;
 				double part1 = cardinality - fractional;
 				double part2 = part1 + 1;
+			//	System.out.println("i "+i+" subset size"+subsets.size()+" x size"+ x.getSize());
+				
+				/*if(i>=subsets.size()) {
+					System.out.println("i "+i+" subset size"+subsets.size());
+					break;
+				}*/
 				SubSet tempSubSet = subsets.get(i);
 				
 				
@@ -932,6 +941,7 @@ public class CplexModelGenerator7 {
 							
 							x.add( rmpCplex.numVar(column, 0., Double.MAX_VALUE) );
 							subsets.add(new SubSet(ppCplex.getValues(r) , ppCplex.getValues(b), ppCplex.getValues(sr)));
+						//	System.out.println("x add "+ x.getSize()+" subset add "+ subsets.size());
 							
 						}
 						else {
@@ -993,6 +1003,7 @@ public class CplexModelGenerator7 {
 						if(nonInteger) {
 							System.out.println("non integer cardinality! trying for integer solution ");
 							//infeasible = true;
+						//	System.out.println("before call : i "+i+" subset size"+subsets.size()+" x size"+ x.getSize());
 							ILPSolution sol = applyBranchAndPrice(start, rmpModel, ppModel, rmpCplex, ppCplex, x, h, subsets, b, r, sr, Constraint);
 							if(sol.solved)	
 								return sol;
@@ -1000,11 +1011,13 @@ public class CplexModelGenerator7 {
 								for(int j = totalVar; j<Constraint.length; j++) {
 									rmpCplex.remove(Constraint[j]);
 								}
+								rmpCplex.solve();
 								Constraint1 = new IloRange[orgConstraint.length];
 								Constraint1 =	Arrays.copyOf(orgConstraint, orgConstraint.length);
 								ppCplex =  	new PPModel().GeneratePpModel().getPpCplex();
 								r1 = ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
 								System.arraycopy(orgR, 0, r1, 0, orgR.length);
+								//ppCplex.solve();
 								continue;
 							}
 								
@@ -1065,7 +1078,7 @@ public class CplexModelGenerator7 {
 									}
 									for(int l = 0; l < x.getSize(); l++){
 									  double cardinality2 = rmpCplex.getValue(x.getElement(l));
-									//  System.out.println("x cardinality2 " + cardinality2);
+									  System.out.println("x cardinality2 " + cardinality2);
 									  if(cardinality2 > 0.0){
 												//	System.out.println("l value " + l);
 										SubSet tempSubSet1 = subsets.get(l);
@@ -1214,6 +1227,7 @@ public class CplexModelGenerator7 {
 									for(int j = totalVar; j<Constraint.length; j++) {
 										rmpCplex.remove(Constraint[j]);
 									}
+									rmpCplex.solve();
 									Constraint1 = new IloRange[orgConstraint.length];
 									Constraint1 =	Arrays.copyOf(orgConstraint, orgConstraint.length);
 									ppCplex =  	new PPModel().GeneratePpModel().getPpCplex();
@@ -1228,6 +1242,7 @@ public class CplexModelGenerator7 {
 								for(int j = totalVar; j<Constraint.length; j++) {
 									rmpCplex.remove(Constraint[j]);
 								}
+								rmpCplex.solve();
 								Constraint1 = new IloRange[orgConstraint.length];
 								Constraint1 =	Arrays.copyOf(orgConstraint, orgConstraint.length);
 								ppCplex =  	new PPModel().GeneratePpModel().getPpCplex();
@@ -1255,6 +1270,7 @@ public class CplexModelGenerator7 {
 						for(int j = totalVar; j<Constraint.length; j++) {
 							rmpCplex.remove(Constraint[j]);
 						}
+						rmpCplex.solve();
 						Constraint1 = new IloRange[orgConstraint.length];
 						Constraint1 =	Arrays.copyOf(orgConstraint, orgConstraint.length);
 						ppCplex =  	new PPModel().GeneratePpModel().getPpCplex();
@@ -1270,6 +1286,7 @@ public class CplexModelGenerator7 {
 					for(int j = totalVar; j<Constraint.length; j++) {
 						rmpCplex.remove(Constraint[j]);
 					}
+					rmpCplex.solve();
 					Constraint1 = new IloRange[orgConstraint.length];
 					Constraint1 =	Arrays.copyOf(orgConstraint, orgConstraint.length);
 					ppCplex =  	new PPModel().GeneratePpModel().getPpCplex();
