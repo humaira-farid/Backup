@@ -61,6 +61,9 @@ public class CompletionGraph implements Cloneable {
 	private static int getnewId() {
         return idcounter++;
     }
+	public int getCurrentId() {
+        return idcounter;
+    }
 	 public void addConceptToNode(Node n, ConceptNDepSet cnd) {
 		 saveNode(n, branchingLevel);
 		 n.addLabel(cnd.getCe());
@@ -199,16 +202,20 @@ public class CompletionGraph implements Cloneable {
 	 }
 	 public Edge getEdge(Node from, Node to) {
 		 for(Edge e : from.getOutgoingEdges()) {
-			 if(e.getToNode().equals(to)) {
-				 return e;
+			 if(e != null) {
+				 if(e.getToNode().equals(to)) {
+					 return e;
+				 }
 			 }
 		 }
 		 return null;
 	 }
 	 public Edge getInvEdge(Node from, Node to) {
 		 for(Edge e : to.getOutgoingEdges()) {
-			 if(e.getToNode().equals(from)) {
-				 return e;
+			 if(e != null) {
+				 if(e.getToNode().equals(from)) {
+					 return e;
+				 }
 			 }
 		 }
 		 return null;
@@ -225,6 +232,7 @@ public class CompletionGraph implements Cloneable {
 		 //saveNode(from);
 		  Set<Edge> succEdges = new HashSet<>();
 		 from.getNeighbour().forEach(q -> {
+			 if(q != null) {
 	           if(!q.getToNode().equals(to)) { 
 	        	   if (q.isPredEdge()) {
 	                moveEdge2(to, q, q.isPredEdge(), DependencySet.plus(DependencySet.create(q.getDepSet()), DependencySet.create(ds)));
@@ -238,7 +246,8 @@ public class CompletionGraph implements Cloneable {
 	            		succEdges.add(q);
 	            }
 	           }
-	        });
+			 }});
+		// from.setNodeMerged();
 		// for(Edge e : succEdges)
 		//	 removeNode(from, e.getToNode(), e);
 		/* from.getIncomingEdges().forEach(p -> {
@@ -333,17 +342,25 @@ public class CompletionGraph implements Cloneable {
 			// System.out.println("node label: " +e.getToNode().getLabel());
 			// System.out.println("new edge label: " +edgeLabel);
 			// System.out.println("new node label: " +nodeLabel);
-			 if(e.getLabel().containsAll(edgeLabel)) {
-				 if(nodeLabel.containsAll(e.getToNode().getLabel()))
-					 return e;
+			 if(e != null) {
+				 if(e.getLabel().containsAll(edgeLabel)) {
+					 if(nodeLabel.containsAll(e.getToNode().getLabel()))
+						 return e;
+				 }
 			 }
 		 }
 		 return null;
 	 }
 	 public Set<Edge> getEdge(Node from, OWLObjectPropertyExpression edgeLabel) {
 		 Set<Edge> edges = new HashSet<>();
-		 from.getOutgoingEdges().stream().filter(e -> e.getLabel().contains(edgeLabel)).forEach(e -> edges.add(e));
-			
+		// from.getOutgoingEdges().stream().filter(e -> e.getLabel().contains(edgeLabel)).forEach(e -> edges.add(e));
+		 for(Edge e : from.getOutgoingEdges()) {
+			 if(e != null) {
+				 if(e.getLabel().contains(edgeLabel)) {
+					 edges.add(e);
+				 }
+			 }
+		 }
 		 return edges;
 	 }
 
@@ -441,6 +458,9 @@ public class CompletionGraph implements Cloneable {
 	 public void save() {
 	        CGSaveState s = new CGSaveState();
 	        //stack.push(s);
+	        // 5 mar
+	       // stack.push(s);
+	        //
 	        s.setnNodes(totalNodes);
 	        s.setsNodes(savedNodes.size());
 	        s.setnEdges(ctEdgeHeap.size());
@@ -449,6 +469,9 @@ public class CompletionGraph implements Cloneable {
 	        s.setCurrNode(currNode);
 	        saveMap.put(branchingLevel, s);
 	       // rareStack.incLevel();
+	        // 5 mar
+	       // rareStack.incLevel();
+	        //
 	        ++branchingLevel;
 	    }
 	 public void restore(int level) {
@@ -456,26 +479,43 @@ public class CompletionGraph implements Cloneable {
 //	        branchingLevel = level;
 	        //rareStack.restore(level);
 	      //  CGSaveState s = stack.pop(level);
-	        CGSaveState s = saveMap.get(level);
+	        /// 5 mar
+	     //   branchingLevel = level;
+	      //  rareStack.restore(level);
+	      //  CGSaveState s = stack.pop(level);
+	        ///
+	       CGSaveState s = saveMap.get(level);
 	        totalNodes = s.getnNodes();
 	        lastRestorednNodes = s.getnNodes();
 	        currNode = s.getCurrNode();
-	      //  System.out.println(level + " restore graph curr node" + s.getCurrNode().getId());
+	        System.out.println(level + " restore graph curr node" + s.getCurrNode().getId());
 	        int nSaved = s.getsNodes();
-	      //  System.out.println("total nodes: "+ totalNodes + " nsaved: "+ nSaved+ "saved nodes: "+ savedNodes.size());
+	        System.out.println("total nodes: "+ totalNodes + " nsaved: "+ nSaved+ " saved nodes: "+ savedNodes.size());
 	        if (totalNodes < Math.abs(savedNodes.size() - nSaved)) {
 	            // it's cheaper to restore all nodes
 	            nodeBase.stream().limit(totalNodes).forEach(p -> restoreNode(p, level));
 	        } else {
 	            for (int i = nSaved; i < savedNodes.size(); i++) {
+	            	if(savedNodes.get(i) != null) {
 	                if (savedNodes.get(i).getId() < totalNodes) {
 	                    // don't restore nodes that are dead anyway
 	                    restoreNode(savedNodes.get(i), level);
 	                }
 	            }
+	            }
 	        }
+	        
+	       
 	        Helper.resize(savedNodes, nSaved, null);
 	        Helper.resize(ctEdgeHeap, s.getnEdges(), null);
+	        
+	        /// 5 mar 19
+	        for(Node n :  nodeBase) {
+	        	 if(n.getId()>s.getCurrNode().getId()) {
+	        		 n.removeLabel();
+	        	 }
+	        }
+	        ///
 	    }
 
 	public Node getCurrNode() {

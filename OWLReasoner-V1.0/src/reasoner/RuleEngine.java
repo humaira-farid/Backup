@@ -30,6 +30,7 @@ import reasoner.todolist.ToDoList;
 
 public class RuleEngine {
 	Internalization intl;
+	Ontology ontology;
 	CompletionGraph cg;
 	ToDoList todo;
 	private int currentBranchingPoint;
@@ -59,6 +60,7 @@ public class RuleEngine {
 		this.cg = new CompletionGraph(this);
 		this.df = df;
 		currentBranchingPoint = INITBRANCHINGLEVELVALUE;
+		this.ontology = this.intl.getOntology();
 	}
 	public void setTransitiveRoles(Set<OWLObjectPropertyExpression> trans) {
 		this.transitiveRoles = trans;
@@ -633,7 +635,10 @@ public class RuleEngine {
 								System.out.println("Needs Merging!");
 								List<Node> nomNodesL = new ArrayList<>(nomNodes);
 								for(int i = 0; i < nomNodesL.size()-1; i++) {
-									to = mergeNodes(nomNodesL.get(i), nomNodesL.get(i+1), ds);
+									if(nomNodesL.get(i).getLabel().size() < nomNodesL.get(i+1).getLabel().size())
+										to = mergeNodes(nomNodesL.get(i), nomNodesL.get(i+1), ds);
+									else
+										to = mergeNodes(nomNodesL.get(i+1), nomNodesL.get(i), ds);
 								}
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
 								/*System.err.println("Sorry! it needs Merging!");
@@ -779,6 +784,7 @@ public class RuleEngine {
 			}
 			else {
 				ConceptNDepSet cnds = new ConceptNDepSet(ce,ds);
+				
 				if(ce instanceof OWLObjectOneOf) {
 					this.cg.addConceptToNode(to, cnds);
 					
@@ -792,10 +798,22 @@ public class RuleEngine {
 							isInconsistent(to);
 						return;
 					}
+					/*Set<Set<OWLClassExpression>> djGrp = checkDisjointGroups(to);
+					if(!djGrp.isEmpty()) {
+						DependencySet clashSet = getClashSet(to, djGrp);
+						if(!clashSet.isEmpty()) {
+							if(!clashHandler(clashSet))
+								isInconsistent(to);
+						}
+						else
+							isInconsistent(to);
+						return;
+					}*/
 				}
 				else {
 					this.cg.addConceptToNode(to, cnds);
 					if(!checkClash(to, ce)) {
+					//////	
 						if(ce instanceof OWLClass) {
 							to.addSimpleLabel(ce);
 							
@@ -1144,8 +1162,10 @@ public class RuleEngine {
 							}
 							else {
 								System.out.println("Needs Merging! " );//+ n.getId() + " into "+nom.getId());
-								
-								mergeNodes(n, nom, filler, depSet);
+							//	if(n.getLabel().size() < nom.getLabel().size())
+									mergeNodes(n, nom, filler, depSet);
+							//	else
+							//		mergeNodes2(nom, n, filler, depSet);
 								processForAll(nom);
 							}
 							/*System.err.println("Sorry! it needs Merging!");
@@ -1250,7 +1270,7 @@ public class RuleEngine {
 	}
 	public void applyOrRule(Node n, OWLObjectUnionOf objUn, ConceptNDepSet cn) {
 		DependencySet ds = cn.getDs();
-	//	System.out.println("Applying or Rule..."+ n.getId() + objUn + " ds "+ds.getMax());
+		System.out.println("Applying or Rule..."+ n.getId() + objUn + " ds "+ds.getMax());
 		//System.out.println("Applying or Rule: ds "+ds.getMax());
 		
 		if(!n.isBlocked()) {
@@ -1298,8 +1318,8 @@ public class RuleEngine {
 	}
 	
 	public void applyOr(Node n, OWLClassExpression ce, DependencySet ds) {
-		//	System.out.println("node  "+n.getId()+" or expression selected : "+ce);
-		//	System.out.println(" ds "+ds.getMax());
+		System.out.println("node  "+n.getId()+" or expression selected : "+ce);
+			System.out.println(" ds "+ds.getbpList());
 		//	System.out.println("node  "+n.getLabel());
 		if(ce != null) {
 		boolean flag = false;
@@ -1391,10 +1411,22 @@ public class RuleEngine {
 				return null;
 			}
 			else {
-				System.out.println("Needs Merging! " );//+ n.getId() + " into "+nom.getId());
-				Node to = mergeNodes(n, nom, ci, ds);
-				processForAll(to);
-				return to;
+				
+			//	if(n.getLabel().size() < nom.getLabel().size()) {
+					System.out.println("Needs Merging! " + n.getId() + " into "+nom.getId());
+					System.out.println("Node " + n.getLabel() + " into "+nom.getLabel());
+					
+					Node to = mergeNodes(n, nom, ci, ds);
+					processForAll(to);
+					return to;
+			//	}
+			/*	else{
+					System.out.println("Needs Merging! " + nom.getId() + " into "+n.getId());
+					System.out.println("Node " + nom.getLabel() + " into "+n.getLabel());
+					Node to = mergeNodes2(nom, n, ci, ds);
+					processForAll(to);
+					return to;
+				}*/
 			}
 			/*System.err.println("Sorry! it needs Merging!");
 			Main.getExecutionTime();
@@ -1406,6 +1438,29 @@ public class RuleEngine {
 	private Node mergeNodes(Node from, Node to, OWLClassExpression ce, DependencySet depSet) {
 		//checkMergeClash(from, to);
 		ConceptNDepSet cnd = to.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(ce)).iterator().next();
+		DependencySet newDS = null;
+		if(!depSet.isEmpty()) {
+			newDS = DependencySet.create(depSet);
+			/*for(OWLClassExpression c : from.getLabel()) {
+				plusConceptDepSet(from, depSet, c);
+			}*/
+		}
+		else if(depSet.isEmpty() && !cnd.getDs().isEmpty()) {
+			newDS = DependencySet.create(cnd.getDs());
+			/*for(OWLClassExpression c : from.getLabel()) {
+				plusConceptDepSet(from, cnd.getDs(), c);
+			}*/
+		}
+		mergeLabels(from, to, newDS);
+		/*cg.setCurrNode(from);
+		cg.save();
+		incCurLevel();*/
+		cg.merge(from, to, depSet);
+		return to;
+	}
+	private Node mergeNodes2(Node from, Node to, OWLClassExpression ce, DependencySet depSet) {
+		//checkMergeClash(from, to);
+		ConceptNDepSet cnd = from.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(ce)).iterator().next();
 		DependencySet newDS = null;
 		if(!depSet.isEmpty()) {
 			newDS = DependencySet.create(depSet);
@@ -1449,7 +1504,7 @@ public class RuleEngine {
 				ConceptNDepSet newCnd = new ConceptNDepSet(c, DependencySet.plus(DependencySet.create(depSet), DependencySet.create(cnd.getDs())));
 				
 				//ConceptNDepSet cnd = from.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(c)).iterator().next();		
-				//System.out.println("before merge "+ cnd.getCe() +" ds "+ cnd.getDs().getbpList());
+			//	System.out.println("before merge "+ cnd.getCe() +" ds "+ cnd.getDs().getbpList());
 				if(isConceptExist(to, c)) {
 					
 					updateConceptDepSet(to, newCnd.getDs(), c);
@@ -1458,7 +1513,7 @@ public class RuleEngine {
 				}
 				else {
 					this.cg.addConceptToNode(to, newCnd);
-					//System.out.println(" after addlabel "+ newCnd.getCe() +" ds "+ newCnd.getDs().getbpList());
+			//		System.out.println(" after addlabel "+ newCnd.getCe() +" ds "+ newCnd.getDs().getbpList());
 	
 					if(!checkClash(to, c)) {
 						if(c instanceof OWLClass) {
@@ -1473,7 +1528,9 @@ public class RuleEngine {
 						}
 					}
 					else {
+						System.out.println("clash check "+ c);
 						DependencySet clashSet = getClashSet(to, c, c.getComplementNNF());
+						System.out.println("clash set "+ clashSet.getbpList());
 						if(!clashSet.isEmpty()) {
 							if(!clashHandler(clashSet))
 								isInconsistent(to);
@@ -1522,7 +1579,7 @@ public class RuleEngine {
 				}
 				
 			}
-			}
+		}
 	}
 	
 	/*private boolean checkMergeClash(Node from, Node to) {
@@ -1544,11 +1601,13 @@ public class RuleEngine {
 	private boolean clashHandler(DependencySet clashSet) {
 		
 		System.out.println("Clash handler...");
+		
+		/*/////
 		if(!clashSet.isEmpty()) {
-			
+		for(int l= 0; l < clashSet.getbpList().size(); l++) {
 			int level = clashSet.getMax();
 			
-			//System.out.println("level" + level);
+			System.out.println("level" + level);
 			//System.out.println(cg.getTotalNodes());
 			//System.out.println(branches.get(level));
 			if( branches.get(level).hasNextOption()) {
@@ -1582,6 +1641,59 @@ public class RuleEngine {
 					return false;
 			}
 		}
+		
+		}
+		else {
+			return false;
+		}
+		////	
+*/		if(!clashSet.isEmpty()) {
+			
+			int level = clashSet.getMax();
+			
+			System.out.println("level" + level);
+			//System.out.println(cg.getTotalNodes());
+			//System.out.println(branches.get(level));
+			if( branches.get(level).hasNextOption()) {
+				restore(level);
+				DependencySet newDS = DependencySet.create(clashSet);
+				//save(cg.getCurrNode());
+			//	System.out.println("restoring currentBranchingPoint : "+level +" Neighbour : "+cg.getCurrNode().getOutgoingEdges().size()+" total nodes : "+ cg.getTotalNodes());
+			//	System.out.println("branch node" + branches.get(level).getNode().getId());
+			//	System.out.println("graph curr node" + cg.getCurrNode().getId());
+			//	System.out.println("curr node label after" + cg.getCurrNode().getLabel());
+				boolean flag = false;
+				for(OWLClassExpression ce :branches.get(level).getAllNextOptions()) {
+					if(isConceptExist(cg.getCurrNode(), ce)) {
+						flag = true;
+						branches.get(level).disjunctTaken(ce);
+						updateConceptDepSet(cg.getCurrNode(), DependencySet.plus(newDS, branches.get(level).getDs()), ce);
+						// commented on 4 march 2019
+						//updateConceptDepSet(cg.getCurrNode(), branches.get(level).getDs(), ce);
+						if(!(ce instanceof OWLClass) || !(ce instanceof OWLObjectOneOf) || !(ce instanceof OWLObjectComplementOf)) {
+							updateToDoEntryDepSet(cg.getCurrNode(), ce, DependencySet.plus(newDS, branches.get(level).getDs()));
+							// commented on 4 march 2019
+							//updateToDoEntryDepSet(cg.getCurrNode(), ce, branches.get(level).getDs());
+						}
+						break;
+					
+					}
+				}
+				if(!flag) {
+					applyOr(cg.getCurrNode(), branches.get(level).getNextOption(), DependencySet.plus(newDS, branches.get(level).getDs()));
+					// commented on 4 march 2019
+					//applyOr(cg.getCurrNode(), branches.get(level).getNextOption(), branches.get(level).getDs());
+				//applyOr(branches.get(level).getNode(), branches.get(level).getNextOption(), branches.get(level).ds);
+				}
+			}
+			else {
+				branches.get(level).reset();
+				//branches.remove(level);
+				clashSet.removeLevel(level);
+				if(!clashHandler(clashSet))
+					return false;
+			}
+		}
 		else {
 			return false;
 		}
@@ -1606,11 +1718,15 @@ public class RuleEngine {
 	}
 
 	public boolean checkClash(Node n, OWLClassExpression c) {
-		
 		if(n.getLabel().contains(c.getComplementNNF())) {
 			return true;
 		}
+		
 		return false;
+	}
+	
+	public Set<Set<OWLClassExpression>> checkDisjointGroups(Node n) {
+		return ontology.getDisjointGroups(n.getLabel());
 	}
 	
 	public Node findBlocker(Node n) {
@@ -1655,15 +1771,78 @@ public class RuleEngine {
         		return AddConceptResult.DONE;
          
     }*/
+	
+	
+	public DependencySet getClashSet(Node n, Set<Set<OWLClassExpression>> djGrp) {
+		List<ConceptNDepSet> cndList = n.getnLabel().getCndList().getCdSet();
+		List<ConceptNDepSet> cndSets = new ArrayList<ConceptNDepSet>(); 
+		
+		for(ConceptNDepSet cnds : cndList){
+			if(cnds != null) {
+				OWLClassExpression ce = cnds.getCe();
+				for(Set<OWLClassExpression> djg : djGrp) {
+					if(djg.contains(ce) && !cnds.getDs().isEmpty()) {
+						cndSets.add(cnds);
+						break;
+					}
+				}
+			}
+		}
+		DependencySet ds = DependencySet.create();
+		for(ConceptNDepSet cnds : cndSets) {
+			ds = DependencySet.plus(ds,DependencySet.create(cnds.getDs()));	
+		}
+			return ds;
+	}
+	public DependencySet getClashSet2(Node n, Set<OWLClassExpression> djGrp) {
+		List<ConceptNDepSet> cndList = n.getnLabel().getCndList().getCdSet();
+		List<ConceptNDepSet> cndSets = new ArrayList<ConceptNDepSet>(); 
+		
+		for(ConceptNDepSet cnds : cndList){
+			if(cnds != null) {
+				OWLClassExpression ce = cnds.getCe();
+				if(djGrp.contains(ce) && !cnds.getDs().isEmpty()) 
+					cndSets.add(cnds);
+			}
+		}
+		DependencySet ds = DependencySet.create();
+		for(ConceptNDepSet cnds : cndSets) {
+			ds = DependencySet.plus(ds,DependencySet.create(cnds.getDs()));	
+		}
+			return ds;
+	}
+	
 	public DependencySet getClashSet(Node n, OWLClassExpression ce, OWLClassExpression ceNNF) {
-		ConceptNDepSet cnd1 = n.getnLabel().getCndList().getCdSet().stream().filter(cds -> cds.getCe().equals(ce)).iterator().next();
-		ConceptNDepSet cnd2 = n.getnLabel().getCndList().getCdSet().stream().filter(cds -> cds.getCe().equals(ceNNF)).iterator().next();
+		List<ConceptNDepSet> cndList = n.getnLabel().getCndList().getCdSet();
+		ConceptNDepSet cnd1 = null;
+		ConceptNDepSet cnd2 = null;
+		for(ConceptNDepSet cnds : cndList){
+			if(cnds != null) {
+				if(cnds.getCe().equals(ce)) {
+					cnd1 = cnds;
+				}
+				else if(cnds.getCe().equals(ceNNF)){
+					cnd2 = cnds;
+				}
+			}
+		}
+		
+	//	ConceptNDepSet cnd1 = n.getnLabel().getCndList().getCdSet().stream().filter(cds -> cds.getCe().equals(ce)).iterator().next();
+	//	ConceptNDepSet cnd2 = n.getnLabel().getCndList().getCdSet().stream().filter(cds -> cds.getCe().equals(ceNNF)).iterator().next();
 		//System.out.println("exp "+ cnd1.getCe() + " ds "+ cnd1.getDs().getMax());
 		//System.out.println("exp "+ ceNNF + " ds "+ cnd2.getDs().getMax());
-		if(cnd1.getDs().isEmpty() && cnd2.getDs().isEmpty())
-			return DependencySet.create();
-		else 
-			return DependencySet.plus(DependencySet.create(cnd1.getDs()), DependencySet.create(cnd2.getDs()));
+		if(ceNNF != null) {
+			if(cnd1.getDs().isEmpty() && cnd2.getDs().isEmpty())
+				return DependencySet.create();
+			else 
+				return DependencySet.plus(DependencySet.create(cnd1.getDs()), DependencySet.create(cnd2.getDs()));
+		}
+		else {
+			if(cnd1.getDs().isEmpty())
+				return DependencySet.create();
+			else 
+				return DependencySet.plus(DependencySet.create(cnd1.getDs()), DependencySet.create());
+		}
 	}
 	
 	public DependencySet getOtherOption(Node n, OWLClassExpression ce1, OWLClassExpression ce2) {
@@ -1703,7 +1882,17 @@ public class RuleEngine {
 		Set<OWLClassExpression> sup = this.intl.findConcept(ce);
 		if(sup.size()!=0) {
 			for(OWLClassExpression c : sup) {
-			//	System.out.println("absorb : "+ c);
+				//System.out.println("absorb : "+ c);
+				if(c.isOWLNothing()) {
+					DependencySet clashSet = getClashSet(n, ce, null);
+					if(!clashSet.isEmpty()) {
+						if(!clashHandler(clashSet))
+							isInconsistent(n);
+					}
+					else
+						isInconsistent(n);
+					return;
+				}
 				boolean flag = false;
 				if(isConceptExist(n, c)) {
 					flag = true;
@@ -1726,17 +1915,31 @@ public class RuleEngine {
 				if(!flag) {
 					ConceptNDepSet cnds = new ConceptNDepSet(c, ds);
 					if(c instanceof OWLObjectOneOf) {
+						
 						processNominal(c, n, cnds, ds);
 					}
 					else {
 						cg.addConceptToNode(n, cnds);
 						if(!checkClash(n, c)) {
-							if(c instanceof OWLClass) { 
-								n.addSimpleLabel(c);
-								absorbRule1(c, n, ds);
-							}
-							else 
-								addToDoEntry(n, c, cnds);
+						//	Set<Set<OWLClassExpression>> djGrp = checkDisjointGroups(n);
+						//	if(djGrp.isEmpty()) {
+								if(c instanceof OWLClass) { 
+									n.addSimpleLabel(c);
+									absorbRule1(c, n, ds);
+								}
+								else 
+									addToDoEntry(n, c, cnds);
+						//	}
+						/*	else {
+								DependencySet clashSet = getClashSet(n, djGrp);
+								if(!clashSet.isEmpty()) {
+									if(!clashHandler(clashSet))
+										isInconsistent(n);
+								}
+								else
+									isInconsistent(n);
+								return;
+							}*/
 						}
 						else {
 							DependencySet clashSet = getClashSet(n, c, c.getComplementNNF());
@@ -1773,6 +1976,17 @@ public class RuleEngine {
 			if(flag) {
 				boolean flag2 = false;
 				OWLClassExpression c = sb.getSuperClass();
+			//	System.err.println(c);
+				if(c.isOWLNothing()) {
+					DependencySet clashSet = getClashSet2(n, sb.getSubClass().asConjunctSet());
+					if(!clashSet.isEmpty()) {
+						if(!clashHandler(clashSet))
+							isInconsistent(n);
+					}
+					else
+						isInconsistent(n);
+					return;
+				}
 				if(isConceptExist(n, c)) {
 					flag2 = true;
 					updateConceptDepSet(n, dep, c);
@@ -1799,14 +2013,27 @@ public class RuleEngine {
 					else {
 						cg.addConceptToNode(n, cnds);
 						if(!checkClash(n, c)) {
-							if(c instanceof OWLClass) { 
-							n.addSimpleLabel(c);
-							absorbRule1(c, n, dep);
-							absorbRule2(n);
-						}
-						else 
-							addToDoEntry(n, c, cnds);
-						}
+						//	Set<Set<OWLClassExpression>> djGrp = checkDisjointGroups(n);
+						//	if(djGrp.isEmpty()) {
+								if(c instanceof OWLClass) { 
+									n.addSimpleLabel(c);
+									absorbRule1(c, n, dep);
+									absorbRule2(n);
+								}
+								else 
+									addToDoEntry(n, c, cnds);
+								}
+						/*	else {
+								DependencySet clashSet = getClashSet(n, djGrp);
+								if(!clashSet.isEmpty()) {
+									if(!clashHandler(clashSet))
+										isInconsistent(n);
+								}
+								else
+									isInconsistent(n);
+								return;
+							}
+						}*/
 						else {
 							DependencySet clashSet = getClashSet(n, c, c.getComplementNNF());
 							if(!clashSet.isEmpty()) {
@@ -1861,13 +2088,26 @@ public class RuleEngine {
 					else {
 						cg.addConceptToNode(n, cnds);
 						if(!checkClash(n, c)) {
-							if(c instanceof OWLClass) { 
-								n.addSimpleLabel(c);
-								absorbRule1(c, n, ds);
-								absorbRule2(n);
-							}
-							else 
-								addToDoEntry(n, c, cnds);
+						//	Set<Set<OWLClassExpression>> djGrp = checkDisjointGroups(n);
+						//	if(djGrp.isEmpty()) {
+								if(c instanceof OWLClass) { 
+									n.addSimpleLabel(c);
+									absorbRule1(c, n, ds);
+									absorbRule2(n);
+								}
+								else 
+									addToDoEntry(n, c, cnds);
+						//		}
+						/*	else {
+								DependencySet clashSet = getClashSet(n, djGrp);
+								if(!clashSet.isEmpty()) {
+									if(!clashHandler(clashSet))
+										isInconsistent(n);
+								}
+								else
+									isInconsistent(n);
+								return;
+							}*/
 						}
 						else {
 							DependencySet clashSet = getClashSet(n, c, c.getComplementNNF());
@@ -1924,13 +2164,28 @@ public class RuleEngine {
 	}*/
 	public void updateConceptDepSet(Node n, DependencySet ds, OWLClassExpression filler) {
 		//System.out.println("node "+n.getId() +"filler "+ filler+" node label "+ n.getLabel());
-		ConceptNDepSet cnd = n.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(filler)).iterator().next();
+		List<ConceptNDepSet> cndList = n.getnLabel().getCndList().getCdSet();
+		ConceptNDepSet cnd = null;
+		for(ConceptNDepSet cnds : cndList){
+			if(cnds != null) {
+				if(cnds.getCe().equals(filler)) {
+					cnd = cnds;
+				}
+			}
+		}
+		//ConceptNDepSet cnd = n.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(filler)).iterator().next();
 		if(cnd.getDs().isEmpty() || ds.isEmpty()) {
 			n.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(filler)).forEach(cnds -> cnds.setDs(DependencySet.create()));
 			//cnd.setDs(DependencySet.create());
 		}
 		else {
-			n.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(filler)).forEach(cnds -> cnds.setDs(DependencySet.plus(DependencySet.create(cnds.getDs()), DependencySet.create(ds))));
+			List<ConceptNDepSet> cndList1 = n.getnLabel().getCndList().getCdSet();
+			for(ConceptNDepSet cnds : cndList1){
+			if(cnds != null && cnds.getCe() != null && cnds.getCe().equals(filler)) {
+				cnds.setDs(DependencySet.plus(DependencySet.create(cnds.getDs()), DependencySet.create(ds)));
+			}
+			}
+			//n.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(filler)).forEach(cnds -> cnds.setDs(DependencySet.plus(DependencySet.create(cnds.getDs()), DependencySet.create(ds))));
 			//cnd.setDs(DependencySet.plus(cnd.getDs(), ds));
 		}
 		
@@ -2145,6 +2400,7 @@ public class RuleEngine {
 	    public void checkAboxConsistency(Set<OWLSubClassOfAxiom> aboxClassAss, OWLClassExpression tgAxiom) {
 			this.tgAxiom = tgAxiom;
 			for(OWLSubClassOfAxiom asb : aboxClassAss) {
+			//	System.out.println("individual "+ asb.getSubClass());
 				createAboxNode(asb,tgAxiom);
 				processToDoList();
 			}
@@ -2193,6 +2449,7 @@ public class RuleEngine {
 			OWLClassExpression ci = df.getOWLObjectOneOf(((OWLObjectOneOf)sb).individuals().iterator().next());
 			//System.out.println("nominal "+ ci);
 			Node nom = findNominalNode(ci);
+			
 			if(nom == null) {
 				Node n = cg.addNode(NodeType.NOMINAL, ci);
 				addTGAxiom(n, ds);
@@ -2207,6 +2464,18 @@ public class RuleEngine {
 			
 		}
 		
-	
+	 public int indLeft(Set<OWLSubClassOfAxiom> set) {
+		
+		 for(OWLSubClassOfAxiom asb : set) {
+			 OWLClassExpression sb =  asb.getSubClass();
+			 OWLClassExpression ci = df.getOWLObjectOneOf(((OWLObjectOneOf)sb).individuals().iterator().next());
+				//System.out.println("nominal "+ ci);
+				Node nom = findNominalNode(ci);
+				if(nom == null) {
+					return 1;
+				}
+		 }
+		 return 0;
+	 }
 }
 

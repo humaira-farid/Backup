@@ -14,7 +14,8 @@ public class Edge {
 	    private DependencySet depSet;
 	    /** true if the edge going from a predecessor to a successor */
 	    private boolean succEdge = true;
-	    private Set<OWLObjectPropertyExpression> edgeLabel = new HashSet<OWLObjectPropertyExpression>();;
+	    private Set<OWLObjectPropertyExpression> edgeLabel = new HashSet<OWLObjectPropertyExpression>();
+	   
 
 	    public Edge(Node node1, Node node2, OWLObjectPropertyExpression edgeLabel, DependencySet ds) {
 	        this.node1 = node1;
@@ -29,7 +30,6 @@ public class Edge {
 	        this.edgeLabel.addAll(edgeLabel2);
 	        this.depSet = ds;
 		}
-
 		public void addLabel(OWLObjectPropertyExpression edgeLabel) {
 	    		this.edgeLabel.add(edgeLabel);
 	    }

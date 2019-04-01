@@ -30,7 +30,12 @@ public class NodeLabel {
     public void restore(SaveState ss, int level) {
     		cndList.restore(ss.getCc(), level);
     }
+   
+    public void removeLabel() {
+		cndList.removeLabel();
+}
 
+    
     public void save(SaveState ss) {
         ss.setCc(cndList.save());
     }

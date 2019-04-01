@@ -446,7 +446,7 @@ public class CplexModelGenerator7 {
 				boolean nonInteger = false;
 				for ( int i = 0; i < x.getSize(); i++ ) {
 					double cardinality = rmpCplex.getValue(x.getElement(i));
-					//System.out.println("x"+i +": "+ Math.round(cardinality * 100000D) / 100000D);
+				//	System.out.println("x"+i +": "+cardinality+ " rounded: " + Math.round(cardinality * 100000D) / 100000D);
 					if(!isInteger(Math.round(cardinality * 100000D) / 100000D)) {
 						nonInteger = true;
 						break;
@@ -746,11 +746,11 @@ public class CplexModelGenerator7 {
 		//	System.out.println("i : "+i);
 		//	System.out.println("obj : "+rmpCplex.getObjValue());
 		//	rmpCplex.solve();
-			double cardinality = rmpCplex.getValue(x.getElement(i));
-		  
-		//	System.out.println("cardinality second :"+ cardinality);
+		//	double cardinality = rmpCplex.getValue(x.getElement(i));
+			double cardinality = Math.round(rmpCplex.getValue(x.getElement(i))* 100000D) / 100000D;
+			System.out.println("cardinality second :"+ cardinality);
 			
-			if(!isInteger(Math.round(cardinality * 100000D) / 100000D)) {
+			if(!isInteger(cardinality)) {
 			
 				
 			//  System.out.println("Trying value number "+ i);			
@@ -987,6 +987,7 @@ public class CplexModelGenerator7 {
 						for ( int l = 0; l < x.getSize(); l++ ) {
 							double card = rmpCplex.getValue(x.getElement(l));
 						//	System.out.println("cardinality outside!  "+ card);
+				//		if(!isInteger(Math.round(card * 100000D) / 100000D)) {
 							if(!isInteger(card)) {
 								nonInteger = true;
 								break;
@@ -1078,7 +1079,7 @@ public class CplexModelGenerator7 {
 									}
 									for(int l = 0; l < x.getSize(); l++){
 									  double cardinality2 = rmpCplex.getValue(x.getElement(l));
-									  System.out.println("x cardinality2 " + cardinality2);
+									//  System.out.println("x cardinality2 " + cardinality2);
 									  if(cardinality2 > 0.0){
 												//	System.out.println("l value " + l);
 										SubSet tempSubSet1 = subsets.get(l);

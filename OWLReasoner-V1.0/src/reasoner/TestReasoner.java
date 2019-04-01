@@ -29,10 +29,10 @@ public class TestReasoner{
 	 OWLOntologyManager man ;
 	 DefaultPrefixManager prefixManager = new DefaultPrefixManager();
 	 Ontology ontology;
-	 public TestReasoner(File file) {
-	// public TestReasoner() {
+	// public TestReasoner(File file) {
+	 public TestReasoner() {
 		 man = OWLManager.createOWLOntologyManager();
-	//	 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/CQU-example-unsat-ALCO-v2.fowl.owl");
+		 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/integer-only-1-nom-unsat.fowl.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {
@@ -74,18 +74,26 @@ public class TestReasoner{
 	     	 	
 	 	  // System.out.println( tgAxiom);
 	 	   re.setTransitiveRoles(trans);
-	    if(tgAxiom !=null) {
+	   if(tgAxiom !=null) {
 	    		re.checkConsistency(tgAxiom);
 		 	re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
 	    }
 	    else {
 	    		re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
 	    }
+	    needAboxCheckAgain(tgAxiom);
 	    System.out.println("Ontology is Consistent");
 	    getExecutionTime();
 	        man.removeOntology(ont);
 	}
-	
+	public void needAboxCheckAgain( OWLClassExpression tgAxiom) {
+		if(re.indLeft(intr.getAboxClassAss())!=0) {
+			re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
+			needAboxCheckAgain(tgAxiom);
+		}
+		else
+			return;
+	}
 	
 	private Set<OWLObjectPropertyExpression> getTransitiveRoles() {
 		Set<OWLObjectPropertyExpression> trans = new HashSet<>();

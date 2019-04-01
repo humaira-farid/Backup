@@ -155,17 +155,37 @@ public class ToDoList {
 
 	public void updateToDoEntry(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
 		int index = matrix.getIndex(type);
-        waitQueue.get(index).wait.stream().
-        		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).
-        			forEach(entry -> entry.setDs(DependencySet.update(DependencySet.create(entry.getDs()), DependencySet.create(ds))));
+      //  waitQueue.get(index).wait.stream().
+        //		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).
+        	//		forEach(entry -> entry.setDs(DependencySet.update(DependencySet.create(entry.getDs()), DependencySet.create(ds))));
 		
+		
+		List<ToDoEntry> entries = waitQueue.get(index).wait;
+		for(ToDoEntry entry : entries) {
+			if( entry != null) {
+			if(entry.getNode() != null && entry.getClassExpression() != null) {
+				if(entry.getNode().equals(n) && entry.getClassExpression().equals(c)) {
+					entry.setDs(DependencySet.update(DependencySet.create(entry.getDs()), DependencySet.create(ds)));
+				}
+			}
+		}
+		}
 	}
 	public void plusToDoEntry(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
 		int index = matrix.getIndex(type);
-        waitQueue.get(index).wait.stream().
-        		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).
-        			forEach(entry -> entry.setDs(DependencySet.plus(DependencySet.create(entry.getDs()), DependencySet.create(ds))));
-		
+     //   waitQueue.get(index).wait.stream().
+       // 		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).
+        	//		forEach(entry -> entry.setDs(DependencySet.plus(DependencySet.create(entry.getDs()), DependencySet.create(ds))));
+        List<ToDoEntry> entries = waitQueue.get(index).wait;
+		for(ToDoEntry entry : entries) {
+			if( entry != null) {
+			if(entry.getNode() != null && entry.getClassExpression() != null) {
+				if(entry.getNode().equals(n) && entry.getClassExpression().equals(c)) {
+					entry.setDs(DependencySet.plus(DependencySet.create(entry.getDs()), DependencySet.create(ds)));
+				}
+			}
+		}
+		}
 	}
 	public boolean isToDoEntry1(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
 		int index = matrix.getIndex(type);

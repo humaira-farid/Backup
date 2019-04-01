@@ -12,6 +12,7 @@ import com.google.common.collect.Multimap;
 import reasoner.Dependencies.DependencySet;
 import reasoner.state.NodeSaveState;
 import reasoner.state.SaveList;
+import reasoner.Helper;
 import static reasoner.Helper.*;
 public class Node implements Cloneable {
 	
@@ -28,7 +29,7 @@ public class Node implements Cloneable {
     private Node blocker;
     private boolean dBlocked; // directly blocked
     private Node blocked;
-    
+    private boolean merged = false;
     
     protected int curLevel;
   
@@ -72,7 +73,16 @@ public class Node implements Cloneable {
 	public int getId() {
     	return id;
     }
-    
+
+    public boolean getMergeStatus() {
+    	 return this.merged;
+    }
+    public void setNodeMerged() {
+    	 this.merged = true;
+    }
+    public void setNodeUnmerged() {
+    	 this.merged = false;
+    }
 
 	public NodeType getNodeType() {
 		return nodeType;
@@ -140,7 +150,10 @@ public class Node implements Cloneable {
     }
     public Set<OWLClassExpression> getLabel() {
     	Set<OWLClassExpression> concepts = new HashSet<>();
-    	getnLabel().getCndList().getCdSet().forEach(cds -> concepts.add(cds.getCe()));
+    	getnLabel().getCndList().getCdSet().forEach(cds -> {
+    		if(cds !=null )
+    			concepts.add(cds.getCe());
+    		});
 		return concepts;
     }
     public List<Edge> getNeighbour() {
@@ -208,6 +221,9 @@ public class Node implements Cloneable {
     public void save(int level) {
     	NodeSaveState node = new NodeSaveState();
 //      saves.push(node);
+    	// 5 mar
+    	saves.push(node);
+    	//
         save(node);
         saveMap.put(level-1, node);
        // System.out.println("node: node "+ this.getId() + " currlevel " + curLevel);
@@ -231,7 +247,10 @@ public class Node implements Cloneable {
      */
     public void restore(int level) {
        // restore(saves.pop(level));
+    	/// 5 mar
+   // 	restore(saves.pop(level));
     		restore(saveMap.get(level));
+    		///
     }
 	
 	 private void save(NodeSaveState nss) {
@@ -246,17 +265,26 @@ public class Node implements Cloneable {
 	        if (nss == null) {
 	            return;
 	        }
+	       
 	        // level restore
 	        curLevel = nss.getCurLevel();
 	      //  System.out.println("restore node: currlevel "+ curLevel +" restore level"+ nss.getCurLevel()); 
 	        // label restore
+	      
+	        /// 5 mar 19
+	    //    nLabel.restore(nss.getLab(), curLevel);
 	        nLabel.restore(nss.getLab(), nss.getCurLevel());
+	        ///
 	        //nLabel.restore(nss.getLab(), curLevel);
 	        // remove new neighbours
 	       // if (!options.isUseDynamicBackjumping()) {
+	       
 	        resize(neighbour, nss.getnNeighbours(), null);
 	        resize(outgoingEdge, nss.getnOutgoingEdges(), null);
 	        resize(incomingEdge, nss.getnIncomingEdges(), null);
+	        
+	       
+	       
 	        //} else {
 	          //  for (int j = neighbour.size() - 1; j >= 0; --j) {
 	            //    if (neighbour.get(j).getArcEnd().curLevel <= curLevel) {
@@ -269,6 +297,10 @@ public class Node implements Cloneable {
 	      //  affected = true;
 	        
 	    }
+	public void removeLabel(){
+		 nLabel.removeLabel();
+	 }
+	 
 	 public void remove() {
 		 this.neighbour.clear();
 		 this.incomingEdge.clear();
