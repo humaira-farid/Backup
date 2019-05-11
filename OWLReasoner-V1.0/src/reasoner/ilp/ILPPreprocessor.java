@@ -1030,7 +1030,7 @@ public class ILPPreprocessor {
 		//System.out.println("simpleASubsumers "+ simpleASubsumers);
 		disjoints.putAll(conceptDisjoints);
 		disjoints.putAll(nominalDisjoints);
-		CplexModelGenerator7 cmg = new CplexModelGenerator7(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH);
+		CplexModelGenerator10 cmg = new CplexModelGenerator10(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH);
 		ILPSolution sol = cmg.getILPSolution();
 		System.out.println("Solved: "+sol.isSolved());
 		for(EdgeInformation ei : sol.getEdgeInformation()) {
