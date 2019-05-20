@@ -57,8 +57,21 @@ public class TestReasoner{
 	     reasoner = reasonerFactory.createReasoner(ont);
 	     startTime = System.currentTimeMillis();
 	       // intr.test(ont);
-	      checkExpressivity();
-	      Set<OWLObjectPropertyExpression> trans = getTransitiveRoles();
+	     int check =  checkExpressivity();
+	     if (check == 0 ) {
+	    	 	System.err.println("Reasoner cannot Proccess your Ontology. It contains unhandled object property axioms.");
+			getExecutionTime();
+			System.exit(0);
+	     }
+		 if (check == 1 ) {
+			 System.out.println("SHOI Ontology");
+		 }
+	     if (check == 2 ) {
+	    	 	System.out.println("SHOIQ Ontology");
+	    	 	getExecutionTime();
+			System.exit(0);
+		 }
+	     Set<OWLObjectPropertyExpression> trans = getTransitiveRoles();
 	      
 	     ontology =  intr.internalize(ont);
 	     OWLClassExpression tgAxiom = intr.getTgAxiom();
@@ -104,8 +117,13 @@ public class TestReasoner{
 	public Ontology getOntology() {
 		return ontology;
 	}
-
-	private void checkExpressivity() {
+	/**
+	 * return (int)
+	 *  0 -> unhandled ontology
+	 *  1 -> SHOI
+	 *  2 -> SHOIQ
+	 */
+	private int checkExpressivity() {
 		/*Set<OWLSubClassOfAxiom> sb = ont.axioms().filter(ax -> ax instanceof OWLSubClassOfAxiom).map(ax -> (OWLSubClassOfAxiom)ax).collect(Collectors.toSet());
 		Set<OWLSubClassOfAxiom> eq = ont.axioms().filter(ax -> ax instanceof OWLEquivalentClassesAxiom).map(ax -> (OWLEquivalentClassesAxiom)ax).flatMap(ax -> ax.asOWLSubClassOfAxioms().stream()).collect(Collectors.toSet());
 		Set<OWLSubClassOfAxiom> dj = ont.axioms().filter(ax -> ax instanceof OWLDisjointClassesAxiom).map(ax -> (OWLDisjointClassesAxiom)ax).flatMap(ax -> ax.asOWLSubClassOfAxioms().stream()).collect(Collectors.toSet());
@@ -117,16 +135,16 @@ public class TestReasoner{
 			System.err.println("Reasoner cannot Proccess your Ontology. It contains Cardinatilty Restriction.");
 			System.exit(0);
 		}*/
+		
 		if(ont.axioms().anyMatch(ax -> ax.nestedClassExpressions().anyMatch(c -> c instanceof OWLObjectMaxCardinality || c instanceof OWLObjectMinCardinality))) {
-			System.err.println("Reasoner cannot Proccess your Ontology. It contains Cardinatilty Restriction.");
-			getExecutionTime();
-			System.exit(0);
+		//	System.err.println("Reasoner cannot Proccess your Ontology. It contains Cardinatilty Restriction.");
+			return 2;
 		}
 		if(ont.axioms().anyMatch(ax -> ax instanceof OWLFunctionalObjectPropertyAxiom)) {
-			System.err.println("Reasoner cannot Proccess your Ontology. It contains unhandled object property axioms.");
-			getExecutionTime();
-			System.exit(0);
+			return 0;
 		}
+		else
+			return 1;
 	}
 	
 

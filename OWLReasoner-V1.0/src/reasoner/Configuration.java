@@ -11,6 +11,11 @@ public class Configuration implements OWLReasonerConfiguration{
 	
 	 public PrepareReasonerInferences prepareReasonerInferences;
 	 
+	 private boolean useAnywhereBlocking = true;
+	 private boolean useEqualityBlocking = false;
+	 private boolean usePairwiseBlocking = false;
+	 private boolean useSubsetBlocking = false;
+	 
 	public Configuration(ConsoleProgressMonitor progressMonitor) {
 		new SimpleConfiguration(progressMonitor);
 	}
