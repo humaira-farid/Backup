@@ -34,17 +34,17 @@ import reasoner.ilp.CplexModelGenerator.IloNumVarArray;
 public class CplexModelGenerator10 {
 	//IloCplex cplexModel;
 	ILPPreprocessor ilpPro;
-	List<OWLObjectCardinalityRestriction> qcrList;
-	Set<QCR> qcrs;
-	Set<OWLObjectOneOf> nominals;
-	Set<OWLClassExpression> qcrQualifiers = null;
-	Set<OWLClassExpression> allQualifiers;
-	Map<Integer, QCR> qcrMap;
-	Map<Integer, OWLObjectCardinalityRestriction> crMap;
-	Set<OWLObjectPropertyExpression> axiomRoles = null;
+	List<OWLObjectCardinalityRestriction> qcrList = new ArrayList<>();
+	Set<QCR> qcrs = new HashSet<>();
+	Set<OWLObjectOneOf> nominals = new HashSet<>();
+	Set<OWLClassExpression> qcrQualifiers =  new HashSet<>();
+	Set<OWLClassExpression> allQualifiers = new HashSet<>();
+	Map<Integer, QCR> qcrMap = new HashMap<>();
+	Map<Integer, OWLObjectCardinalityRestriction> crMap = new HashMap<>();
+	Set<OWLObjectPropertyExpression> axiomRoles = new HashSet<>();
 	Set<OWLObjectPropertyExpression> srRoles = new HashSet<>();
-	Map<OWLClassExpression, Set<OWLClassExpression>> conceptSubsumersMap;
-	Map<OWLClassExpression, Set<OWLClassExpression>> binarySubsumersMap;
+	Map<OWLClassExpression, Set<OWLClassExpression>> conceptSubsumersMap = new HashMap<>();
+	Map<OWLClassExpression, Set<OWLClassExpression>> binarySubsumersMap = new HashMap<>();
 	SetMultimap<OWLClassExpression, OWLClassExpression> conceptDisjoints = HashMultimap.create();
 	Map<OWLClassExpression, OWLClassExpression> negations = new HashMap<>();
 	BiMap<OWLClassExpression, Integer> qualifiers = HashBiMap.create();
@@ -2178,12 +2178,13 @@ public class CplexModelGenerator10 {
 			return b;
 		}
 		
+		@SuppressWarnings("unchecked")
 		public PPModel GeneratePpModel() throws IloException {
 			
-			Map<OWLObjectPropertyExpression, Set<OWLClassExpression>> forAllMaps = 
-					(Map<OWLObjectPropertyExpression, Set<OWLClassExpression>>) (Map<?, ?>) forAllMap.asMap();
+			Map<OWLObjectPropertyExpression, Set<OWLClassExpression>> forAllMaps = new HashMap<OWLObjectPropertyExpression, Set<OWLClassExpression>>();
+			if(forAllMap != null)
+				forAllMaps = (Map<OWLObjectPropertyExpression, Set<OWLClassExpression>>) (Map<?, ?>) forAllMap.asMap();
 			
-				
 			ppCplex = new IloCplex();
 			ppCplex.setOut(new NullOutputStream());
 

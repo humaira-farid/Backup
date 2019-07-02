@@ -931,7 +931,7 @@ public class RuleEngine1 {
 	}
 	
 	public Node findBlocker(Node n) {
-		return cg.findAnywhereBlocker(n);
+		return cg.findBlocker(n);
 	}
 	
 	public void processUnblockedNode(Node node) {

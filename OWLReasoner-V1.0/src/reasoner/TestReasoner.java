@@ -25,14 +25,15 @@ public class TestReasoner{
 	RuleEngine re;
 	OWLDataFactory df;
 	ReasonerFactory reasonerFactory;
-	 Reasoner reasoner ;
-	 OWLOntologyManager man ;
-	 DefaultPrefixManager prefixManager = new DefaultPrefixManager();
-	 Ontology ontology;
+	Reasoner reasoner ;
+	OWLOntologyManager man ;
+	DefaultPrefixManager prefixManager = new DefaultPrefixManager();
+	Ontology ontology;
+	Configuration config;
 	// public TestReasoner(File file) {
-	 public TestReasoner() {
+	public TestReasoner() {
 		 man = OWLManager.createOWLOntologyManager();
-		 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/integer-only-1-nom-unsat.fowl.owl");
+		 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-test2.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {
@@ -44,33 +45,20 @@ public class TestReasoner{
 		todo = new ToDoList();
 		intr = new Internalization(df);
 		intr.setPrefixManager(prefixManager);
-		re = new RuleEngine(intr, todo, df);
+		reasoner = reasonerFactory.createReasoner(ont);
+	    config = this.reasoner.getConfiguration();
+		re = new RuleEngine(intr, todo, df, config);
 	}
 	 public static void getExecutionTime() {
 			long endTime = System.currentTimeMillis();
 	        System.out.println("It took " + (endTime - startTime) + " milliseconds");
 		}
 	public void useReasoner() throws OWLOntologyCreationException {
-		 
-	     
-		    
-	     reasoner = reasonerFactory.createReasoner(ont);
 	     startTime = System.currentTimeMillis();
 	       // intr.test(ont);
-	     int check =  checkExpressivity();
-	     if (check == 0 ) {
-	    	 	System.err.println("Reasoner cannot Proccess your Ontology. It contains unhandled object property axioms.");
-			getExecutionTime();
-			System.exit(0);
-	     }
-		 if (check == 1 ) {
-			 System.out.println("SHOI Ontology");
-		 }
-	     if (check == 2 ) {
-	    	 	System.out.println("SHOIQ Ontology");
-	    	 	getExecutionTime();
-			System.exit(0);
-		 }
+	     checkExpressivity();
+	     
+	     
 	     Set<OWLObjectPropertyExpression> trans = getTransitiveRoles();
 	      
 	     ontology =  intr.internalize(ont);
@@ -120,10 +108,9 @@ public class TestReasoner{
 	/**
 	 * return (int)
 	 *  0 -> unhandled ontology
-	 *  1 -> SHOI
-	 *  2 -> SHOIQ
+	 * 
 	 */
-	private int checkExpressivity() {
+	private void checkExpressivity() {
 		/*Set<OWLSubClassOfAxiom> sb = ont.axioms().filter(ax -> ax instanceof OWLSubClassOfAxiom).map(ax -> (OWLSubClassOfAxiom)ax).collect(Collectors.toSet());
 		Set<OWLSubClassOfAxiom> eq = ont.axioms().filter(ax -> ax instanceof OWLEquivalentClassesAxiom).map(ax -> (OWLEquivalentClassesAxiom)ax).flatMap(ax -> ax.asOWLSubClassOfAxioms().stream()).collect(Collectors.toSet());
 		Set<OWLSubClassOfAxiom> dj = ont.axioms().filter(ax -> ax instanceof OWLDisjointClassesAxiom).map(ax -> (OWLDisjointClassesAxiom)ax).flatMap(ax -> ax.asOWLSubClassOfAxioms().stream()).collect(Collectors.toSet());
@@ -135,16 +122,115 @@ public class TestReasoner{
 			System.err.println("Reasoner cannot Proccess your Ontology. It contains Cardinatilty Restriction.");
 			System.exit(0);
 		}*/
-		
-		if(ont.axioms().anyMatch(ax -> ax.nestedClassExpressions().anyMatch(c -> c instanceof OWLObjectMaxCardinality || c instanceof OWLObjectMinCardinality))) {
-		//	System.err.println("Reasoner cannot Proccess your Ontology. It contains Cardinatilty Restriction.");
-			return 2;
-		}
 		if(ont.axioms().anyMatch(ax -> ax instanceof OWLFunctionalObjectPropertyAxiom)) {
-			return 0;
+			System.err.println("Reasoner cannot Proccess your Ontology. It contains unhandled object property axioms.");
+			getExecutionTime();
+			System.exit(0);
 		}
-		else
-			return 1;
+		boolean hasNominal = false;
+		boolean hasQCRs = false;
+		boolean hasInverseRoles = false;
+		
+		if(ont.axioms().anyMatch(ax -> ax.nestedClassExpressions().anyMatch(c -> c instanceof OWLObjectOneOf || c instanceof OWLObjectHasValue))) {
+			hasNominal = true;
+		}
+			
+		if(ont.axioms().anyMatch(ax -> ax.nestedClassExpressions().anyMatch(c -> c instanceof OWLObjectMaxCardinality || c instanceof OWLObjectMinCardinality))) {
+			hasQCRs = true;
+		}
+				
+		if(ont.axioms().anyMatch(ax -> ax instanceof OWLInverseObjectPropertiesAxiom) ) {
+			hasInverseRoles = true;
+		}
+		else {
+			Set<Set<OWLClassExpression>> sExp = new HashSet<>(); 
+			ont.axioms().forEach(ax -> sExp.add(ax.nestedClassExpressions().
+					filter(c -> c instanceof OWLObjectSomeValuesFrom || c instanceof OWLObjectAllValuesFrom || 
+							c instanceof OWLObjectMinCardinality || c instanceof OWLObjectMaxCardinality || c instanceof OWLObjectHasValue).collect(Collectors.toSet())));
+			
+			if(!sExp.isEmpty()) {
+				for(Set<OWLClassExpression> exp : sExp) {
+					if(hasInverseRoles)
+						break;
+					for(OWLClassExpression e : exp) {
+						
+						if(e instanceof OWLObjectSomeValuesFrom) {
+							if(((OWLObjectSomeValuesFrom)e).getProperty() instanceof OWLObjectInverseOf) {
+								hasInverseRoles = true;
+								break;
+							}
+						}
+						else if(e instanceof OWLObjectAllValuesFrom) {
+							if(((OWLObjectAllValuesFrom)e).getProperty() instanceof OWLObjectInverseOf) {
+								hasInverseRoles = true;
+								break;
+							}
+						}
+						else if(e instanceof OWLObjectMinCardinality) {
+							if(((OWLObjectMinCardinality)e).getProperty() instanceof OWLObjectInverseOf) {
+								hasInverseRoles = true;
+								break;
+							}
+						}
+						else if(e instanceof OWLObjectMaxCardinality) {
+							if(((OWLObjectMaxCardinality)e).getProperty() instanceof OWLObjectInverseOf) {
+								hasInverseRoles = true;
+								break;
+							}
+						}
+						else if(e instanceof OWLObjectHasValue) {
+							if(((OWLObjectHasValue)e).getProperty() instanceof OWLObjectInverseOf) {
+								hasInverseRoles = true;
+								break;
+							}
+						}
+					}
+				}
+					
+			}
+		}
+		
+		if(hasNominal && hasQCRs && hasInverseRoles) {
+			System.err.println("SHOIQ");
+			config.setSHOIQ(true);
+			config.setUsePairwiseBlocking(true);
+		}
+		else if(hasNominal && hasQCRs && !hasInverseRoles) {
+			//System.err.println("SHOQ");
+			config.setSHOQ(true);
+			config.setUseSubsetBlocking(true);
+		}
+		else if(hasNominal && !hasQCRs && hasInverseRoles) {
+			//System.err.println("SHOI");
+			config.setSHOI(true);
+			config.setUseEqualityBlocking(true);
+		}
+		else if(!hasNominal && hasQCRs && hasInverseRoles) {
+			//System.err.println("SHIQ");
+			config.setSHIQ(true);
+			config.setUsePairwiseBlocking(true);
+		}
+		else if(!hasNominal && !hasQCRs && hasInverseRoles) {
+			//System.err.println("SHI");
+			config.setSHI(true);
+			config.setUseEqualityBlocking(true);
+		}
+		else if(hasNominal && !hasQCRs && !hasInverseRoles) {
+			//System.err.println("SHO");
+			config.setSHO(true);
+			config.setUseSubsetBlocking(true);
+		}
+		else if(!hasNominal && hasQCRs && !hasInverseRoles) {
+			//System.err.println("SHQ");
+			config.setSHQ(true);
+			config.setUseSubsetBlocking(true);
+		}
+		else if(!hasNominal && !hasQCRs && !hasInverseRoles){
+			//System.err.println("ALC");
+			config.setALC(true);
+			config.setUseSubsetBlocking(true);
+		}
+		
 	}
 	
 

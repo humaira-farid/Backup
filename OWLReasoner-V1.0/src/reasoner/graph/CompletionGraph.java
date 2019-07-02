@@ -7,6 +7,7 @@ import org.semanticweb.owlapi.model.*;
 import reasoner.SaveStackRare;
 import reasoner.Dependencies.DependencySet;
 import reasoner.state.*;
+import reasoner.Configuration;
 import reasoner.Helper;
 import reasoner.RuleEngine;
 
@@ -24,12 +25,16 @@ public class CompletionGraph implements Cloneable {
 	private Node currNode;
 	SaveStack<CGSaveState> stack = new SaveStack<>();
 	private Map<Integer, CGSaveState> saveMap = new HashMap<>();
-	
+	private Node x1 = null;
+	private Node x2 = null;
+	private Node y1 = null;
+	private Node y2 = null;
 	private int branchingLevel;
 	private final SaveStackRare rareStack = new SaveStackRare();
 	private final List<Edge> ctEdgeHeap = new ArrayList<>();
 	private final List<Node> nodeBase;
 	RuleEngine re;
+	Configuration config;
 	
 	public CompletionGraph(RuleEngine r) {
 		 nodeBase = new ArrayList<>();
@@ -38,14 +43,22 @@ public class CompletionGraph implements Cloneable {
 		 re = r;
 	}
 	 
-	 public void clearStatistics() {
+	 public CompletionGraph(RuleEngine r, Configuration config) {
+		 nodeBase = new ArrayList<>();
+		 branchingLevel = INITBRANCHINGLEVELVALUE;
+		 clearStatistics();
+		 re = r;
+		 this.config = config;
+	}
+
+	public void clearStatistics() {
 	        nNodeSaves = 0;
 	        nNodeRestores = 0;
 	 }
 	public Node addNode(Node.NodeType nodeType, OWLClassExpression nodeLabel) {
 		 Node node = new Node(nodeType,nodeLabel, getnewId());
 		 node.init(branchingLevel);
-		// System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel);
+		 //System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel);
 		 nodeBase.add(node); 
 		 ++totalNodes;
 		 return node;
@@ -98,7 +111,7 @@ public class CompletionGraph implements Cloneable {
 			re.processUnblockedNode(blocked);
 		}
 		else {
-			Node blocker = findAnywhereBlocker(n);
+			Node blocker = findBlocker(n);
 			if(blocker!=null)
 				setNodeBlocked(n, blocker);
 				
@@ -371,14 +384,85 @@ public class CompletionGraph implements Cloneable {
 	public void setTotalNodes(int totalNodes) {
 		this.totalNodes = totalNodes;
 	}
-	public Node findAnywhereBlocker(Node n) {
+	public Node findBlocker(Node n) {
+		Node blocker = null;
+		if(config.isUsePairwiseBlocking()) 
+			blocker = findPairwiseBlocker(n);
+		else 
+			blocker = findEqualityBlocker(n);
+		
+		if(blocker != null) {
+			if(!hasNominalInPath(blocker, n))
+				return blocker;
+		}
+		return null;
+			
+		
+	}
+	public Node findPairwiseBlocker(Node n) {
+		
+		if(n.isBlockableNode()) {
+			List<Edge> xEdges = n.getIncomingEdges();
+			List<Node> xNodes = new ArrayList<>(); 
+			for(Edge e : xEdges) {
+				if(e.getFromNode().isBlockableNode())
+					xNodes.add(e.getFromNode());
+			}
+			for(int i = 0 ; i < nodeBase.size() && i < n.getId(); i++) {
+				Node p = nodeBase.get(i);
+				if(p.isBlockableNode() && !p.isBlocked()) {
+					if(p.getLabel().equals(n.getLabel())) {
+						List<Edge> yEdges = p.getIncomingEdges();
+						List<Node> yNodes = new ArrayList<>(); 
+						for(Edge e : yEdges) {
+							if(e.getFromNode().isBlockableNode())
+								yNodes.add(e.getFromNode());
+						}
+						for(Node x : xNodes) {
+							for(Node y : yNodes) {
+								if(x.getLabel().equals(y.getLabel())) {
+									if(getEdge(x,n).getLabel().equals(getEdge(y,p).getLabel())) {
+										x1 = x;
+										x2 = n;
+										y1 = y;
+										y2 = p;
+										return p;
+									}
+								}
+							}
+						}
+					}
+						
+				}
+			}
+		}
+		return null;
+	}
+	public Node getX1() {
+		return x1;
+	}
+
+	public Node getX2() {
+		return x2;
+	}
+
+	public Node getY1() {
+		return y1;
+	}
+
+	public Node getY2() {
+		return y2;
+	}
+
+	public Node findEqualityBlocker(Node n) {
 		
 		if(n.isBlockableNode()) {
 			for(int i = 0 ; i < nodeBase.size() && i < n.getId(); i++) {
 				Node p = nodeBase.get(i);
 				if(p.isBlockableNode() && !p.isBlocked()) {
 					if(p.getLabel().equals(n.getLabel()))
-						return nodeBase.get(i);
+						//return nodeBase.get(i);
+						return p;
 				}
 			}
 		}
@@ -561,6 +645,25 @@ public class CompletionGraph implements Cloneable {
 		Node node = copies.get(n.getId());
 		//System.out.println("restored node id : "+node.getId()+" node neighbours "+ node.getNeighbour().size());
 		this.setCurrNode(node);
+	}
+	public boolean hasNominalInPath(Node y, Node x) {
+        return checkAllPaths(x, y.getOutgoingEdges()); 
+	}
+
+	private boolean checkAllPaths(Node x, List<Edge> outgoingEdges) {
+		for(Edge e : outgoingEdges) {
+			 Node y = e.getToNode();
+			if(y.isNominalNode()) {
+				continue;
+			}
+			if(y.equals(x)) {
+				return true;
+			}
+			else {
+				checkAllPaths(x, y.getOutgoingEdges());
+			}
+		}
+		return false;
 	}
 }
 

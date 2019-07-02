@@ -9,7 +9,7 @@ import reasoner.graph.NodeTag;
 public class PriorityMatrix {
 
 	/** number of regular options (o- and NN-rules are not included) */
-	public static final int NREGULAROPTIONS = 5;
+	public static final int NREGULAROPTIONS = 7;
     /**
      * priority index for o- operations (note that these ops have the
      * highest priority)
@@ -22,21 +22,21 @@ public class PriorityMatrix {
     private int indexOr;
     private int indexExists;
     private int indexForall;
-   // private int indexLE;
-   // private int indexGE;
+    private int indexLE;
+    private int indexGE;
 
     public void initPriorities(String options) {
         // check for correctness
-        if (options.length() < 5) {
-            throw new ReasonerInternalException("ToDo List option string should have length 5");
+        if (options.length() < 7) {
+            throw new ReasonerInternalException("ToDo List option string should have length 7");
         }
         // init values by symbols loaded
         indexAnd = 1; // options.charAt(1) - '0';
         indexOr = 2; //options.charAt(2) - '0';
         indexExists = 3; //options.charAt(3) - '0';
         indexForall = 4; //options.charAt(4) - '0';
-      //  indexLE = options.charAt(5) - '0';
-       // indexGE = options.charAt(6) - '0';
+        indexLE = options.charAt(5) - '0';
+        indexGE = options.charAt(6) - '0';
         
     }
     public int getIndex(NodeTag op) {
@@ -51,6 +51,10 @@ public class PriorityMatrix {
             		return indexOr;
             case EXISTS:
         			return indexExists;
+            case LE:
+    				return indexLE;
+            case GE:
+    				return indexGE;
             default: // safety check
                 return -1;
         }

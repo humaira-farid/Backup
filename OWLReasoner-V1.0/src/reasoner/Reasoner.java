@@ -80,6 +80,10 @@ public class Reasoner implements OWLReasoner{
         
 		
 	}
+	
+	public Configuration getConfiguration() {
+		return configuration;
+	}
 	/**
      * @param ont
      *        ontology

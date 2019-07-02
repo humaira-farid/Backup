@@ -105,10 +105,10 @@ public class ToDoList {
       //  tss.backupIDsp = queueID.getsPointer();
        // tss.backupIDep = queueID.getWaitSize();
      //   queueNN.save(tss);
-     //   tss.backup6key = waitQueue.get(6).getsPointer();
-      //  tss.backup6value = waitQueue.get(6).getWaitSize();
-      //  tss.backup5key = waitQueue.get(5).getsPointer();
-      //  tss.backup5value = waitQueue.get(5).getWaitSize();
+        tss.backup6key = waitQueue.get(6).getsPointer();
+        tss.backup6value = waitQueue.get(6).getWaitSize();
+        tss.backup5key = waitQueue.get(5).getsPointer();
+        tss.backup5value = waitQueue.get(5).getWaitSize();
         tss.backup4key = waitQueue.get(4).getsPointer();
         tss.backup4value = waitQueue.get(4).getWaitSize();
         tss.backup3key = waitQueue.get(3).getsPointer();
@@ -130,8 +130,8 @@ public class ToDoList {
         waitQueue.get(2).restore(tss.backup2key, tss.backup2value);
         waitQueue.get(3).restore(tss.backup3key, tss.backup3value);
         waitQueue.get(4).restore(tss.backup4key, tss.backup4value);
-      //  waitQueue.get(5).restore(tss.backup5key, tss.backup5value);
-     //   waitQueue.get(6).restore(tss.backup6key, tss.backup6value);
+        waitQueue.get(5).restore(tss.backup5key, tss.backup5value);
+        waitQueue.get(6).restore(tss.backup6key, tss.backup6value);
         noe = tss.noe;
     }
     /** save current state using internal stack 

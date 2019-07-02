@@ -15,7 +15,7 @@ public class Edge {
 	    /** true if the edge going from a predecessor to a successor */
 	    private boolean succEdge = true;
 	    private Set<OWLObjectPropertyExpression> edgeLabel = new HashSet<OWLObjectPropertyExpression>();
-	   
+	    private boolean reset = false;
 
 	    public Edge(Node node1, Node node2, OWLObjectPropertyExpression edgeLabel, DependencySet ds) {
 	        this.node1 = node1;
@@ -41,7 +41,15 @@ public class Edge {
 	        return node2;
 	    }
  
-	    public boolean isBetween(Node node1, Node node2) {
+	    public boolean isReset() {
+			return reset;
+		}
+
+		public void setReset(boolean reset) {
+			this.reset = reset;
+		}
+
+		public boolean isBetween(Node node1, Node node2) {
 	        return (this.node1 == node1 && this.node2 == node2);
 	    }
 	    

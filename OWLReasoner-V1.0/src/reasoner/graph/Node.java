@@ -21,6 +21,7 @@ public class Node implements Cloneable {
 	private Set<OWLClassExpression> simpleLabel = new HashSet<OWLClassExpression>();
 	private Multimap<OWLObjectCardinalityRestriction, DependencySet> qLE = HashMultimap.create();
 	private final int id;
+	private int cardinality = 1;
     private List<Edge> neighbour;
     private List<Edge> incomingEdge; 
     private List<Edge> outgoingEdge;
@@ -30,6 +31,8 @@ public class Node implements Cloneable {
     private boolean dBlocked; // directly blocked
     private Node blocked;
     private boolean merged = false;
+    private List<Node> disjointNodes = new ArrayList<>();
+    private boolean reset = false;
     
     protected int curLevel;
   
@@ -37,7 +40,15 @@ public class Node implements Cloneable {
     private final SaveList saves = new SaveList();
     private Map<Integer, NodeSaveState> saveMap = new HashMap<>();
     
-    public Node(Node.NodeType nodeType, OWLClassExpression nodeLabel, int id) {
+    public int getCardinality() {
+		return cardinality;
+	}
+
+	public void setCardinality(int cardinality) {
+		this.cardinality = cardinality;
+	}
+
+	public Node(Node.NodeType nodeType, OWLClassExpression nodeLabel, int id) {
         this.nodeType = nodeType;
         this.nodeLabel.add(nodeLabel);
         this.neighbour = new ArrayList<>();
@@ -74,7 +85,15 @@ public class Node implements Cloneable {
     	return id;
     }
 
-    public boolean getMergeStatus() {
+    public boolean isReset() {
+		return reset;
+	}
+
+	public void setReset(boolean reset) {
+		this.reset = reset;
+	}
+
+	public boolean getMergeStatus() {
     	 return this.merged;
     }
     public void setNodeMerged() {
@@ -199,8 +218,13 @@ public class Node implements Cloneable {
 	public boolean isNominalNode() {
 		return this.nodeType == NodeType.NOMINAL;
 	}
-	public void makeNominalNode() {
-		this.nodeType = NodeType.NOMINAL;
+	public boolean makeNominalNode() {
+		if(this.cardinality>1)
+			return false;
+		else {
+			this.nodeType = NodeType.NOMINAL;
+			return true;
+		}
 	}
 	// saving/restoring
     /**
