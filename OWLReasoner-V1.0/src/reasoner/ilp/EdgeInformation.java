@@ -13,6 +13,7 @@ public class EdgeInformation
   private final Set<OWLClassExpression> fillers;
   private int cardinality;
   private DependencySet ds;
+  private Set<Integer> nodeSet;
   
   public EdgeInformation(Set<OWLObjectPropertyExpression> roles, Set<OWLClassExpression> fillers, int card)
   {
@@ -40,6 +41,22 @@ public class EdgeInformation
     this.cardinality = (int) card;
     this.setDs(ds);
   }
+  public EdgeInformation(Set<OWLObjectPropertyExpression> roles, Set<OWLClassExpression> fillers, int card, DependencySet ds, Set<Integer> nodeSet)
+  {
+    this.edges = roles;
+    this.fillers = fillers;
+    this.cardinality = card;
+    this.setDs(ds);
+    this.nodeSet = nodeSet;
+  }
+  public EdgeInformation(Set<OWLObjectPropertyExpression> roles, Set<OWLClassExpression> fillers, double card, DependencySet ds, Set<Integer> nodeSet)
+  {
+    this.edges = roles;
+    this.fillers = fillers;
+    this.cardinality = (int) card;
+    this.setDs(ds);
+    this.nodeSet = nodeSet;
+  }
   
   public Set<OWLObjectPropertyExpression> getEdges()
   {
@@ -51,7 +68,10 @@ public class EdgeInformation
     return new HashSet<OWLClassExpression>(this.fillers);
   }
   
-  public int getCardinality()
+  public Set<Integer> getNodeSet() {
+	return nodeSet;
+}
+public int getCardinality()
   {
     return this.cardinality;
   }

@@ -210,7 +210,7 @@ public class Internalization {
 	    
 	    for (OWLAxiom ax : (Iterable<OWLAxiom>)ont.axioms()::iterator) {
 		   ax = ax.getNNF();
-		   
+		  // System.err.println("ax "+ ax);
 		   // --> SubClassOf Axiom
 		   if(ax instanceof OWLSubClassOfAxiom) {
 			   OWLSubClassOfAxiom sax = (OWLSubClassOfAxiom)ax;
@@ -477,6 +477,9 @@ public class Internalization {
 			}
 		}
 		return ce;
+	}
+	public void addDiffInd(OWLDifferentIndividualsAxiom ax) {
+	 	ax.asOWLSubClassOfAxioms().forEach(s -> diffInd.add(s));
 	}
 	public Set<OWLClassExpression> findIndividual(OWLClassExpression c){
 		Set<OWLClassExpression> ce = new HashSet<OWLClassExpression>();

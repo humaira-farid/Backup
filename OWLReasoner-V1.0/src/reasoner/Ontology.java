@@ -476,7 +476,7 @@ public class Ontology {
 		}
 		return ce;
 	}
-	public Set<OWLClassExpression> getAllSubsumers2(OWLClassExpression c){
+	/*public Set<OWLClassExpression> getAllSubsumers2(OWLClassExpression c){
 		Set<OWLClassExpression> ce = new HashSet<OWLClassExpression>();
 		if(this.allSubsumersMap.get(c) != null)
 			ce.addAll(allSubsumersMap.get(c));
@@ -489,7 +489,7 @@ public class Ontology {
 		}
 		ce.addAll(ce2);
 		return ce;
-	}
+	}*/
 	public Set<OWLClassExpression> getAllSubsumers(OWLClassExpression c){
 		Set<OWLClassExpression> ce = new HashSet<OWLClassExpression>();
 		if(this.conceptSubsumersMap.get(c) != null)
@@ -668,7 +668,9 @@ public class Ontology {
 	public SetMultimap<OWLClassExpression, OWLClassExpression> getDisjointConcepts() {
 		return disjointConcepts;
 	}
-
+	public void addDisjointConcepts(OWLClassExpression c1, OWLClassExpression c2) {
+		disjointConcepts.put(c1, c2);
+	}
 
 	public Set<Set<OWLClassExpression>> getDisjointGroups() {
 		return disjointGroups;
@@ -678,7 +680,9 @@ public class Ontology {
 	public SetMultimap<OWLClassExpression, OWLClassExpression> getDiffIndividuals() {
 		return diffIndividuals;
 	}
-
+	public void addDiffIndividuals(OWLClassExpression o1, OWLClassExpression o2) {
+		diffIndividuals.put(o1, o2);
+	}
 
 	public Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> getSuperRolesMap() {
 		return superRolesMap;

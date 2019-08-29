@@ -25,6 +25,8 @@ public class Node implements Cloneable {
     private List<Edge> neighbour;
     private List<Edge> incomingEdge; 
     private List<Edge> outgoingEdge;
+    private List<Edge> succEdge; 
+    private List<Edge> predEdge;
     private Multimap<OWLClassExpression, DependencySet> conceptsDependencies = HashMultimap.create();
     private NodeLabel nLabel;
     private Node blocker;
@@ -39,11 +41,42 @@ public class Node implements Cloneable {
     /** pointer to last saved node */
     private final SaveList saves = new SaveList();
     private Map<Integer, NodeSaveState> saveMap = new HashMap<>();
+	private boolean nomIntro;
     
-    public int getCardinality() {
+    
+	public int getCardinality() {
 		return cardinality;
 	}
-
+    public void addDisjointNode(Node n){
+    		this.disjointNodes.add(n);
+    }
+    public List<Node> getDisjointNodes(){
+		return this.disjointNodes;
+    }
+    public List<Edge> getSuccEdges(){
+    		List<Edge> succEdges = new ArrayList<>();
+    		for(Edge e : this.getOutgoingEdges()) {
+    			if(e.isSuccEdge()) {
+    				succEdges.add(e);
+    			}
+    		}
+    		return succEdges;
+    }
+    public List<Edge> getPredEdges(){
+    	 	List<Edge> predEdges = new ArrayList<>();
+    		for(Edge e : this.incomingEdge) {
+			if(e.isPredEdge()) {
+				predEdges.add(e);
+			}
+		}
+		return predEdges;
+    }
+    public List<Edge> getSuccEdges1(){
+		return succEdge;
+    }
+    public List<Edge> getPredEdges1(){
+    		return predEdge;
+    }
 	public void setCardinality(int cardinality) {
 		this.cardinality = cardinality;
 	}
@@ -54,6 +87,8 @@ public class Node implements Cloneable {
         this.neighbour = new ArrayList<>();
         this.outgoingEdge = new ArrayList<>();
         this.incomingEdge = new ArrayList<>();
+        this.succEdge = new ArrayList<>();
+        this.predEdge = new ArrayList<>();
         this.id = id;
         this.nLabel = new NodeLabel();
         blocker = null;
@@ -65,6 +100,8 @@ public class Node implements Cloneable {
         this.neighbour = new ArrayList<>();
         this.outgoingEdge = new ArrayList<>();
         this.incomingEdge = new ArrayList<>();
+        this.succEdge = new ArrayList<>();
+        this.predEdge = new ArrayList<>();
         this.id = id;
         this.nLabel = new NodeLabel();
         blocker = null;
@@ -76,6 +113,8 @@ public class Node implements Cloneable {
         this.neighbour = n.getNeighbour();
         this.outgoingEdge = n.getOutgoingEdges();
         this.incomingEdge = n.getIncomingEdges();
+        this.succEdge = new ArrayList<>();
+        this.predEdge = new ArrayList<>();
         this.id = n.getId();
         this.nLabel = n.getnLabel();
         blocker = n.getBlocker();
@@ -170,9 +209,13 @@ public class Node implements Cloneable {
     public Set<OWLClassExpression> getLabel() {
     	Set<OWLClassExpression> concepts = new HashSet<>();
     	getnLabel().getCndList().getCdSet().forEach(cds -> {
-    		if(cds !=null )
-    			concepts.add(cds.getCe());
+	    		if(cds !=null ) {
+	    		//	System.err.println("inside "+cds.getCe());
+	    			concepts.add(cds.getCe());
+	    		}
     		});
+   // 	System.err.println("outside "+concepts);
+		
 		return concepts;
     }
     public List<Edge> getNeighbour() {
@@ -217,6 +260,12 @@ public class Node implements Cloneable {
 	
 	public boolean isNominalNode() {
 		return this.nodeType == NodeType.NOMINAL;
+	}
+	public boolean isNINode() {
+		return this.nomIntro;
+	}
+	public void makeNINode() {
+		 this.nomIntro = true;
 	}
 	public boolean makeNominalNode() {
 		if(this.cardinality>1)
@@ -279,6 +328,7 @@ public class Node implements Cloneable {
 	
 	 private void save(NodeSaveState nss) {
 	        nss.setCurLevel(curLevel);
+	        nss.setCardinality(cardinality);
 	        nss.setnNeighbours(neighbour.size());
 	        nss.setnOutgoingEdges(outgoingEdge.size());
 	        nss.setnIncommingEdges(incomingEdge.size());
@@ -292,6 +342,7 @@ public class Node implements Cloneable {
 	       
 	        // level restore
 	        curLevel = nss.getCurLevel();
+	        cardinality = nss.getCardinality();
 	      //  System.out.println("restore node: currlevel "+ curLevel +" restore level"+ nss.getCurLevel()); 
 	        // label restore
 	      
@@ -404,6 +455,7 @@ public class Node implements Cloneable {
         ANONYMOUS,
         NOMINAL,
         BLOCKABLE,
+        NOMINALINTRO,
         PROXY;
         
 

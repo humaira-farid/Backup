@@ -6,6 +6,7 @@ public class NodeSaveState {
     private final SaveState lab = new SaveState();
     /** curLevel of the Node structure */
     private int curLevel;
+    private int cardinality;
     /** amount of neighbours */
     private int nNeighbours;
 	private int nOutgoingEdges;
@@ -58,4 +59,13 @@ public class NodeSaveState {
     public int getnIncomingEdges() {
 	 	return this.nIncomingEdges;
     }
+
+	public void setCardinality(int cardinality) {
+		this.cardinality = cardinality;
+		
+	}
+	public int getCardinality() {
+		return this.cardinality;
+		
+	}
 }

@@ -132,7 +132,7 @@ public class RuleEngine2 {
 		 				addRangeRestrictions(this.axiomRoles.get(currNode));
 		 				checkRelatedForAll(currNode, nodeForAllEntries.get(currNode), this.axiomRoles.get(currNode));
 		 					if(needILPModule(currNode)) {
-		 						List<ToDoEntry> entries = new ArrayList<>();
+		 						Set<ToDoEntry> entries = new HashSet<>();
 		 						entries.addAll(nodeExistEntries.get(currNode));
 		 						entries.addAll(relatedForAllEntries.get(currNode));
 		 						nodeExistEntries.get(currNode).clear();
@@ -212,7 +212,7 @@ public class RuleEngine2 {
 			addRangeRestrictions(this.axiomRoles.get(currNode));
 			checkRelatedForAll(currNode, nodeForAllEntries.get(currNode), this.axiomRoles.get(currNode));
 				if(needILPModule(currNode)) {
-					List<ToDoEntry> entries = new ArrayList<>();
+					Set<ToDoEntry> entries = new HashSet<>();
 					entries.addAll(nodeExistEntries.get(currNode));
 					entries.addAll(relatedForAllEntries.get(currNode));
 					nodeExistEntries.get(currNode).clear();
@@ -600,7 +600,7 @@ public class RuleEngine2 {
 		return false;
 	}
 		
-	public void callILP(Node n, List<ToDoEntry> entries) {
+	public void callILP(Node n, Set<ToDoEntry> entries) {
 		System.out.println("Calling ILP module...");//+ entries.size() +" node id: "+n.getId());
 		//n.getLabel().stream().forEach(e -> System.out.println(e));
 		//entries.stream().forEach(e -> System.out.println(e.getClassExpression()));

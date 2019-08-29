@@ -51,7 +51,8 @@ public class CplexModelGenerator10 {
 	BiMap<OWLObjectPropertyExpression, Integer> srRolesMap = HashBiMap.create();
 	Set<Set<OWLClassExpression>> disjointGroups = new HashSet<>();
 	BiMap<OWLObjectPropertyExpression, Integer> tempRoleHMap = HashBiMap.create();
-	
+	Map<OWLObjectPropertyExpression, OWLClassExpression> topMinMap; 
+	Map<OWLObjectPropertyExpression, OWLClassExpression> topMaxMap;
 	Set<OWLObjectCardinalityRestriction> infeasibilities = new HashSet<>();
 	Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRoles = new HashMap<>();
 	SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> forAllMap;
@@ -74,7 +75,9 @@ public class CplexModelGenerator10 {
 			Set<Set<OWLClassExpression>> disjointGroups,
 			Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> sRMap,
 			SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> forAllMap2, 
-			Map<OWLObjectPropertyExpression, OWLObjectPropertyExpression> tempRoleH2) {
+			Map<OWLObjectPropertyExpression, OWLObjectPropertyExpression> tempRoleH2, 
+			Map<OWLObjectPropertyExpression, OWLClassExpression> topMinMap, 
+			Map<OWLObjectPropertyExpression, OWLClassExpression> topMaxMap) {
 		
 		ilpPro = ilpPr;
 		qcrs = ilpPro.getQcrs();
@@ -84,12 +87,17 @@ public class CplexModelGenerator10 {
 		qcrList = ilpPro.getCardRes();
 		
 		generateCplexModel();
-		
+		//System.out.println(" solved "+initiallySolved);
 		if(initiallySolved) {
+			
 			this.disjointGroups = disjointGroups;
 			this.conceptSubsumersMap = new HashMap<>(conceptSubsumersMap);
 			this.binarySubsumersMap = new HashMap<>(binarySubsumers);
-
+			
+			this.topMinMap = new HashMap<>(topMinMap);
+			this.topMaxMap = new HashMap<>(topMaxMap);
+		//	System.out.println(" map "+topMaxMap);
+			
 			this.conceptDisjoints = HashMultimap.create();
 			for(Entry<OWLClassExpression, OWLClassExpression> e : conceptDisjoints.entries()){
 				//System.out.println("conceptDisjoints "+ e.getKey()+ e.getValue());
@@ -183,7 +191,7 @@ public class CplexModelGenerator10 {
 	}
 	
 	public ILPSolution getILPSolution() throws IloException {
-		return solve(new RMPModel().generateRmpModel(), new PPModel().GeneratePpModel());
+		return solve();
 		/*ILPSolution sol = checkFeasibility();
 		if(sol == null) {
 			CplexModelSolver cms = new CplexModelSolver(new RMPModel().generateRmpModel(), new PPModel().GeneratePpModel(), this.totalVar);
@@ -328,7 +336,8 @@ public class CplexModelGenerator10 {
 		return this.cplexModel;
 	}*/
 	
-	public ILPSolution solve(RMPModel rmpModel, PPModel ppModel) throws IloException{
+	//public ILPSolution solve(RMPModel rmpModel, PPModel ppModel) throws IloException{
+	public ILPSolution solve() throws IloException{
 		//int M = 100;
 		ILPSolution returnSolution = new ILPSolution();
 		
@@ -337,6 +346,8 @@ public class CplexModelGenerator10 {
 			returnSolution.setSolved(false);
 			return returnSolution;
 		}
+		RMPModel rmpModel = new RMPModel().generateRmpModel();
+		PPModel ppModel = new PPModel().GeneratePpModel();
 		
 		IloCplex rmpCplex = rmpModel.getRmpCplex();
 		IloObjective obj = rmpCplex.getObjective();
@@ -461,7 +472,7 @@ public class CplexModelGenerator10 {
 						
 				}
 				sumh =  Math.round(sumh * 100000D) / 100000D;
-				System.out.println("non zero cardinality " + sumh+ " rounded: " + Math.round(sumh * 100000D) / 100000D);
+				//System.out.println("non zero cardinality " + sumh+ " rounded: " + Math.round(sumh * 100000D) / 100000D);
 				if(nonInteger) {
 					System.out.println("non integer cardinality! trying for integer solution ");
 				/*	for ( int i = 0; i < x.getSize(); i++ ) {
@@ -550,6 +561,7 @@ public class CplexModelGenerator10 {
 									Set<OWLObjectPropertyExpression> tempRoleSet = new HashSet<>();
 									Set<OWLObjectPropertyExpression> tempSupRoleSet = new HashSet<>();
 									Set<OWLClassExpression> tempClassSet = new HashSet<>();
+									Set<Integer> nodeSet = new HashSet<>();
 										
 									boolean addIt = false;
 										
@@ -566,6 +578,8 @@ public class CplexModelGenerator10 {
 									for(OWLClassExpression ce : temp) {
 										if(ilpPro.getAuxiliaryConcepts().contains(ce))
 											tempClassSet.addAll(ilpPro.getComplexASubsumers(ce));
+										if(ilpPro.getNodeIdMap().containsKey(ce))
+											nodeSet.add(ilpPro.getNodeIdMap().get(ce));
 									}
 									tempClassSet.removeAll(ilpPro.getAuxiliaryConcepts());
 									if(addIt){
@@ -599,7 +613,7 @@ public class CplexModelGenerator10 {
 											tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
 											
 											if(!tempRoleSet.isEmpty()) {
-												EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet , tempClassSet , cardinality, ds);
+												EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet , tempClassSet , cardinality, ds, nodeSet);
 												edgeInformationSet.add(tempEdgeInformation);
 											}
 										}
@@ -673,7 +687,7 @@ public class CplexModelGenerator10 {
 						Set<EdgeInformation> finalEdgeInformations = new HashSet<EdgeInformation>();
 						for(EdgeInformation e : edge_map.keySet()){
 							Set<OWLClassExpression> fillers = e.getFillers();
-							EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), fillers, edge_map.get(e), e.getDs());
+							EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), fillers, edge_map.get(e), e.getDs(), e.getNodeSet());
 							finalEdgeInformations.add(tempEdgeInformation);
 						}
 
@@ -951,7 +965,7 @@ public class CplexModelGenerator10 {
 							double card = rmpCplex.getValue(h.getElement(l));
 							card = Math.round(card * 100000D) / 100000D;
 							if(card > 0){
-								System.out.println("non zero cardinality " + card+ " rounded: " + Math.round(card * 100000D) / 100000D);
+								//System.out.println("non zero cardinality " + card+ " rounded: " + Math.round(card * 100000D) / 100000D);
 								infeasible = true;
 								break;
 							}
@@ -1010,7 +1024,7 @@ public class CplexModelGenerator10 {
 									double card = rmpCplex.getValue(h.getElement(l));
 									card = Math.round(card * 100000D) / 100000D;
 									if(card > 0){
-										System.out.println("non zero cardinality " + card);
+										//System.out.println("non zero cardinality " + card);
 										infeasible = true;
 										break;
 									}
@@ -1041,7 +1055,8 @@ public class CplexModelGenerator10 {
 										Set<OWLObjectPropertyExpression> tempRoleSet = new HashSet<>();
 										Set<OWLObjectPropertyExpression> tempSupRoleSet = new HashSet<>();
 										Set<OWLClassExpression> tempClassSet = new HashSet<>();
-													
+										Set<Integer> nodeSet = new HashSet<>();
+										
 										boolean addIt = false;
 													
 										for(int j = 0 ; j < tempSubSet1.getConceptIndexSet().length ; j++){
@@ -1057,6 +1072,8 @@ public class CplexModelGenerator10 {
 										for(OWLClassExpression ce : temp) {
 											if(ilpPro.getAuxiliaryConcepts().contains(ce))
 												tempClassSet.addAll(ilpPro.getComplexASubsumers(ce));
+											if(ilpPro.getNodeIdMap().containsKey(ce))
+												nodeSet.add(ilpPro.getNodeIdMap().get(ce));
 											}
 											tempClassSet.removeAll(ilpPro.getAuxiliaryConcepts());
 											if(addIt){
@@ -1090,7 +1107,7 @@ public class CplexModelGenerator10 {
 													tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
 													
 													if(!tempRoleSet.isEmpty()) {
-														EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet , tempClassSet , cardinality2, ds);
+														EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet , tempClassSet , cardinality2, ds, nodeSet);
 														edgeInformationSet.add(tempEdgeInformation);
 													}
 												}
@@ -1163,7 +1180,7 @@ public class CplexModelGenerator10 {
 									Set<EdgeInformation> finalEdgeInformations = new HashSet<EdgeInformation>();
 									for(EdgeInformation e : edge_map.keySet()){
 										Set<OWLClassExpression> fillers = e.getFillers();
-										EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), fillers, edge_map.get(e), e.getDs());
+										EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), fillers, edge_map.get(e), e.getDs(), e.getNodeSet());
 										finalEdgeInformations.add(tempEdgeInformation);
 									}
 	
@@ -1638,7 +1655,7 @@ public class CplexModelGenerator10 {
 									double card = rmpCplex.getValue(h.getElement(l));
 									card = Math.round(card * 100000D) / 100000D;
 									if(card > 0){
-										System.out.println("non zero cardinality " + card);
+										//System.out.println("non zero cardinality " + card);
 										infeasible = true;
 										break;
 									}
@@ -1669,7 +1686,8 @@ public class CplexModelGenerator10 {
 										Set<OWLObjectPropertyExpression> tempRoleSet = new HashSet<>();
 										Set<OWLObjectPropertyExpression> tempSupRoleSet = new HashSet<>();
 										Set<OWLClassExpression> tempClassSet = new HashSet<>();
-													
+										Set<Integer> nodeSet = new HashSet<>();
+										
 										boolean addIt = false;
 													
 										for(int j = 0 ; j < tempSubSet1.getConceptIndexSet().length ; j++){
@@ -1685,6 +1703,8 @@ public class CplexModelGenerator10 {
 										for(OWLClassExpression ce : temp) {
 											if(ilpPro.getAuxiliaryConcepts().contains(ce))
 												tempClassSet.addAll(ilpPro.getComplexASubsumers(ce));
+											if(ilpPro.getNodeIdMap().containsKey(ce))
+												nodeSet.add(ilpPro.getNodeIdMap().get(ce));
 											}
 											tempClassSet.removeAll(ilpPro.getAuxiliaryConcepts());
 											if(addIt){
@@ -1718,7 +1738,7 @@ public class CplexModelGenerator10 {
 													tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
 													
 													if(!tempRoleSet.isEmpty()) {
-														EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet , tempClassSet , cardinality2, ds);
+														EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet , tempClassSet , cardinality2, ds, nodeSet);
 														edgeInformationSet.add(tempEdgeInformation);
 													}
 												}
@@ -1791,7 +1811,7 @@ public class CplexModelGenerator10 {
 									Set<EdgeInformation> finalEdgeInformations = new HashSet<EdgeInformation>();
 									for(EdgeInformation e : edge_map.keySet()){
 										Set<OWLClassExpression> fillers = e.getFillers();
-										EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), fillers, edge_map.get(e), e.getDs());
+										EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), fillers, edge_map.get(e), e.getDs(), e.getNodeSet());
 										finalEdgeInformations.add(tempEdgeInformation);
 									}
 	
@@ -2230,6 +2250,7 @@ public class CplexModelGenerator10 {
 					OWLObjectPropertyExpression tempSupRole = tempRoleH.get(role);
 					for(OWLObjectPropertyExpression supRole : superRoles.get(role)){
 						//System.out.println("role : "+role+" H role "+tempSupRole+" sup role " +supRole);
+					//	System.out.println("role : "+role+" sup role " +supRole);
 						//System.out.println("hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "sr["+srRolesMap.get(supRole)+"]");
 						if(axiomRoles.contains(supRole)) {
 							//System.out.println("hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "hr["+tempRoleHMap.get(tempRoleH.get(supRole))+"]");
@@ -2261,7 +2282,55 @@ public class CplexModelGenerator10 {
 					}
 				}
 			}
+			//TOP max cardinality Restrictions -- Semantics 
+			//System.out.println("TOP max cardinality Restrictions : "+topMaxMap.keySet().size());
 			
+			for (OWLObjectPropertyExpression role : topMaxMap.keySet()){
+				//System.out.println("TOP max cardinality Restrictions : "+topMaxMap.keySet().size());
+				if(topMaxMap.get(role) != null){
+					if(axiomRoles.contains(role)) {
+						OWLObjectPropertyExpression tempSupRole = tempRoleH.get(role);
+						//System.out.println("role "+ role+ " tempSupRole "+tempSupRole);
+						OWLClassExpression C = topMaxMap.get(role);
+						//System.out.println("role "+ role+ " class  "+C);
+							
+						ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], b[qualifiers.get(C)]);
+							if(srRolesMap.get(role)!=null)
+								ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
+						
+					}
+					else {
+						OWLClassExpression C = topMaxMap.get(role);
+							ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
+					}
+				}
+			}
+			//TOP min cardinality Restrictions -- Semantics 
+			//System.out.println("TOP min cardinality Restrictions : "+topMinMap.keySet().size());
+			
+			for (OWLObjectPropertyExpression role : topMinMap.keySet()){
+				//System.out.println("TOP max cardinality Restrictions : "+topMaxMap.keySet().size());
+				if(topMinMap.get(role) != null){
+					int ri = 0;
+					for(int i : qcrMap.keySet()) {
+						QCR q = qcrMap.get(i);
+						if(q.qualifier.equals(topMinMap.get(role)) && q.role.equals(role) && q.type.equals("MIN")) {
+							ri = i;
+						}
+					}
+					if(axiomRoles.contains(role)) {
+						OWLObjectPropertyExpression tempSupRole = tempRoleH.get(role);
+						
+						ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], r[ri]);
+						if(srRolesMap.get(role)!=null)
+							ppCplex.addLe(sr[srRolesMap.get(role)], r[ri]);
+						
+					}
+					else {
+						ppCplex.addLe(sr[srRolesMap.get(role)],  r[ri]);
+					}
+				}
+			}
 			
 			// Checking subsumers
 			for (OWLClassExpression C : allQualifiers){
@@ -2326,7 +2395,9 @@ public class CplexModelGenerator10 {
 			
 			// handle negation
 			for (OWLClassExpression C : negations.keySet()){
+				System.out.println("neg "+ C);
 				OWLClassExpression D = negations.get(C);
+				System.out.println("neg "+ C + " - "+ D);
 				ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(C)]),
 							ppCplex.prod(1.0, b[qualifiers.get(D)])), 1);
 			}

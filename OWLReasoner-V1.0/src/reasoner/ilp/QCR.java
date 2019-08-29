@@ -30,5 +30,10 @@ public class QCR {
 		this.type = "EXACT";
 		this.ds = ds;
 	}
-	
+	public void updateCardinality(int card) {
+		this.cardinality = card;
+	}
+	public void updateDS(DependencySet ds) {
+		this.ds = ds;
+	}
 }

@@ -30,10 +30,10 @@ public class TestReasoner{
 	DefaultPrefixManager prefixManager = new DefaultPrefixManager();
 	Ontology ontology;
 	Configuration config;
-	// public TestReasoner(File file) {
-	public TestReasoner() {
+    public TestReasoner(File file) {
+	//public TestReasoner() {
 		 man = OWLManager.createOWLOntologyManager();
-		 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-test2.owl");
+		// File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOQ test ontologies/SHOQ test ontologies/Example_9a.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {
@@ -47,6 +47,7 @@ public class TestReasoner{
 		intr.setPrefixManager(prefixManager);
 		reasoner = reasonerFactory.createReasoner(ont);
 	    config = this.reasoner.getConfiguration();
+	    ontology =  intr.internalize(ont);
 		re = new RuleEngine(intr, todo, df, config);
 	}
 	 public static void getExecutionTime() {
@@ -61,7 +62,7 @@ public class TestReasoner{
 	     
 	     Set<OWLObjectPropertyExpression> trans = getTransitiveRoles();
 	      
-	     ontology =  intr.internalize(ont);
+	     
 	     OWLClassExpression tgAxiom = intr.getTgAxiom();
 	 //    for (OWLSubClassOfAxiom sbg : intr.getTg()) 
 	   //  	 	System.out.println("TG: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
@@ -88,7 +89,7 @@ public class TestReasoner{
 	        man.removeOntology(ont);
 	}
 	public void needAboxCheckAgain( OWLClassExpression tgAxiom) {
-		if(re.indLeft(intr.getAboxClassAss())!=0) {
+		if(re.indLeft(intr.getAboxClassAss())) {
 			re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
 			needAboxCheckAgain(tgAxiom);
 		}
@@ -191,7 +192,7 @@ public class TestReasoner{
 		}
 		
 		if(hasNominal && hasQCRs && hasInverseRoles) {
-			System.err.println("SHOIQ");
+			//System.err.println("SHOIQ");
 			config.setSHOIQ(true);
 			config.setUsePairwiseBlocking(true);
 		}

@@ -31,6 +31,8 @@ public class ILPPreprocessor {
 	Set<OWLClassExpression> subsumptionConcepts = new HashSet<>();
 	Set<OWLObjectOneOf> tempNom = new HashSet<>();
 	Set<OWLObjectOneOf> tempSimple = new HashSet<>();
+	Set<OWLObjectMinCardinality> topMinCardinalities = new HashSet<>();
+	Set<OWLObjectMaxCardinality> topMaxCardinalities = new HashSet<>();
 	SetMultimap<OWLClassExpression, OWLClassExpression> conceptSubsumers = HashMultimap.create();
 	Map<OWLClassExpression, Set<OWLClassExpression>> binarySubsumers = new HashMap<>();
 	SetMultimap<OWLClassExpression, OWLClassExpression> conceptDisjoints = HashMultimap.create();
@@ -40,7 +42,7 @@ public class ILPPreprocessor {
 	SetMultimap<OWLClassExpression, OWLClassExpression> complexASubsumers = HashMultimap.create();
 	SetMultimap<OWLClassExpression, OWLClassExpression> extraSubsumers = HashMultimap.create();
 	SetMultimap<OWLObjectPropertyExpression, OWLObjectPropertyExpression> auxRoleH = HashMultimap.create();
-
+	Map<OWLClassExpression, Integer> nodeIdMap = new HashMap<>();
 	Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> auxRoleHMap = new HashMap<>();
 	SetMultimap<OWLClassExpression, DependencySet> conceptDs = HashMultimap.create();
 	SetMultimap<OWLObjectOneOf, DependencySet> nominalDs = HashMultimap.create();
@@ -70,6 +72,11 @@ public class ILPPreprocessor {
 	Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> sRMap = new HashMap<>();
 	
 	SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> forAllMap = HashMultimap.create();
+	Map<OWLObjectPropertyExpression, OWLClassExpression> topMinMap = new HashMap<>();
+	Map<OWLObjectPropertyExpression, OWLClassExpression> topMaxMap = new HashMap<>();
+	
+	//Map<OWLObjectPropertyExpression, Set<OWLClassExpression>> topMinMap = new HashMap<>();
+	//Map<OWLObjectPropertyExpression, Set<OWLClassExpression>> topMaxMap = new HashMap<>();
 	
 	Set<OWLObjectAllValuesFrom> forAllRes = new HashSet<>();
 
@@ -164,7 +171,7 @@ public class ILPPreprocessor {
 		processConcepts();
 		createMaps();
 	}
-	public ILPPreprocessor(List<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges) {
+	public ILPPreprocessor(Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges) {
 		counter = 0;
 		this.df = df;
 		this.currNode = n;
@@ -178,12 +185,16 @@ public class ILPPreprocessor {
 			processEntry(entry);
 		generateQCR();
 		processQCRs();
+		processExistingOutgoingEdges();
+		createTopMap();
 		createForAllMap();
 		
 		processConcepts();
 		
 		createMaps();
 	}
+	
+	
 	
 	private void processConcepts() {
 		for(OWLSubClassOfAxiom sb : this.auxiliarySubAxDs.keySet()) {
@@ -356,11 +367,11 @@ public class ILPPreprocessor {
 			existsDs.put((OWLObjectSomeValuesFrom)ce, ds);
 		}
 		else if(ce instanceof OWLObjectMinCardinality) {
-			//hasValue.add((OWLObjectHasValue)ce);
+			
 			minDs.put((OWLObjectMinCardinality)ce, ds);
 		}
 		else if(ce instanceof OWLObjectMaxCardinality) {
-			//hasValue.add((OWLObjectHasValue)ce);
+			
 			maxDs.put((OWLObjectMaxCardinality)ce, ds);
 		}
 		else if(ce instanceof OWLObjectHasValue) {
@@ -372,6 +383,7 @@ public class ILPPreprocessor {
 		}
 	
 	}
+
 
 /*	private void processIntersection(OWLClassExpression ce) {
 		for(OWLClassExpression c : ce.asConjunctSet()) {
@@ -397,6 +409,7 @@ public class ILPPreprocessor {
 
 	private void processForAll(OWLObjectAllValuesFrom c, DependencySet ds) {
 		//this.forAllRes.add((OWLObjectAllValuesFrom)c);
+		System.out.println("here");
 		OWLClassExpression filler = c.getFiller();
 		if(filler instanceof OWLObjectOneOf) {
 			nominals.add((OWLObjectOneOf)filler);
@@ -411,6 +424,7 @@ public class ILPPreprocessor {
 		}
 
 		else if(filler instanceof OWLObjectComplementOf) {
+			System.out.println("here");
 			simpleConcepts.add(c.getFiller());
 			conceptDs.put(filler, ds);
 			this.forAllRes.add(c);
@@ -579,11 +593,16 @@ public class ILPPreprocessor {
 			roles.add(role);
 			//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, o));
 		}
+		
+	}
+	private void processExistingOutgoingEdges() {
 		for(Edge e : outgoingEdges) {
 			DependencySet ds = e.getDepSet();
 			Set<OWLObjectPropertyExpression> eRoles = e.getLabel();
 			Set<OWLClassExpression> fillers = e.getToNode().getLabel();
+			
 			OWLClassExpression qualifier = df.getOWLClass("#aux_" + ++counter, prefixManager);
+			nodeIdMap.put(qualifier, e.getToNode().getId());
 			OWLObjectPropertyExpression role = df.getOWLObjectProperty("#auxRole_" + ++counter, prefixManager);
 			auxiliaryConcepts.add(qualifier);
 			auxiliaryRoles.add(role);
@@ -597,10 +616,20 @@ public class ILPPreprocessor {
 				}
 			}
 			for(OWLObjectPropertyExpression r : eRoles) {
+				roles.add(r);
 				this.auxRoleH.put(role, r);
 			}
 		//	OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
-			OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(e.getToNode().getCardinality(), role, qualifier);
+		//	OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(e.getToNode().getCardinality(), role, qualifier);
+			
+			OWLObjectCardinalityRestriction cr = null;
+			if(this.currNode.isBlockableNode()) {
+				cr = df.getOWLObjectMinCardinality(1, role, qualifier);
+			
+			}
+			else{
+				cr = df.getOWLObjectMinCardinality(e.getToNode().getCardinality(), role, qualifier);
+			}
 			this.cardRes.add(cr);
 			cardResDs.put(cr, ds);
 			roles.add(role);
@@ -608,6 +637,9 @@ public class ILPPreprocessor {
 		this.auxRoleHMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) auxRoleH.asMap();
 	}
 	
+	public Map<OWLClassExpression, Integer> getNodeIdMap() {
+		return nodeIdMap;
+	}
 	private void processQCRs() {
 		for(OWLObjectMinCardinality ex : this.minDs.keySet()) {
 			DependencySet ds = DependencySet.create();
@@ -630,6 +662,16 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
 				simpleConcepts.add(filler);
 				conceptDs.put(filler, ds);
+			}
+			else if(filler.isOWLThing()) {
+				
+				this.minCardRes.add(ex);
+				roles.add(role);
+				cardResDs.put(ex, ds);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				simpleConcepts.add(filler);
+				conceptDs.put(filler, ds);
+				topMinCardinalities.add(ex);
 			}
 			else if(filler instanceof OWLObjectComplementOf) {
 				this.minCardRes.add(ex);
@@ -694,12 +736,24 @@ public class ILPPreprocessor {
 			}
 		}
 		for(OWLObjectMaxCardinality ex : this.maxDs.keySet()) {
+			
 			DependencySet ds = DependencySet.create();
 			for(DependencySet d : this.maxDs.get(ex))
 				ds.add(d);
 			OWLClassExpression filler = ex.getFiller();
+			//System.out.println("filler"+ filler);
 			OWLObjectPropertyExpression role = ex.getProperty();
-			if(filler instanceof OWLObjectOneOf) {
+			if(filler.isOWLThing()) {
+				//System.out.println("top");
+				this.maxCardRes.add(ex);
+				roles.add(role);
+				cardResDs.put(ex, ds);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				simpleConcepts.add(filler);
+				conceptDs.put(filler, ds);
+				topMaxCardinalities.add(ex);
+			}
+			else if(filler instanceof OWLObjectOneOf) {
 				this.maxCardRes.add(ex);
 				roles.add(role);
 				cardResDs.put(ex, ds);
@@ -715,6 +769,7 @@ public class ILPPreprocessor {
 				simpleConcepts.add(filler);
 				conceptDs.put(filler, ds);
 			}
+			
 			else if(filler instanceof OWLObjectComplementOf) {
 				this.maxCardRes.add(ex);
 				roles.add(role);
@@ -777,6 +832,10 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
 			}
 		}
+	}
+	
+	private void processTopCardinalities() {
+		
 	}
 	
 	public void createForAllMap() {
@@ -850,10 +909,116 @@ public class ILPPreprocessor {
 					if(addForAll)	
 						this.forAllMap.put(forAll.getProperty(), forAll.getFiller());
 				}
-				this.sRMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) sR.asMap();
+				
 	}
 	
-	
+	public void createTopMap() {
+		
+		Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> tempSuperRolesMap = new HashMap<>(superRolesMap);
+		tempSuperRolesMap.putAll(auxRoleHMap);
+		int k=1;
+		for(OWLObjectMinCardinality topMin : topMinCardinalities) {
+			boolean addTop = false;
+			OWLObjectPropertyExpression role = topMin.getProperty();
+			if(roles.contains(role)){
+				addTop = true;
+				if(!tempRoleH.containsKey(role)) {
+					OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));// create Helper Role
+					tempRoleH.put(role, rh);
+					k++;
+					//System.out.println("1) role "+ role +"TH role : "+rh);
+					
+					for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
+						if(roles.contains(r)) {
+							if(tempSuperRolesMap.get(r).contains(role)) {
+								if(!tempRoleH.containsKey(r)) {
+									OWLObjectPropertyExpression rh1 = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));
+									tempRoleH.put(r, rh1);
+									k++;
+									//System.out.println("2) role "+ r +"TH role : "+rh1);
+									
+								}
+		
+								sR.put(r, role);
+							}
+						}
+					}
+				}
+			}
+			else{
+				for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
+					if(roles.contains(r)) {
+						if(tempSuperRolesMap.get(r).contains(role)) {
+							if(!tempRoleH.containsKey(r)) {
+								OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));
+								tempRoleH.put(r, rh);
+								k++;
+								//System.out.println("3) role "+ r +"TH role : "+rh);
+								
+							}
+							sR.put(r, role);
+							addTop = true;
+						}
+					}
+				}
+			}
+			if(addTop)	
+				this.topMinMap.put(topMin.getProperty(), topMin.getFiller());
+		
+		}
+		for(OWLObjectMaxCardinality topMax : topMaxCardinalities) {
+			boolean addTop = false;
+			OWLObjectPropertyExpression role = topMax.getProperty();
+			if(roles.contains(role)){
+				addTop = true;
+				if(!tempRoleH.containsKey(role)) {
+					OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));// create Helper Role
+					tempRoleH.put(role, rh);
+					k++;
+					//System.out.println("1) role "+ role +"TH role : "+rh);
+					
+					for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
+						if(roles.contains(r)) {
+							if(tempSuperRolesMap.get(r).contains(role)) {
+								if(!tempRoleH.containsKey(r)) {
+									OWLObjectPropertyExpression rh1 = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));
+									tempRoleH.put(r, rh1);
+									k++;
+									//System.out.println("2) role "+ r +"TH role : "+rh1);
+									
+								}
+		
+								sR.put(r, role);
+							}
+						}
+					}
+				}
+			}
+			else{
+				for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
+					if(roles.contains(r)) {
+						if(tempSuperRolesMap.get(r).contains(role)) {
+							if(!tempRoleH.containsKey(r)) {
+								OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));
+								tempRoleH.put(r, rh);
+								k++;
+								//System.out.println("3) role "+ r +"TH role : "+rh);
+								
+							}
+							sR.put(r, role);
+							addTop = true;
+						}
+					}
+				}
+			}
+			if(addTop)	
+				this.topMaxMap.put(topMax.getProperty(), topMax.getFiller());
+		
+		}
+		////
+
+		
+	}
 	
 	private Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> getSuperRolesMap() {
 		return superRolesMap;
@@ -1043,10 +1208,12 @@ public class ILPPreprocessor {
 				ds.add(d);
 			crMap.put(i, q);
 			//roles.add(q.getProperty());
+			if(!isAlreadyExists(q, ds)) {
 			QCR qcr = new QCR(q,ds);
 			qcrMap.put(i, qcr);
 			qcrs.add(qcr);
 			++i;
+			}
 		}
 		for(OWLObjectOneOf o : getNominalDs().keySet()) {
 			//System.out.println("nominal "+o);
@@ -1062,6 +1229,35 @@ public class ILPPreprocessor {
 	}
 	
 
+	private boolean isAlreadyExists(OWLObjectCardinalityRestriction q, DependencySet ds) {
+		for(QCR qcr : qcrMap.values()) {
+			if(qcr.qualifier.equals(q.getFiller()) && qcr.role.equals(q.getProperty())){
+				if((q instanceof OWLObjectMinCardinality && qcr.type.equals("MIN"))
+						|| (q instanceof OWLObjectExactCardinality && qcr.type.equals("EXACT"))) {
+					if(qcr.cardinality >= q.getCardinality()) {
+						return true;
+					}
+					else {
+						qcr.updateCardinality(q.getCardinality());
+						qcr.updateDS(ds);
+						return true;
+					}
+				}
+				else if(q instanceof OWLObjectMaxCardinality && qcr.type.equals("MAX")) {
+					if(qcr.cardinality <= q.getCardinality()) {
+						return true;
+					}
+					else {
+						qcr.updateCardinality(q.getCardinality());
+						qcr.updateDS(ds);
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+	
 	private void addSubsumption(OWLClassExpression ce) {
 		// subsumption- concepts
 		if(ce instanceof OWLClass) {
@@ -1227,31 +1423,7 @@ public class ILPPreprocessor {
 		}
 	}
 
-	public ILPSolution callILP() throws IloException {
-
-		SetMultimap<OWLClassExpression, OWLClassExpression> subsumers = HashMultimap.create();
-		SetMultimap<OWLClassExpression, OWLClassExpression> disjoints = HashMultimap.create();
-		subsumers.putAll(conceptSubsumers);
-		subsumers.putAll(nominalSubsumers);
-		subsumers.putAll(simpleASubsumers);
-		//System.out.println("simpleASubsumers "+ simpleASubsumers);
-		disjoints.putAll(conceptDisjoints);
-		disjoints.putAll(nominalDisjoints);
-		CplexModelGenerator10 cmg = new CplexModelGenerator10(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH);
-		ILPSolution sol = cmg.getILPSolution();
-		System.out.println("Solved: "+sol.isSolved());
-		for(EdgeInformation ei : sol.getEdgeInformation()) {
-			/*Set<OWLClassExpression> temp = new HashSet<>();
-			temp.addAll(ei.getFillers());
-			for(OWLClassExpression ce : temp) {
-				if(this.auxiliaryConcepts.contains(ce))
-					ei.getFillers().addAll(this.complexASubsumers.get(ce));
-			}
-			ei.getFillers().removeAll(auxiliaryConcepts);*/
-			System.out.println("Roles: " + ei.getEdges() +" Qualifications: " + ei.getFillers() +" cardinality : "+ ei.getCardinality());
-		}
-		return sol;
-	}
+	
 	
 	public Set<OWLClassExpression> getAuxiliaryConcepts() {
 		return auxiliaryConcepts;
@@ -1414,6 +1586,31 @@ public class ILPPreprocessor {
 	}
 
 	
-	
+	public ILPSolution callILP() throws IloException {
+
+		SetMultimap<OWLClassExpression, OWLClassExpression> subsumers = HashMultimap.create();
+		SetMultimap<OWLClassExpression, OWLClassExpression> disjoints = HashMultimap.create();
+		subsumers.putAll(conceptSubsumers);
+		subsumers.putAll(nominalSubsumers);
+		subsumers.putAll(simpleASubsumers);
+		//System.out.println("simpleASubsumers "+ simpleASubsumers);
+		disjoints.putAll(conceptDisjoints);
+		disjoints.putAll(nominalDisjoints);
+		this.sRMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) sR.asMap();
+		CplexModelGenerator10 cmg = new CplexModelGenerator10(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH, this.topMinMap, this.topMaxMap);
+		ILPSolution sol = cmg.getILPSolution();
+		System.out.println("Solved: "+sol.isSolved());
+		for(EdgeInformation ei : sol.getEdgeInformation()) {
+			/*Set<OWLClassExpression> temp = new HashSet<>();
+			temp.addAll(ei.getFillers());
+			for(OWLClassExpression ce : temp) {
+				if(this.auxiliaryConcepts.contains(ce))
+					ei.getFillers().addAll(this.complexASubsumers.get(ce));
+			}
+			ei.getFillers().removeAll(auxiliaryConcepts);*/
+			System.out.println("Roles: " + ei.getEdges() +" Qualifications: " + ei.getFillers() +" cardinality : "+ ei.getCardinality());
+		}
+		return sol;
+	}
 	
 }
