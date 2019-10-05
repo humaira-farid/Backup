@@ -58,31 +58,31 @@ public class CompletionGraph implements Cloneable {
 	        nNodeRestores = 0;
 	 }
 	public Node addNode(Node.NodeType nodeType, OWLClassExpression nodeLabel, DependencySet ds) {
-		 Node node = new Node(nodeType,nodeLabel, getnewId());
+		 Node node = new Node(nodeType,nodeLabel, getnewId(), ds);
 		 node.init(branchingLevel);
 		 ConceptNDepSet cnds = new ConceptNDepSet(df.getOWLThing(), ds);
 		 this.addConceptToNode(node, cnds);
 		
-		 //System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel);
 		 nodeBase.add(node); 
 		 ++totalNodes;
+	//	 System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel +" total node "+totalNodes);
 		 return node;
 	 }
 	public Node addNode(Node.NodeType nodeType, DependencySet ds) {
-		 Node node = new Node(nodeType, getnewId());
+		 Node node = new Node(nodeType, getnewId(), ds);
 		 node.init(branchingLevel);
 		 ConceptNDepSet cnds = new ConceptNDepSet(df.getOWLThing(), ds);
 		 this.addConceptToNode(node, cnds);
 		 
-		// System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel);
 		 nodeBase.add(node);
 		 ++totalNodes;
+		// System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel +" total node "+totalNodes);
 		 return node;
 	 }
 	
 	////// old methods
 	public Node addNode(Node.NodeType nodeType, OWLClassExpression nodeLabel) {
-		 Node node = new Node(nodeType,nodeLabel, getnewId());
+		 Node node = new Node(nodeType,nodeLabel, getnewId(), DependencySet.create());
 		 node.init(branchingLevel);
 		 //System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel);
 		 nodeBase.add(node); 
@@ -90,7 +90,7 @@ public class CompletionGraph implements Cloneable {
 		 return node;
 	 }
 	public Node addNode(Node.NodeType nodeType) {
-		 Node node = new Node(nodeType, getnewId());
+		 Node node = new Node(nodeType, getnewId(), DependencySet.create());
 		 node.init(branchingLevel);
 		// System.err.println("ADD NODE: " + node.getId() +" bp "+ branchingLevel);
 		 nodeBase.add(node);
@@ -701,6 +701,9 @@ public class CompletionGraph implements Cloneable {
         node.setiBlocked(blocker);
         propagateIBlockedStatus(node, blocker);
     }
+	public void saveN(Node n) {
+		 saveNode(n, branchingLevel);
+	}
 	
 	 public void saveNode(Node node, int level) {
 	        if (node.needSave(level)) {
@@ -717,6 +720,7 @@ public class CompletionGraph implements Cloneable {
 	    }*/
 	 
 	 private void restoreNode(Node node, int level) {
+		// System.err.println(node.needRestore(level));
 		 if (node.needRestore(level)) {
 	        	updateReset(node);
 	        node.restore(level);
@@ -755,7 +759,7 @@ public class CompletionGraph implements Cloneable {
 	        s.setnNodes(totalNodes);
 	        s.setsNodes(savedNodes.size());
 	        s.setnEdges(ctEdgeHeap.size());
-	       // System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+ savedNodes.size());
+	        System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+ savedNodes.size());
 
 	        s.setCurrNode(currNode);
 	        saveMap.put(branchingLevel, s);
@@ -791,7 +795,7 @@ public class CompletionGraph implements Cloneable {
 	                if (savedNodes.get(i).getId() < totalNodes) {
 	                    // don't restore nodes that are dead anyway
 	                    restoreNode(savedNodes.get(i), level);
-	                }
+	               }
 	            }
 	            }
 	        }

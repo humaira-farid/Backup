@@ -1,6 +1,7 @@
 package reasoner.graph; 
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -35,6 +36,7 @@ public class Node implements Cloneable {
     private boolean merged = false;
     private List<Node> disjointNodes = new ArrayList<>();
     private boolean reset = false;
+    private DependencySet ds;
     
     protected int curLevel;
   
@@ -81,7 +83,7 @@ public class Node implements Cloneable {
 		this.cardinality = cardinality;
 	}
 
-	public Node(Node.NodeType nodeType, OWLClassExpression nodeLabel, int id) {
+	public Node(Node.NodeType nodeType, OWLClassExpression nodeLabel, int id, DependencySet ds) {
         this.nodeType = nodeType;
         this.nodeLabel.add(nodeLabel);
         this.neighbour = new ArrayList<>();
@@ -91,11 +93,12 @@ public class Node implements Cloneable {
         this.predEdge = new ArrayList<>();
         this.id = id;
         this.nLabel = new NodeLabel();
+        this.ds = ds;
         blocker = null;
         blocked = null;
     }
     
-    public Node(NodeType nodeType, int id) {
+    public Node(NodeType nodeType, int id, DependencySet ds) {
     		this.nodeType = nodeType;
         this.neighbour = new ArrayList<>();
         this.outgoingEdge = new ArrayList<>();
@@ -104,6 +107,7 @@ public class Node implements Cloneable {
         this.predEdge = new ArrayList<>();
         this.id = id;
         this.nLabel = new NodeLabel();
+        this.ds = ds;
         blocker = null;
         blocked = null;
 	}
@@ -123,8 +127,13 @@ public class Node implements Cloneable {
 	public int getId() {
     	return id;
     }
+	
+	
 
-    public boolean isReset() {
+    public DependencySet getDs() {
+		return ds;
+	}
+	public boolean isReset() {
 		return reset;
 	}
 
@@ -176,7 +185,8 @@ public class Node implements Cloneable {
     	 return this.incomingEdge;
     }
     public List<Edge> getOutgoingEdges(){
-   	 return this.outgoingEdge;
+    		return this.outgoingEdge;
+   	 	//return this.outgoingEdge.stream().filter(e -> !e.isReset()).collect(Collectors.toList());
    }
     
     public boolean hasEdge(Node from, Node to) {
@@ -310,7 +320,7 @@ public class Node implements Cloneable {
      * @return check if node needs to be restored
      */
     public boolean needRestore(int restLevel) {
-   // 	System.out.println("n id"+ this.getId()+" need restore? curr level: "+ curLevel + " restore level "+ restLevel);
+    	System.out.println("n id"+ this.getId()+" need restore? curr level: "+ curLevel + " restore level "+ restLevel);
         return curLevel > restLevel;
     }
 
@@ -336,6 +346,7 @@ public class Node implements Cloneable {
 	        
 	    }
 	 private void restore(@Nullable NodeSaveState nss) {
+		 System.err.println(nss == null);
 	        if (nss == null) {
 	            return;
 	        }

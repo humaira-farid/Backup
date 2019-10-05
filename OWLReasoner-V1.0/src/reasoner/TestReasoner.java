@@ -30,10 +30,10 @@ public class TestReasoner{
 	DefaultPrefixManager prefixManager = new DefaultPrefixManager();
 	Ontology ontology;
 	Configuration config;
-    public TestReasoner(File file) {
-	//public TestReasoner() {
+	// public TestReasoner(File file) {
+	public TestReasoner() {
 		 man = OWLManager.createOWLOntologyManager();
-		// File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOQ test ontologies/SHOQ test ontologies/Example_9a.owl");
+		 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/rh-1b.fowl.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {

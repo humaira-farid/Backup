@@ -502,6 +502,7 @@ public class Ontology {
 				ce2.addAll(conceptEqMap.get(sp));
 		}
 		ce.addAll(ce2);
+		//System.err.println("c "+ c+" subsumers "+ce.size());
 		return ce;
 	}
 	public Set<OWLClassExpression> getAllSubsumers(OWLObjectOneOf o){

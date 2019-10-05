@@ -31,10 +31,10 @@ public class PriorityMatrix {
             throw new ReasonerInternalException("ToDo List option string should have length 7");
         }
         // init values by symbols loaded
-        indexAnd = 1; // options.charAt(1) - '0';
-        indexOr = 2; //options.charAt(2) - '0';
-        indexExists = 3; //options.charAt(3) - '0';
-        indexForall = 4; //options.charAt(4) - '0';
+        indexAnd =  options.charAt(1) - '0';
+        indexOr = options.charAt(2) - '0';
+        indexExists = options.charAt(3) - '0';
+        indexForall = options.charAt(4) - '0';
         indexLE = options.charAt(5) - '0';
         indexGE = options.charAt(6) - '0';
         

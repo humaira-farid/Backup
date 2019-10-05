@@ -29,9 +29,12 @@ public class ToDoList {
             waitQueue.add(new RegQueue());
         }
 	}
-	
+	 public void initPriorities(String options) {
+	        matrix.initPriorities(options);
+	    }
 	public void addEntry(Node node, NodeTag type, ConceptNDepSet cnds) {
         int index = matrix.getIndex(type);
+      //  System.err.println("index "+index +" type "+ type);
         waitQueue.get(index).add(node, cnds, type);
         /*switch (index) {
             case NREGULAROPTIONS: // unused entry

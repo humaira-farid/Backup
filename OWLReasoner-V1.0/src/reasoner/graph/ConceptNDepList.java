@@ -40,21 +40,23 @@ public class ConceptNDepList {
 	        // count the number of entries /not/ deleted
 	        int count = 0;
 	     //   List<ConceptNDepSet> remove = new ArrayList<ConceptNDepSet>();
-	        //System.out.println("restore label level "+ level + "ss "+ss+" size: "+ size);
+	        System.out.println("restore label level "+ level + "ss "+ss+" size: "+ size);
 	        for (int i = ss; i < size; i++) {
 	            // if backjumping is enabled, an entity is deleted only if the
 	            // depset level is the same or above level, otherwise the entry is
 	            // kept
-	       // 	System.out.println("level "+ level +" bp "+ cdSet.get(i).getDs().getMax());
+	     //   	System.out.println("level "+ level +" bp "+ cdSet.get(i).getDs().getMax());
+	        	if (cdSet.get(i) != null) {
 	        		if (cdSet.get(i).getDs().getMax() >= level) {
 	        			OWLClassExpression concept = cdSet.get(i).getCe();
 	      //  	remove.add(cdSet.get(i));
-	        			//System.out.println("remove concept "+ concept);
+	        			System.out.println("remove concept "+ concept);
 	                concepts.remove(concept);
 	          //      cache.remove(asPositive(concept));
 	            } else {
 	                count++;
 	            }
+	        	}
 	        }
 	      //  System.out.println("size before "+cdSet.size());
 	       // cdSet.removeAll(remove);

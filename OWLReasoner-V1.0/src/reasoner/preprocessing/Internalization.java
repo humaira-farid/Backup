@@ -73,7 +73,7 @@ public class Internalization {
 		if(sup instanceof OWLClass || sup instanceof OWLObjectOneOf || (sup instanceof OWLObjectIntersectionOf && 
 					((OWLObjectIntersectionOf)sup).conjunctSet().allMatch(cj -> (cj instanceof OWLClass) || (cj instanceof OWLObjectOneOf)))) {
 			// --> if A is an instance of OWLClass
-			if(filler instanceof OWLClass) {
+			if(filler instanceof OWLClass || filler.isOWLThing()) {
 				OWLObjectPropertyExpression role = ((OWLObjectSomeValuesFrom)sub).getProperty();
 				tuConcepts.add(filler);
 				if(sup instanceof OWLClass || sup instanceof OWLObjectOneOf) {
@@ -210,7 +210,7 @@ public class Internalization {
 	    
 	    for (OWLAxiom ax : (Iterable<OWLAxiom>)ont.axioms()::iterator) {
 		   ax = ax.getNNF();
-		  // System.err.println("ax "+ ax);
+		//   System.err.println("ax "+ ax);
 		   // --> SubClassOf Axiom
 		   if(ax instanceof OWLSubClassOfAxiom) {
 			   OWLSubClassOfAxiom sax = (OWLSubClassOfAxiom)ax;
@@ -225,7 +225,7 @@ public class Internalization {
 					   sup.asConjunctSet().forEach(cj -> this.Tu.add(df.getOWLSubClassOfAxiom(sub, cj)));
 				   else
 					   this.Tu.add(sax);
-	   			}
+				}
 				// --> o SubClassOf (ClassExpression) -- OR -- (o1 or o2) SubClassOf (ClassExpression)
 		    		else if((sub instanceof OWLObjectOneOf) || (sub instanceof OWLObjectUnionOf && 
 			    			((OWLObjectUnionOf)sub).disjunctSet().allMatch(dj -> dj instanceof OWLObjectOneOf))) {
@@ -364,22 +364,54 @@ public class Internalization {
 	    		
 	    }
 	    // --> remaining Equivalent class axioms
-	    List<OWLClassExpression>  eqConcepts = new ArrayList<>();
-	    eqAx.forEach(eq -> eqConcepts.addAll(eq.operands().collect(Collectors.toList())));
+	    Set<OWLClassExpression>  eqConcepts = new HashSet<>();
+	   // eqAx.forEach(eq -> eqConcepts.addAll(eq.operands().collect(Collectors.toList())));
 	    
 	    for(OWLEquivalentClassesAxiom eq : eqAx) {
+	    		eqConcepts.addAll(eq.operands().collect(Collectors.toSet()));
+	    		for(OWLSubClassOfAxiom eqsb : eq.asOWLSubClassOfAxioms()) {
+	    			if(eqsb.getSubClass() instanceof OWLObjectUnionOf) {
+	    				eqConcepts.addAll(((OWLObjectUnionOf)eqsb.getSubClass()).asDisjunctSet());
+	    			}
+	    			if(eqsb.getSuperClass() instanceof OWLObjectIntersectionOf) {
+	    				eqConcepts.addAll(((OWLObjectIntersectionOf)eqsb.getSuperClass()).asConjunctSet());
+	    			}
+	    		}
+	    }
+	    
+	    for(OWLEquivalentClassesAxiom eq : eqAx) {
+	    		Set<OWLClassExpression> operands = new HashSet<>();
+	    		operands.addAll(eq.operands().collect(Collectors.toSet()));
+	    		for(OWLClassExpression op : eq.operands().collect(Collectors.toSet())) {
+	    			if(op instanceof OWLObjectUnionOf) {
+	    				operands.addAll(((OWLObjectUnionOf)op).asDisjunctSet());
+	    			}
+	    			if(op instanceof OWLObjectIntersectionOf){
+	    				operands.addAll(((OWLObjectIntersectionOf)op).asConjunctSet());
+	    			}
+	    		}
 		    	boolean eqTag = false;
-		    	for(OWLClassExpression op : eq.operands().collect(Collectors.toSet())) {
+		    	for(OWLClassExpression op : operands) {
 	    			if(tuConcepts.contains(op) || Collections.frequency(eqConcepts, op)>1) {
 	    				eqTag = true;
 	    				for(OWLSubClassOfAxiom eqsb : eq.asOWLSubClassOfAxioms()) {
+	    				 //	System.err.println(eqsb);
 	    					if(eqsb.getSubClass() instanceof OWLClass) {
 	    						if(eqsb.getSuperClass() instanceof OWLObjectIntersectionOf)
 	    							eqsb.getSuperClass().asConjunctSet().forEach(cj -> this.Tu.add(df.getOWLSubClassOfAxiom(eqsb.getSubClass(), cj)));
 							else
 	    							Tu.add(eqsb);
 	    					}
-	    					
+	    					else if(eqsb.getSubClass() instanceof OWLObjectUnionOf) {
+		    					processDisjunction(eqsb.getSubClass(), eqsb.getSuperClass());
+		    				}
+	    					else if((eqsb.getSubClass() instanceof OWLObjectIntersectionOf && 
+	    		    				((OWLObjectIntersectionOf)eqsb.getSubClass()).conjunctSet().allMatch(cj -> (cj instanceof OWLObjectOneOf) || (cj instanceof OWLClass)))) {
+	    		    				if(eqsb.getSuperClass() instanceof OWLObjectIntersectionOf)
+	    		    					eqsb.getSuperClass().asConjunctSet().forEach(cj -> this.Tui.add(df.getOWLSubClassOfAxiom(eqsb.getSuperClass(), cj)));
+	    		    				else
+	    		    					this.Tui.add(eqsb);
+	    					}
 	    					else
 	    						this.Tg.add(eqsb);
 	    				}

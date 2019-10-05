@@ -1,33 +1,50 @@
 package reasoner; 
 
+import static reasoner.Helper.INITBRANCHINGLEVELVALUE;
+
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import static reasoner.Helper.INITBRANCHINGLEVELVALUE;
-import org.semanticweb.owlapi.model.*;
+
+import org.semanticweb.owlapi.model.IRI;
+import org.semanticweb.owlapi.model.OWLClass;
+import org.semanticweb.owlapi.model.OWLClassExpression;
+import org.semanticweb.owlapi.model.OWLDataFactory;
+import org.semanticweb.owlapi.model.OWLNamedIndividual;
+import org.semanticweb.owlapi.model.OWLObjectAllValuesFrom;
+import org.semanticweb.owlapi.model.OWLObjectCardinalityRestriction;
+import org.semanticweb.owlapi.model.OWLObjectComplementOf;
+import org.semanticweb.owlapi.model.OWLObjectHasValue;
+import org.semanticweb.owlapi.model.OWLObjectIntersectionOf;
+import org.semanticweb.owlapi.model.OWLObjectMaxCardinality;
+import org.semanticweb.owlapi.model.OWLObjectMinCardinality;
+import org.semanticweb.owlapi.model.OWLObjectOneOf;
+import org.semanticweb.owlapi.model.OWLObjectPropertyExpression;
+import org.semanticweb.owlapi.model.OWLObjectSomeValuesFrom;
+import org.semanticweb.owlapi.model.OWLObjectUnionOf;
+import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
 import org.semanticweb.owlapi.util.DefaultPrefixManager;
-import org.semanticweb.owlapi.util.NNF;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 
 import ilog.concert.IloException;
-import ilog.concert.IloCopyManager.ExistFreeTerm;
 import reasoner.Dependencies.DependencySet;
-import reasoner.graph.*;
+import reasoner.graph.CompletionGraph;
+import reasoner.graph.ConceptNDepSet;
+import reasoner.graph.Edge;
+import reasoner.graph.Node;
 import reasoner.graph.Node.NodeType;
+import reasoner.graph.NodeTag;
 import reasoner.ilp.EdgeInformation;
 import reasoner.ilp.ILPPreprocessor;
 import reasoner.ilp.ILPSolution;
 import reasoner.preprocessing.Internalization;
-import reasoner.state.SaveStack;
 import reasoner.todolist.ToDoEntry;
 import reasoner.todolist.ToDoList;
 
@@ -52,6 +69,8 @@ public class RuleEngine {
 	SetMultimap<Node, OWLObjectPropertyExpression> axiomRoles = HashMultimap.create();
 	SetMultimap<Node, ToDoEntry> nodeForAllEntries = HashMultimap.create();
 	SetMultimap<Node, ToDoEntry> relatedForAllEntries = HashMultimap.create();
+	SetMultimap<Node, ToDoEntry> relatedMaxEntries = HashMultimap.create();
+	SetMultimap<Node, ToDoEntry> unrelatedMaxEntries = HashMultimap.create();
 	Set<Edge> outgoingEdges = new HashSet<>();
 	Node currNode = null;
 	AboxReasoner ar;
@@ -62,6 +81,7 @@ public class RuleEngine {
 	DefaultPrefixManager prefixManager;
 	String base = null;
 	int counter = 0;
+	int niCounter = 1;
 	public RuleEngine(Internalization i, ToDoList todo, OWLDataFactory df, Configuration config) {
 		this.intl= i;
 		this.todo = todo;
@@ -72,6 +92,7 @@ public class RuleEngine {
 		this.ontology = this.intl.getOntology();
 		this.prefixManager = intl.getPrefixManager();
 		this.base = this.prefixManager.getDefaultPrefix();
+		 todo.initPriorities("0123333");
 	}
 	public void setTransitiveRoles(Set<OWLObjectPropertyExpression> trans) {
 		this.transitiveRoles = trans;
@@ -119,6 +140,7 @@ public class RuleEngine {
 	public void createFirstNode(OWLClassExpression tgAxiom) {
 		
 		Node from = cg.addNode(NodeType.NOMINAL, tgAxiom, DependencySet.create());
+		this.absorbRule1(df.getOWLThing(), from, DependencySet.create());
 		ConceptNDepSet cnds = new ConceptNDepSet(tgAxiom, DependencySet.create());
 		cg.addConceptToNode(from, cnds);
 		addToDoEntry(from, tgAxiom, cnds);
@@ -140,8 +162,14 @@ public class RuleEngine {
 		 			if(!nodeExistEntries.get(currNode).isEmpty() || !nodeMinEntries.get(currNode).isEmpty()) {
 		 				addRangeRestrictions(this.axiomRoles.get(currNode));
 		 				checkRelatedForAll(currNode, nodeForAllEntries.get(currNode), this.axiomRoles.get(currNode));
-		 				if(!nodeMaxEntries.get(currNode).isEmpty()) {	
+		 				///
+		 				checkRelatedMax(currNode, nodeMaxEntries.get(currNode), this.axiomRoles.get(currNode));
+		 				//
+		 				/*if(!nodeMaxEntries.get(currNode).isEmpty()) {	
 		 					checkOutgoingEdges(currNode, nodeMaxEntries.get(currNode));
+		 				}*/
+		 				if(!relatedMaxEntries.get(currNode).isEmpty()) {	
+		 					checkOutgoingEdges(currNode, relatedMaxEntries.get(currNode));
 		 				}
 		 				if(needILPModule(currNode)) {
 		 					if(isNIRuleApplicable(currNode)) {
@@ -153,8 +181,10 @@ public class RuleEngine {
 		 							entries.addAll(nodeExistEntries.get(currNode));
 		 						if(!nodeMinEntries.get(currNode).isEmpty())
 		 							entries.addAll(nodeMinEntries.get(currNode));
-		 						if(!nodeMaxEntries.get(currNode).isEmpty())
-		 							entries.addAll(nodeMaxEntries.get(currNode));
+		 						/*if(!nodeMaxEntries.get(currNode).isEmpty())
+		 							entries.addAll(nodeMaxEntries.get(currNode));*/
+		 						if(!relatedMaxEntries.get(currNode).isEmpty())
+		 							entries.addAll(relatedMaxEntries.get(currNode));
 		 						if(!relatedForAllEntries.get(currNode).isEmpty())
 		 							entries.addAll(relatedForAllEntries.get(currNode));
 		 						nodeExistEntries.get(currNode).clear();
@@ -162,7 +192,11 @@ public class RuleEngine {
 		 						nodeMaxEntries.get(currNode).clear();
 		 						nodeForAllEntries.get(currNode).clear();
 		 						relatedForAllEntries.get(currNode).clear();
+		 						relatedMaxEntries.get(currNode).clear();
 		 						callILP(currNode, entries);
+		 						for(ToDoEntry en : unrelatedMaxEntries.get(currNode))
+									applyRules(en);
+		 						unrelatedMaxEntries.get(currNode).clear();
 		 						axiomRoles.get(currNode).clear();
 		 				}
 		 				else {
@@ -247,8 +281,12 @@ public class RuleEngine {
 		if(!nodeExistEntries.get(currNode).isEmpty() || !nodeMinEntries.get(currNode).isEmpty()) {
 			addRangeRestrictions(this.axiomRoles.get(currNode));
 			checkRelatedForAll(currNode, nodeForAllEntries.get(currNode), this.axiomRoles.get(currNode));
-			if(!nodeMaxEntries.get(currNode).isEmpty()) {	
+			checkRelatedMax(currNode, nodeMaxEntries.get(currNode), this.axiomRoles.get(currNode));
+			/*if(!nodeMaxEntries.get(currNode).isEmpty()) {	
 				checkOutgoingEdges(currNode, nodeMaxEntries.get(currNode));
+			}*/
+			if(!relatedMaxEntries.get(currNode).isEmpty()) {	
+				checkOutgoingEdges(currNode, relatedMaxEntries.get(currNode));
 			}
 			if(needILPModule(currNode)) {
 				if(isNIRuleApplicable(currNode)) {
@@ -260,8 +298,11 @@ public class RuleEngine {
 						entries.addAll(nodeExistEntries.get(currNode));
 					if(!nodeMinEntries.get(currNode).isEmpty())
 						entries.addAll(nodeMinEntries.get(currNode));
-					if(!nodeMaxEntries.get(currNode).isEmpty())
-						entries.addAll(nodeMaxEntries.get(currNode));
+					/*if(!nodeMaxEntries.get(currNode).isEmpty())
+						entries.addAll(nodeMaxEntries.get(currNode));*/
+					if(!relatedMaxEntries.get(currNode).isEmpty())
+						entries.addAll(relatedMaxEntries.get(currNode));
+				//	System.err.println("max "+nodeMaxEntries.get(currNode).isEmpty());
 					if(!relatedForAllEntries.get(currNode).isEmpty())
 						entries.addAll(relatedForAllEntries.get(currNode));
 					nodeExistEntries.get(currNode).clear();
@@ -269,7 +310,11 @@ public class RuleEngine {
 					nodeMaxEntries.get(currNode).clear();
 					nodeForAllEntries.get(currNode).clear();
 					relatedForAllEntries.get(currNode).clear();
+					relatedMaxEntries.get(currNode).clear();
 					callILP(currNode, entries);
+					for(ToDoEntry en : unrelatedMaxEntries.get(currNode))
+							applyRules(en);
+					unrelatedMaxEntries.get(currNode).clear();
 					axiomRoles.get(currNode).clear();
 			}
 			else {
@@ -312,7 +357,6 @@ public class RuleEngine {
 	}
 
 	private void addExistentialRestrictions(Node node) {
-		int c=1;
 		for(OWLObjectMaxCardinality mxCard : node.getLabel().stream().filter(ce -> ce instanceof OWLObjectMaxCardinality).map(ce -> (OWLObjectMaxCardinality)ce).collect(Collectors.toSet())) {
 			
 			OWLObjectPropertyExpression role = mxCard.getProperty();
@@ -322,10 +366,10 @@ public class RuleEngine {
 			List<OWLClassExpression> ni = new ArrayList<>();
 			List<OWLNamedIndividual> namedInds = new ArrayList<>();
 			for(int i = 0; i < cardinality; i++) {
-				OWLNamedIndividual namedInd = df.getOWLNamedIndividual(IRI.create(base+"#ni"+c+"node"+node.getId()));
+				OWLNamedIndividual namedInd = df.getOWLNamedIndividual(IRI.create(base+"#ni"+niCounter+"node"+node.getId()));
 				namedInds.add(namedInd);
 				ni.add(df.getOWLObjectOneOf(namedInd));
-				c++;
+				niCounter++;
 			}
 			
 			for(int i = 0; i < cardinality; i++) {
@@ -346,11 +390,35 @@ public class RuleEngine {
 		}
 	}
 	private boolean isNIRuleApplicable(Node n) {
-		if(n.isNominalNode() && 
+		if(n.isNominalNode()) {
+			Set<OWLObjectMaxCardinality> mxCards = n.getLabel().stream().filter(ce -> ce instanceof OWLObjectMaxCardinality).map(ce -> (OWLObjectMaxCardinality)ce).collect(Collectors.toSet());
+		    for(OWLObjectMaxCardinality mx : mxCards){
+		    		OWLObjectPropertyExpression role = mx.getProperty();
+		    		OWLClassExpression filler = mx.getFiller();
+		    		if(n.getOutgoingEdges().stream().anyMatch(e -> e.isPredEdge() && !e.isReset() && e.getLabel().contains(role) 
+		    											&& e.getToNode().getLabel().contains(filler) && e.getToNode().isBlockableNode() && !e.getToNode().isReset())) {
+		    			List<Edge> outgoingEdges = n.getOutgoingEdges().stream().filter(e -> e.getLabel().contains(role) && e.isSuccEdge() 
+		    																		&& e.getToNode().getLabel().contains(filler)).collect(Collectors.toList());
+		    			Set<Node> existingNINodes = new HashSet<>();
+		    			for(Edge e :outgoingEdges) {
+		    				Node to = e.getToNode();
+		    				if(to.isNINode()) {
+		    					existingNINodes.add(to);
+		    				}
+		    			}
+		    			if(existingNINodes.size() == mx.getCardinality()) {
+		    				return false;
+		    			}
+		    			else
+		    			 return true;
+		    		}
+		    }
+		}
+		/*if(n.isNominalNode() && 
 			n.getLabel().stream().anyMatch(ce -> ce instanceof OWLObjectMaxCardinality) && 
 				n.getOutgoingEdges().stream().anyMatch(e -> e.isPredEdge())) {
 			return true;
-		}
+		}*/
 		return false;
 	}
 	private void checkOutgoingEdges(Node n, Set<ToDoEntry> maxCardEntries) {
@@ -362,8 +430,9 @@ public class RuleEngine {
 			for(Edge e : n.getOutgoingEdges()) {
 					//System.err.println("e  "+ e.getLabel() +" label "+e.getToNode().getLabel());
 					
-					if(e.getLabel().contains(role) && e.getToNode().getLabel().contains(ce) && !e.isReset() && !e.getToNode().isReset())
-						outgoingEdges.add(e);
+					//if(e.getLabel().contains(role) && e.getToNode().getLabel().contains(ce) && !e.isReset() && !e.getToNode().isReset())
+					if(e.getLabel().contains(role) && !e.isReset() && !e.getToNode().isReset())
+								outgoingEdges.add(e);
 			}
 				//return true;
 		}
@@ -396,8 +465,8 @@ public class RuleEngine {
 		else if(entry.getType().equals(NodeTag.GE)) {
 			nodeMaxEntries.put(currNode, entry);
 			OWLObjectPropertyExpression obj = ((OWLObjectMaxCardinality)entry.getClassExpression()).getProperty(); 
-			//System.out.println("obj pro "+ obj);
-			this.axiomRoles.put(currNode, obj);
+		//	System.out.println("obj pro "+ obj);
+		//	this.axiomRoles.put(currNode, obj);
 		}
 		else if(entry.getType().equals(NodeTag.FORALL)) {
 			nodeForAllEntries.put(currNode, entry);
@@ -430,7 +499,8 @@ public class RuleEngine {
 	public boolean needILPModule(Node n) {
 	//	forAllCheck = false;
 	//	isExistential = false;
-		if(!nodeMinEntries.get(n).isEmpty() || !nodeMaxEntries.get(n).isEmpty()) {
+	//	if(!nodeMinEntries.get(n).isEmpty() || !nodeMaxEntries.get(n).isEmpty()) {
+		if(!nodeMinEntries.get(n).isEmpty() || !relatedMaxEntries.get(n).isEmpty()) {
 			if(!n.isBlocked()) 
 				return true;
 		}
@@ -509,7 +579,43 @@ public class RuleEngine {
 		//System.out.println("outgoingEdges "+ outgoingEdges.size());
 		//return false;
 	}
+	private void checkRelatedMax(Node n, Set<ToDoEntry> maxEntries, Set<OWLObjectPropertyExpression> roles) {
+	//	outgoingEdges.clear();
+		//System.out.println("related max: "+ relatedMaxEntries.get(currNode).size());
+		//System.out.println("roles  "+ roles);
 		
+		for(ToDoEntry en : maxEntries) {
+			boolean flag = false;
+			//System.out.println("entry for all "+en);
+			OWLObjectMaxCardinality mx = (OWLObjectMaxCardinality)en.getClassExpression();
+			OWLObjectPropertyExpression role = mx.getProperty();
+		//	System.out.println("role  "+ role);
+			if(roles.contains(role)){
+		//		System.out.println("role  "+ role);
+				relatedMaxEntries.put(n, en);
+				flag = true;
+				//return true;
+			}
+			else{
+				for(OWLObjectPropertyExpression r : intl.getOntology().getSuperRolesMap().keySet()) {
+					if(roles.contains(r)) {
+						if(intl.getOntology().getSuperRolesMap().get(r).contains(role)) {
+							relatedMaxEntries.put(n, en);
+							flag = true;
+							//return true;
+						}
+					}
+				}
+			}
+			if(!flag) {
+				unrelatedMaxEntries.put(n, en);
+			}
+		}
+	//	System.out.println("after related max: "+ relatedMaxEntries.get(currNode).size());
+		
+		//System.out.println("outgoingEdges "+ outgoingEdges.size());
+		//return false;
+	}
 
 	public void blockNode(Node n, Node blocker){
 		cg.setNodeBlocked(n, blocker);
@@ -738,7 +844,7 @@ public class RuleEngine {
 	public void callILP(Node n, Set<ToDoEntry> entries) {
 		System.out.println("Calling ILP module..."+ entries.size() +" node id: "+n.getId());
 	//	n.getLabel().stream().forEach(e -> System.out.println(e));
-		//entries.stream().forEach(e -> System.out.println(e.getClassExpression()));
+	//	entries.stream().forEach(e -> System.err.println(e.getClassExpression()));
 		Node blocker =  findBlocker(n);
 		if(blocker != null) {
 			blockNode(n, blocker);
@@ -812,7 +918,7 @@ public class RuleEngine {
 						}
 						else {
 							to =this.cg.addNode(NodeType.NOMINAL, ds);
-							
+							//this.absorbRule1(df.getOWLThing(), to, ds);
 							to.setCardinality(ei.getCardinality());
 							addTGAxiom(to, ds);
 							Edge e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
@@ -821,13 +927,14 @@ public class RuleEngine {
 					}
 					else {
 						to =this.cg.addNode(NodeType.BLOCKABLE, ds);
+						//this.absorbRule1(df.getOWLThing(), to, ds);
 						to.setCardinality(ei.getCardinality());
 						addTGAxiom(to, ds);
 						Edge e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
 						//e = this.cg.addEdge(n, to, roles, ds);
 					}
-					if(!checkAtLeastRestrictions(n))
-						return;
+				//	if(!checkAtLeastRestrictions(n))
+				//		return;
 					addLabel(n, to, ei.getFillers(), ds);
 				}
 				else if(nodeIds.size()==1) {
@@ -913,8 +1020,8 @@ public class RuleEngine {
 					Edge e = cg.findEdge(n, to.getId());
 					//System.out.println("edge "+ e);
 					updateEdgeDepSet(ds, e);
-					if(!checkAtLeastRestrictions(n))
-						return;
+				//	if(!checkAtLeastRestrictions(n))
+				//		return;
 					Set<OWLClassExpression> newCE = new HashSet<>();
 					for(OWLClassExpression c : ei.getFillers()) {
 						if(!to.getLabel().contains(c))
@@ -1071,15 +1178,18 @@ public class RuleEngine {
 					applyNIRule(to);
 				}*/
 			}
+			if(!checkAtLeastRestrictions(n))
+				return;
+			
 		}
 		else {
 			boolean handleClash = false;
 			DependencySet clashSet = DependencySet.create();
-			System.out.println("size "+entries.size());
+			//System.out.println("size "+entries.size());
 			for(ToDoEntry entry: entries) {
 				if(!entry.getDs().isEmpty()) {
 					handleClash = true;
-					System.out.println("max "+entry.getDs().getMax()+" "+ entry.getClassExpression());
+					//System.out.println("max "+entry.getDs().getMax()+" "+ entry.getClassExpression());
 					clashSet.add(entry.getDs());
 				}
 			}
@@ -1094,16 +1204,30 @@ public class RuleEngine {
 	}
 	
 	private boolean checkAtLeastRestrictions(Node n) {
+		System.err.println("here");
 		if(n.getLabel().stream().anyMatch(ce -> ce instanceof OWLObjectMinCardinality)) {
 			for(OWLObjectMinCardinality minCard : n.getLabel().stream().filter(ce -> ce instanceof OWLObjectMinCardinality).map(ce -> (OWLObjectMinCardinality)ce).collect(Collectors.toSet())) {
 				int card = minCard.getCardinality();
 				int totalNodes = 0;
 				OWLObjectPropertyExpression role = minCard.getProperty();
-				for(Edge edge :n.getOutgoingEdges().stream().filter(e -> !e.isReset() && e.getLabel().contains(role)).map(e -> (Edge)e).collect(Collectors.toSet())) {
-					totalNodes += edge.getToNode().getCardinality();
+				OWLClassExpression filler = minCard.getFiller();
+				for(Edge edge : n.getOutgoingEdges().stream().filter(e -> !e.isReset() && e.getLabel().contains(role)).map(e -> (Edge)e).collect(Collectors.toSet())) {
+					Node to = edge.getToNode();
+					if((to.getLabel().contains(filler) || 
+								(filler instanceof OWLObjectIntersectionOf && to.getLabel().containsAll(filler.asConjunctSet())) || 
+								(filler instanceof OWLObjectUnionOf && to.getLabel().stream().anyMatch(filler.asDisjunctSet()::contains))) 
+							&& !to.isReset()) {
+						if(edge.isPredEdge() && !edge.getToNode().isNominalNode()) {
+							totalNodes++;
+						}
+						else {
+							totalNodes += edge.getToNode().getCardinality();
+						}
+					}
+					
 				}
+				System.err.println(""+ totalNodes);
 				if(totalNodes < card) {
-					//System.out.println("here");
 					DependencySet ds = n.getnLabel().getCndList().getCdSet().stream().filter(ce -> ce.getCe().equals(minCard)).iterator().next().getDs();
 					if(!ds.isEmpty()) {
 						if(!clashHandler(ds))
@@ -1127,6 +1251,7 @@ public class RuleEngine {
 		for(int i = 0; i < x.getCardinality()-1; i++) {
 			//FIXME: check dependency set
 			Node newNode = cg.addNode(NodeType.BLOCKABLE, DependencySet.create());
+			//this.absorbRule1(df.getOWLThing(), newNode, DependencySet.create());
 			newNodes.add(newNode);
 			newNode.addDisjointNode(x);
 			x.addDisjointNode(newNode);
@@ -1600,6 +1725,7 @@ public class RuleEngine {
 						}
 						else {
 							to =this.cg.addNode(NodeType.NOMINAL, ds);
+							this.absorbRule1(df.getOWLThing(), to, ds);
 							to.setCardinality(ei.getCardinality());
 							addTGAxiom(to, ds);
 							e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
@@ -1608,6 +1734,7 @@ public class RuleEngine {
 					}
 					else {
 						to =this.cg.addNode(NodeType.BLOCKABLE, ds);
+						this.absorbRule1(df.getOWLThing(), to, ds);
 						to.setCardinality(ei.getCardinality());
 						addTGAxiom(to, ds);
 						e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
@@ -1957,6 +2084,7 @@ public class RuleEngine {
 				absorbRule1(ce, to, ds);
 				absorbRule2(to);
 			}
+			
 		}
 	}
 	/*private void addLabel2(Node from, Node to, Set<OWLClassExpression> fillers, DependencySet ds) {
@@ -2028,26 +2156,26 @@ public class RuleEngine {
 		NodeTag nt = entry.getType();
 		switch(nt) {
 		case AND:
-			System.out.println("Applying expansion Rule...");
+			System.out.println("Applying 'AND' expansion Rule...");
 			applyAndRule(n, (OWLObjectIntersectionOf)entry.getClassExpression(), entry.getDs());
 			break;
 		case OR:
-			System.out.println("Applying expansion Rule...");
+			System.out.println("Applying 'OR' expansion Rule...");
 			applyOrRule(n, (OWLObjectUnionOf)entry.getClassExpression(), entry.getCnds());
 			break;
 		case EXISTS:
-			System.out.println("Applying expansion Rule...");
+			System.out.println("Applying 'EXISTS' expansion Rule...");
 			if(entry.getClassExpression() instanceof OWLObjectSomeValuesFrom)
 				applyExistentialRule(n, (OWLObjectSomeValuesFrom)entry.getClassExpression(), entry.getDs());
 			else 
 				applyExistentialRule(n, (OWLObjectHasValue)entry.getClassExpression(), entry.getDs());
 			break;
 		case FORALL:
-			System.out.println("Applying expansion Rule...");
+			System.out.println("Applying 'FORALL' expansion Rule...");
 			applyForAllRule(n, (OWLObjectAllValuesFrom)entry.getClassExpression(), entry.getDs());
 			break;
 		case GE:
-			System.out.println("Applying expansion Rule...");
+			System.out.println("Applying 'GE' expansion Rule...");
 			applyGERule(n, (OWLObjectMaxCardinality)entry.getClassExpression(), entry.getDs());
 			break;
 		default:
@@ -2057,18 +2185,163 @@ public class RuleEngine {
 	}
 
 	private void applyGERule(Node n, OWLObjectMaxCardinality mc, DependencySet ds) {
+		if(!n.isBlocked() && this.needToApplyAtMost(n, mc, ds)){
 		OWLObjectPropertyExpression role = mc.getProperty();
 		OWLClassExpression filler = mc.getFiller();
 		int cardinality = mc.getCardinality();
 		List<Node> otherNodes = new ArrayList<>();
+		Map<Node, DependencySet> dsMap = new HashMap<>();
 		List<List<Node>> allNodes = new ArrayList<>();
 		int nodesCard = 0;
 		int maxCard = 0;
-		if(n.isNominalNode() &&  n.getOutgoingEdges().stream().anyMatch(e -> e.isPredEdge())) {
-			this.applyNIRule(n, mc, ds);
-			this.atMostNomRule(n, mc);
+		DependencySet maxDs = DependencySet.create();
+		int predEdges = 0;
+		
+		List<Edge> outgoingEdges =  n.getOutgoingEdges();
+		
+		if(n.isNominalNode()) {
+			for(Edge e : outgoingEdges) {
+				if(e.isPredEdge() && e.getLabel().contains(role)) {
+					Node to = e.getToNode();
+					if((to.getLabel().contains(filler) || 
+								(filler instanceof OWLObjectIntersectionOf && to.getLabel().containsAll(filler.asConjunctSet())) || 
+								(filler instanceof OWLObjectUnionOf && to.getLabel().stream().anyMatch(filler.asDisjunctSet()::contains))) 
+							&& !to.isReset()) {
+						this.applyNIRule(n, mc, ds);
+						this.atMostNomRule(n, mc);
+					}
+				}
+			}
 		}
-		else if(n.isBlockableNode() && cardinality == 0 && n.getOutgoingEdges().size() > 0) {
+		else if(n.isBlockableNode() ) {
+			for(Edge e : outgoingEdges) {
+				if(e.getLabel().contains(role)) {
+					Node to = e.getToNode();
+					if((to.getLabel().contains(filler) || 
+								(filler instanceof OWLObjectIntersectionOf && to.getLabel().containsAll(filler.asConjunctSet())) || 
+								(filler instanceof OWLObjectUnionOf && to.getLabel().stream().anyMatch(filler.asDisjunctSet()::contains))) 
+							&& !to.isReset()) {
+						if(e.isPredEdge() ) {
+							predEdges++;
+							otherNodes.add(to);
+						}
+						else if(e.isSuccEdge()) {
+							int card = to.getCardinality();
+							nodesCard += card;
+							if(maxCard < card) {
+								maxCard = card;
+								if(filler instanceof OWLObjectIntersectionOf) {
+									for(OWLClassExpression cj : filler.asConjunctSet()) {
+										maxDs.add(to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(cj)).iterator().next().getDs());
+									}
+								}
+								else if(filler instanceof OWLObjectUnionOf) {
+									for(OWLClassExpression dj : filler.asDisjunctSet()) {
+										maxDs.add(to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(dj)).iterator().next().getDs());
+									}
+								}
+								else {
+									maxDs = to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(filler)).iterator().next().getDs();
+									
+								}
+							}
+							otherNodes.add(to);
+						}
+					}
+				}
+			}
+		}
+		if(maxCard > cardinality) {
+			//FIXME: check dependency set 
+			if(!ds.isEmpty() || !maxDs.isEmpty()) {
+				System.err.println("mxds "+ maxDs.getMax());
+				if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs))))
+					isInconsistent(n);
+			}
+			else
+				isInconsistent(n);
+			return;
+			
+		}
+		if(cardinality < (nodesCard + predEdges)) {
+				for(Node x : otherNodes) {
+					if(x.getCardinality() > 1) {
+						List<Node> newNodes = new ArrayList<>();
+						for(int i = 0; i < x.getCardinality()-1; i++) {
+							//FIXME: check dependency set --- checked 14 sep 2019
+							Node newNode = cg.addNode(NodeType.BLOCKABLE, x.getDs());
+							newNodes.add(newNode);
+							newNode.addDisjointNode(x);
+							x.addDisjointNode(newNode);
+							
+							for(ConceptNDepSet cnds : x.getnLabel().getCndList().getCdSet()) {
+								cg.addConceptToNode(newNode, cnds);
+							}
+							//newEdges.add(cg.addEdge(from, newNode, e.getLabel(), e.getDepSet(), e.isSuccEdge()));
+							for(Edge outE : x.getOutgoingEdges()) {
+								cg.addEdge(newNode, outE.getToNode(), outE.getLabel(), outE.getDepSet(), outE.isSuccEdge());
+							}
+						}
+						for(int i = 0; i < newNodes.size(); i++) {
+							Node nn = newNodes.get(i);
+							for(int k = 0; k < i; k++) {
+								nn.addDisjointNode(newNodes.get(k));
+							}
+							for(int k = i+1; k < newNodes.size(); k++) {
+								nn.addDisjointNode(newNodes.get(k));
+							}
+						}
+						
+						cg.updateNodeCardinality(x, 1);
+						newNodes.add(x);
+						allNodes.add(newNodes);
+						otherNodes.addAll(newNodes);
+					}
+					
+				}
+			//needs merging
+			int i = 0;
+			while(otherNodes.size() > cardinality && i < allNodes.size()) {
+				for(int j = 0; j < allNodes.size(); j++) {
+					if(i != j) {
+						List<Node> node1 = allNodes.get(i);
+						List<Node> node2 = allNodes.get(j);
+						for(int k = 0; k < node1.size(); k++) {
+							for(int l = 0; l < node2.size(); l++) {
+								if(canMerge(node1.get(k), node2.get(l))) {
+									mergeNodes(node1.get(k), node2.get(l), ds);
+									otherNodes.remove(node1.get(k));
+									if(otherNodes.size() <= cardinality)
+										break;
+								}
+							}
+							if(otherNodes.size() <= cardinality)
+								break;
+						}
+						for(int l = 0; l < node2.size(); l++) {
+							processForAll(node2.get(l));
+							processAtMost(node2.get(l));
+						}
+					}
+					if(otherNodes.size() <= cardinality)
+						break;
+				}
+				i++;
+			}
+			if(otherNodes.size() > cardinality) {
+				// not able to satisfy at-most restriction
+				//FIXME: Check dependencySet ds
+				if(!ds.isEmpty()) {
+					if(!clashHandler(ds))
+						isInconsistent(n);
+				}
+				else
+					isInconsistent(n);
+				return;
+			}
+			
+		}
+		/*if(maxCard > cardinality) {
 			//FIXME: check dependency set
 			if(!ds.isEmpty()) {
 				if(!clashHandler(ds))
@@ -2078,7 +2351,7 @@ public class RuleEngine {
 				isInconsistent(n);
 			return;
 		}
-		/*else {
+		else {
 			for(Edge e : n.getOutgoingEdges()) {
 				if(e.getLabel().contains(role) && e.getToNode().getLabel().contains(filler)) {
 					Node to = e.getToNode();
@@ -2183,6 +2456,7 @@ public class RuleEngine {
 				
 			}
 		}*/
+		}
 	}
 	private boolean canMerge(Node node, Node node2) {
 		if(node.getDisjointNodes().contains(node2)) {
@@ -2199,40 +2473,41 @@ public class RuleEngine {
 		}
 		return true;
 	}
-	private void applyNIRule(Node to, OWLObjectMaxCardinality mxCard, DependencySet ds) {
+	private void applyNIRule(Node to, OWLObjectMaxCardinality mxCard, DependencySet ds1) {
+		DependencySet ds = DependencySet.create();
+		ds.add(DependencySet.create(ds1));
 		OWLObjectPropertyExpression role = mxCard.getProperty();
-	//	OWLClassExpression filler = mxCard.getFiller();
+		OWLClassExpression filler = mxCard.getFiller();
 		int cardinality = mxCard.getCardinality();
-		ConceptNDepSet cnd = to.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(mxCard)).iterator().next();
-		List<OWLClassExpression> ni = new ArrayList<>();
-		for(int i = 0; i < cardinality; i++) {
-			ni.add(df.getOWLObjectOneOf(df.getOWLNamedIndividual(IRI.create(base+"#ni"+i+1))));
+		for(OWLClassExpression nominal : to.getLabel().stream().filter(ce -> ce instanceof OWLObjectOneOf).map(ce -> (OWLClassExpression)ce).collect(Collectors.toSet())) {
+			ds.add(DependencySet.create(to.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(nominal)).iterator().next().getDs()));
 		}
-		for(int i = 0; i < cardinality; i++) {
-			Node n = cg.addNode(NodeType.NOMINAL, ds);
-			n.makeNINode();
-			addTGAxiom(n, ds);
-			//FIXME: Check dependensySet 
-		//	cg.addConceptToNode(n, new ConceptNDepSet(ni.get(i), cnd.getDs()));
-			cg.addConceptToNode(n, new ConceptNDepSet(ni.get(i), DependencySet.create()));
-			cg.addConceptToNode(n, cnd);
-			cg.addEdge(to, n, getAllRoles(role), cnd.getDs()); 
-			for(int k = 0; k < i; k++) {
-				//FIXME: Check dependensySet 
-				//cg.addConceptToNode(n, new ConceptNDepSet(ni.get(k).getComplementNNF(), cnd.getDs()));
-				cg.addConceptToNode(n, new ConceptNDepSet(ni.get(k).getComplementNNF(), DependencySet.create()));
+			ConceptNDepSet cnd = to.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(mxCard)).iterator().next();
+			List<OWLClassExpression> ni = new ArrayList<>();
+			for(int i = 0; i < cardinality; i++) {
+				ni.add(df.getOWLObjectOneOf(df.getOWLNamedIndividual(IRI.create(base+"#ni"+niCounter+"node"+to.getId()))));
+				niCounter++;
 			}
-			for(int k = i+1; k < cardinality; k++) {
-				//FIXME: Check dependensySet 
-				//cg.addConceptToNode(n, new ConceptNDepSet(ni.get(k).getComplementNNF(), cnd.getDs()));
-				cg.addConceptToNode(n, new ConceptNDepSet(ni.get(k).getComplementNNF(), DependencySet.create()));
+			for(int i = 0; i < cardinality; i++) {
+				Node n = cg.addNode(NodeType.NOMINAL, DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs())));
+				this.absorbRule1(df.getOWLThing(), n, DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs())));
+				addTGAxiom(n, DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs())));
+				cg.addConceptToNode(n, new ConceptNDepSet(ni.get(i), DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))));
+				cg.addConceptToNode(n, new ConceptNDepSet(filler, DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))));
+				this.addToDoEntry(n, filler, new ConceptNDepSet(filler, DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))));
+				cg.addEdge(to, n, getAllRoles(role), DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))); 
+				for(int k = 0; k < i; k++) {
+					cg.addConceptToNode(n, new ConceptNDepSet(ni.get(k).getComplementNNF(), DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))));
+				}
+				for(int k = i+1; k < cardinality; k++) {
+					cg.addConceptToNode(n, new ConceptNDepSet(ni.get(k).getComplementNNF(), DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))));
+				}
 			}
-		}
 		
 	}
 	public void applyExistentialRule(Node from, OWLObjectSomeValuesFrom objSV, DependencySet ds) {
-	//	System.out.println("Applying exist Rule...");
-		System.out.println("nid: "+from.getId()+" blocked "+ from.isBlocked());
+		System.out.println("Applying exist Rule...");
+	//	System.out.println("nid: "+from.getId()+" blocked "+ from.isBlocked());
 	/*	for(OWLClassExpression oc : from.getLabel()) {
 			System.out.println("exist before "+ oc + " ds "+ from.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(oc)).iterator().next().getDs().getbpList());
 		}*/
@@ -2257,11 +2532,14 @@ public class RuleEngine {
 						updateConceptDepSet(nom, ds, ci);
 						processForAll(from);
 						processForAll(nom);
+						processAtMost(from);
+						processAtMost(nom);
 						applyTransitiveRule(from, nom, e.getLabel(), ds);
 						
 					}
 					else {
 						Node to =this.cg.addNode(NodeType.NOMINAL, ci, ds);
+						this.absorbRule1(df.getOWLThing(), to, ds);
 						addTGAxiom(to, ds);
 						to.setConceptsDependencies(ci, ds);
 						ConceptNDepSet cnds = new ConceptNDepSet(ci, ds);
@@ -2269,6 +2547,7 @@ public class RuleEngine {
 						//e = this.cg.addEdge(from, to, role, ds);
 						this.cg.addConceptToNode(to, cnds);
 						processForAll(from);
+						processAtMost(from);
 						absorbNominal(ci, to, ds);
 						applyTransitiveRule(from, to, e.getLabel(), ds);
 						
@@ -2277,6 +2556,7 @@ public class RuleEngine {
 				
 				else {
 					Node to =this.cg.addNode(NodeType.BLOCKABLE, filler, ds);
+					this.absorbRule1(df.getOWLThing(), to, ds);
 					addTGAxiom(to, ds);
 					to.setConceptsDependencies(filler, ds);
 					ConceptNDepSet cnds = new ConceptNDepSet(filler, ds);
@@ -2284,7 +2564,8 @@ public class RuleEngine {
 					//e = this.cg.addEdge(from, to, role, ds);
 					this.cg.addConceptToNode(to, cnds);
 					processForAll(from);
-					if(filler instanceof OWLClass) { 
+					processAtMost(from);
+					if(filler instanceof OWLClass ) { 
 						to.addSimpleLabel(filler);
 						absorbRule1(filler, to, ds);
 						absorbRule2(to);
@@ -2332,10 +2613,13 @@ public class RuleEngine {
 				updateConceptDepSet(nom, ds, ci);
 				processForAll(from);
 				processForAll(nom);
+				processAtMost(from);
+				processAtMost(nom);
 				applyTransitiveRule(from, nom, e.getLabel(), ds);
 			}
 			else {
 				Node to =this.cg.addNode(NodeType.NOMINAL, ci, ds);
+				this.absorbRule1(df.getOWLThing(), to, ds);
 				addTGAxiom(to, ds);
 				to.setConceptsDependencies(ci, ds);
 				ConceptNDepSet cnds = new ConceptNDepSet(ci, ds);
@@ -2344,6 +2628,7 @@ public class RuleEngine {
 				this.cg.addConceptToNode(to, cnds);
 				
 				processForAll(from);
+				processAtMost(from);
 				absorbNominal(ci, to, ds);
 				applyTransitiveRule(from, to, e.getLabel(), ds);
 			}
@@ -2391,28 +2676,34 @@ public class RuleEngine {
 	}
 
 	public void applyNIRule(Node to) {
-		int c = 1;
+		DependencySet ds = DependencySet.create();
+		for(OWLClassExpression nominal : to.getLabel().stream().filter(ce -> ce instanceof OWLObjectOneOf).map(ce -> (OWLClassExpression)ce).collect(Collectors.toSet())) {
+			ds.add(DependencySet.create(to.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(nominal)).iterator().next().getDs()));
+		}
+		
 		for(OWLObjectMaxCardinality mxCard : to.getLabel().stream().filter(ce -> ce instanceof OWLObjectMaxCardinality).map(ce -> (OWLObjectMaxCardinality)ce).collect(Collectors.toSet())) {
 			OWLObjectPropertyExpression role = mxCard.getProperty();
-		//	OWLClassExpression filler = mxCard.getFiller();
+			OWLClassExpression filler = mxCard.getFiller();
 			int cardinality = mxCard.getCardinality();
 			ConceptNDepSet cnd = to.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(mxCard)).iterator().next();
 			List<OWLClassExpression> ni = new ArrayList<>();
 			for(int i = 0; i < cardinality; i++) {
-				ni.add(df.getOWLObjectOneOf(df.getOWLNamedIndividual(IRI.create(base+"#ni"+c+"node"+to.getId()))));
-				c++;
+				ni.add(df.getOWLObjectOneOf(df.getOWLNamedIndividual(IRI.create(base+"#ni"+niCounter+"node"+to.getId()))));
+				niCounter++;
 			}
 			for(int i = 0; i < cardinality; i++) {
-				Node n = cg.addNode(NodeType.NOMINAL, cnd.getDs());
-				addTGAxiom(n, cnd.getDs());
-				cg.addConceptToNode(n, new ConceptNDepSet(ni.get(i), cnd.getDs()));
-				cg.addConceptToNode(n, cnd);
-				cg.addEdge(to, n, getAllRoles(role), cnd.getDs()); 
+				Node n = cg.addNode(NodeType.NOMINAL, DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs())));
+				this.absorbRule1(df.getOWLThing(), n, DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs())));
+				addTGAxiom(n, DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs())));
+				cg.addConceptToNode(n, new ConceptNDepSet(ni.get(i), DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))));
+				cg.addConceptToNode(n, new ConceptNDepSet(filler, DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))));
+				this.addToDoEntry(n, filler, new ConceptNDepSet(filler, DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))));
+				cg.addEdge(to, n, getAllRoles(role), DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))); 
 				for(int k = 0; k < i; k++) {
-					cg.addConceptToNode(n, new ConceptNDepSet(ni.get(k).getComplementNNF(), cnd.getDs()));
+					cg.addConceptToNode(n, new ConceptNDepSet(ni.get(k).getComplementNNF(), DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))));
 				}
 				for(int k = i+1; k < cardinality; k++) {
-					cg.addConceptToNode(n, new ConceptNDepSet(ni.get(k).getComplementNNF(), cnd.getDs()));
+					cg.addConceptToNode(n, new ConceptNDepSet(ni.get(k).getComplementNNF(), DependencySet.plus(DependencySet.create(ds), DependencySet.create(cnd.getDs()))));
 				}
 			}
 		}
@@ -2433,15 +2724,33 @@ public class RuleEngine {
 		List<Node> otherNodes = new ArrayList<>();
 		int nodesCard = 0;
 		int maxCard = 0;
+		DependencySet maxDs = DependencySet.create();
 		
 		for(Edge e : n.getOutgoingEdges()) {
 			if(e.getLabel().contains(role) && !e.isReset()) {
 				Node to = e.getToNode();
-				if(to.getLabel().contains(filler) && !to.isReset()) {
+				if((to.getLabel().contains(filler) || 
+						(filler instanceof OWLObjectIntersectionOf && to.getLabel().containsAll(filler.asConjunctSet())) || 
+						(filler instanceof OWLObjectUnionOf && to.getLabel().stream().anyMatch(filler.asDisjunctSet()::contains))) 
+						&& !to.isReset()) {
 					int card = to.getCardinality();
 					nodesCard += card;
 					if(maxCard < card) {
 						maxCard = card;
+						if(filler instanceof OWLObjectIntersectionOf) {
+							for(OWLClassExpression cj : filler.asConjunctSet()) {
+								maxDs.add(to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(cj)).iterator().next().getDs());
+							}
+						}
+						else if(filler instanceof OWLObjectUnionOf) {
+							for(OWLClassExpression dj : filler.asDisjunctSet()) {
+								maxDs.add(to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(dj)).iterator().next().getDs());
+							}
+						}
+						else {
+							maxDs = to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(filler)).iterator().next().getDs();
+							
+						}
 					}
 					if(to.isNINode()) {
 						niNodes.add(to);
@@ -2449,13 +2758,28 @@ public class RuleEngine {
 					else {
 						otherNodes.add(to);
 					}
-				}
+				}/*
+				if(to.getLabel().contains(filler) && !to.isReset()) {
+					int card = to.getCardinality();
+					nodesCard += card;
+					if(maxCard < card) {
+						maxCard = card;
+						maxDs = DependencySet.create(to.getnLabel().getCndList().getCdSet().stream().filter(ce -> ce.getCe().equals(filler)).iterator().next().getDs());
+					}
+					if(to.isNINode()) {
+						niNodes.add(to);
+					}
+					else {
+						otherNodes.add(to);
+					}
+				}*/
 			}
 		}
 		if(maxCard > cardinality) {
 			//FIXME: check dependency set 
-			if(!ds.isEmpty()) {
-				if(!clashHandler(ds))
+			DependencySet clashSet = DependencySet.plus(DependencySet.create(ds), maxDs);
+			if(!clashSet.isEmpty()) {
+				if(!clashHandler(clashSet))
 					isInconsistent(n);
 			}
 			else
@@ -2471,6 +2795,7 @@ public class RuleEngine {
 						List<Node> newNodes = new ArrayList<>();
 						for(int i = 0; i < x.getCardinality()-1; i++) {
 							Node newNode = cg.addNode(NodeType.BLOCKABLE, ds);
+							//this.absorbRule1(df.getOWLThing(), newNode, ds);
 							newNodes.add(newNode);
 							newNode.addDisjointNode(x);
 							x.addDisjointNode(newNode);
@@ -2547,6 +2872,7 @@ public class RuleEngine {
 						List<Node> newNodes = new ArrayList<>();
 						for(int i = 0; i < nodeCard-1; i++) {
 							Node newNode = cg.addNode(NodeType.BLOCKABLE, ds);
+						//	this.absorbRule1(df.getOWLThing(), newNode, ds);
 							newNodes.add(newNode);
 							newNode.addDisjointNode(n);
 							n.addDisjointNode(newNode);
@@ -2612,6 +2938,7 @@ public class RuleEngine {
 							n.makeNominalNode();
 							if(!checkClash(n, filler)) {
 								absorbNominal(filler, n, depSet);
+								this.processAtMost(n);
 							}
 							else {
 								DependencySet clashSet = getClashSet(n, filler, filler.getComplementNNF());
@@ -2705,11 +3032,32 @@ public class RuleEngine {
 	
 
 	private void processAtMost(Node n) {
-		//System.out.println("process at most"+ n.getId());
+		System.out.println("process at most"+ n.getId());
 		if(needToApplyAtMost(n)) {
-			
-		
+
+			System.err.println("mxds ");
 		if(n.isNominalNode() && n.getLabel().stream().anyMatch(ce -> ce instanceof OWLObjectMaxCardinality) && n.getOutgoingEdges().stream().anyMatch(e -> e.isPredEdge())) {
+			if(isNIRuleApplicable(n))
+				this.applyNIRule(n);
+			this.applyAtMostNomRule(n);
+		}
+		else if(n.getLabel().stream().anyMatch(ce -> ce instanceof OWLObjectMaxCardinality)) {
+			for(OWLObjectMaxCardinality mxCard : n.getLabel().stream().filter(ce -> ce instanceof OWLObjectMaxCardinality).map(ce -> (OWLObjectMaxCardinality)ce).collect(Collectors.toSet())) {
+				ConceptNDepSet cnd = n.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(mxCard)).iterator().next();
+				
+				this.applyGERule(n, mxCard, cnd.getDs());	
+			}
+		}
+		}
+	}
+	private void processAtMost(Node n, DependencySet ds) {
+		System.out.println("process at most"+ n.getId());
+		if(needToApplyAtMost(n)) {
+
+			System.err.println("mxds ");
+		if(n.isNominalNode() && n.getLabel().stream().anyMatch(ce -> ce instanceof OWLObjectMaxCardinality) && n.getOutgoingEdges().stream().anyMatch(e -> e.isPredEdge())) {
+			if(isNIRuleApplicable(n))
+				this.applyNIRule(n);
 			this.applyAtMostNomRule(n);
 		}
 		else if(n.getLabel().stream().anyMatch(ce -> ce instanceof OWLObjectMaxCardinality)) {
@@ -2722,6 +3070,67 @@ public class RuleEngine {
 		}
 	}
 	private boolean needToApplyAtMost(Node n) {
+		if(n.isNominalNode()) {
+			for(OWLObjectMaxCardinality mc : n.getLabel().stream().filter(ce -> ce instanceof OWLObjectMaxCardinality).map(ce -> (OWLObjectMaxCardinality)ce).collect(Collectors.toSet())) {
+				DependencySet ds = n.getnLabel().getCndList().getCdSet().stream().filter(ce -> ce.getCe().equals(mc)).iterator().next().getDs();
+				
+				OWLObjectPropertyExpression role = mc.getProperty();
+				OWLClassExpression filler = mc.getFiller();
+				int cardinality = mc.getCardinality();
+				int nodesCard = 0;
+				int maxCard = 0;
+				DependencySet maxDs = DependencySet.create();
+				for(Edge e : n.getOutgoingEdges()) {
+					if(!e.isReset() && e.getLabel().contains(role)) {
+						Node to = e.getToNode();
+						if((to.getLabel().contains(filler) || 
+								(filler instanceof OWLObjectIntersectionOf && to.getLabel().containsAll(filler.asConjunctSet())) || 
+								(filler instanceof OWLObjectUnionOf && to.getLabel().stream().anyMatch(filler.asDisjunctSet()::contains))) 
+								&& !to.isReset()) {
+						System.err.println("to "+ to.getId());
+						int card = to.getCardinality();
+						nodesCard += card;
+						if(maxCard < card) {
+							maxCard = card;
+							if(filler instanceof OWLObjectIntersectionOf) {
+								for(OWLClassExpression cj : filler.asConjunctSet()) {
+									maxDs.add(to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(cj)).iterator().next().getDs());
+								}
+							}
+							else if(filler instanceof OWLObjectUnionOf) {
+								for(OWLClassExpression dj : filler.asDisjunctSet()) {
+									maxDs.add(to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(dj)).iterator().next().getDs());
+								}
+							}
+							else {
+								maxDs = to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(filler)).iterator().next().getDs();
+								
+							}
+						}
+					}
+				}
+				}
+
+				if(maxCard > cardinality) {
+					System.err.println("mxds "+ maxDs.getMax() +" "+filler);
+					//FIXME: check dependency set 
+					if(!ds.isEmpty() || !maxDs.isEmpty()) {
+						System.err.println("mxds "+ maxDs.getMax() +" "+filler);
+						if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs))))
+							isInconsistent(n);
+					}
+					else
+						isInconsistent(n);
+					return false;
+					
+				}
+				if(cardinality < nodesCard) {
+					return true;
+				}
+			}
+			return false;
+		}
+		else {
 		for(OWLObjectMaxCardinality mc : n.getLabel().stream().filter(ce -> ce instanceof OWLObjectMaxCardinality).map(ce -> (OWLObjectMaxCardinality)ce).collect(Collectors.toSet())) {
 			DependencySet ds = n.getnLabel().getCndList().getCdSet().stream().filter(ce -> ce.getCe().equals(mc)).iterator().next().getDs();
 			
@@ -2730,21 +3139,50 @@ public class RuleEngine {
 			int cardinality = mc.getCardinality();
 			int nodesCard = 0;
 			int maxCard = 0;
+			DependencySet maxDs = DependencySet.create();
 			for(Edge e : n.getOutgoingEdges()) {
-				if(e.getLabel().contains(role) && e.getToNode().getLabel().contains(filler)) {
+				if(!e.isReset() && e.getLabel().contains(role) ) {
 					Node to = e.getToNode();
-					int card = to.getCardinality();
-					nodesCard += card;
-					if(maxCard < card) {
-						maxCard = card;
+					if((to.getLabel().contains(filler) || 
+							(filler instanceof OWLObjectIntersectionOf && to.getLabel().containsAll(filler.asConjunctSet())) || 
+							(filler instanceof OWLObjectUnionOf && to.getLabel().stream().anyMatch(filler.asDisjunctSet()::contains))) 
+							&& !to.isReset()) {
+						if(e.isPredEdge()) {
+							nodesCard++;
+						}
+						else {
+							
+							System.err.println("to "+ to.getId());
+							int card = to.getCardinality();
+							nodesCard += card;
+							if(maxCard < card) {
+								maxCard = card;
+								if(filler instanceof OWLObjectIntersectionOf) {
+									for(OWLClassExpression cj : filler.asConjunctSet()) {
+										maxDs.add(to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(cj)).iterator().next().getDs());
+									}
+								}
+								else if(filler instanceof OWLObjectUnionOf) {
+									for(OWLClassExpression dj : filler.asDisjunctSet()) {
+										maxDs.add(to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(dj)).iterator().next().getDs());
+									}
+								}
+								else {
+									maxDs = to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(filler)).iterator().next().getDs();
+									
+								}
+							}
+						}
 					}
 				}
 			}
 
 			if(maxCard > cardinality) {
+				System.err.println("mxds "+ maxDs.getMax() +" "+filler);
 				//FIXME: check dependency set 
-				if(!ds.isEmpty()) {
-					if(!clashHandler(ds))
+				if(!ds.isEmpty() || !maxDs.isEmpty()) {
+					System.err.println("mxds "+ maxDs.getMax() +" "+filler);
+					if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs))))
 						isInconsistent(n);
 				}
 				else
@@ -2757,13 +3195,99 @@ public class RuleEngine {
 			}
 		}
 		return false;
+		}
+	}
+	private boolean needToApplyAtMost(Node n, OWLObjectMaxCardinality mc, DependencySet ds) {
+		if(n.isNominalNode()) {
+			OWLObjectPropertyExpression role = mc.getProperty();
+				OWLClassExpression filler = mc.getFiller();
+				int cardinality = mc.getCardinality();
+				int nodesCard = 0;
+				int maxCard = 0;
+				DependencySet maxDs = DependencySet.create();
+				for(Edge e : n.getOutgoingEdges()) {
+					if(!e.isReset() && e.getLabel().contains(role) && e.getToNode().getLabel().contains(filler)) {
+						Node to = e.getToNode();
+						//System.err.println("to "+ to.getId());
+						int card = to.getCardinality();
+						nodesCard += card;
+						if(maxCard < card) {
+							maxCard = card;
+							maxDs = to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(filler)).iterator().next().getDs();
+							
+						}
+					}
+				}
+
+				if(maxCard > cardinality) {
+					//System.err.println("mxds "+ maxDs.getMax() +" "+filler);
+					//FIXME: check dependency set 
+					if(!ds.isEmpty() || !maxDs.isEmpty()) {
+					//	System.err.println("mxds "+ maxDs.getMax() +" "+filler);
+						if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs))))
+							isInconsistent(n);
+					}
+					else
+						isInconsistent(n);
+					return false;
+					
+				}
+				if(cardinality < nodesCard) {
+					return true;
+				}
+			return false;
+		}
+		else {
+			OWLObjectPropertyExpression role = mc.getProperty();
+			OWLClassExpression filler = mc.getFiller();
+			int cardinality = mc.getCardinality();
+			int nodesCard = 0;
+			int maxCard = 0;
+			DependencySet maxDs = DependencySet.create();
+			for(Edge e : n.getOutgoingEdges()) {
+				if(!e.isReset() && e.getLabel().contains(role) && e.getToNode().getLabel().contains(filler)) {
+					if(e.isPredEdge()) {
+						nodesCard++;
+					}
+					else {
+						Node to = e.getToNode();
+						//System.err.println("to "+ to.getId());
+						int card = to.getCardinality();
+						nodesCard += card;
+						if(maxCard < card) {
+							maxCard = card;
+							maxDs = to.getnLabel().getCndList().getCdSet().stream().filter(cnd -> cnd.getCe().equals(filler)).iterator().next().getDs();
+							
+						}
+					}
+				}
+			}
+
+			if(maxCard > cardinality) {
+				//System.err.println("mxds "+ maxDs.getMax() +" "+filler);
+				//FIXME: check dependency set 
+				if(!ds.isEmpty() || !maxDs.isEmpty()) {
+					//System.err.println("mxds "+ maxDs.getMax() +" "+filler);
+					if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs))))
+						isInconsistent(n);
+				}
+				else
+					isInconsistent(n);
+				return false;
+				
+			}
+			if(cardinality < nodesCard) {
+				return true;
+			}
+		return false;
+		}
 	}
 	public void applyAndRule(Node n1, OWLObjectIntersectionOf objIn, DependencySet ds) {
 	//	System.out.println("Applying and Rule...");
 		Node n = n1;
 		if(!n.isBlocked()) {
 			for(OWLClassExpression ce : objIn.asConjunctSet()) {
-				//System.out.println("AND RULE ce "+ ce);
+			//	System.out.println("AND RULE ce "+ ce);
 				boolean flag = false;
 				if(isConceptExist(n, ce)) {
 					flag = true;
@@ -2791,6 +3315,7 @@ public class RuleEngine {
 						if( mergeN != null) {
 							n = mergeN; // remaining conjuncts will be applied on merged node
 							processForAll(n);
+							processAtMost(n);
 						}
 						else
 							return;
@@ -2859,18 +3384,29 @@ public class RuleEngine {
 			this.branches.put(getCurLevel(), bh);
 			save(n);
 			incCurLevel();
-			boolean flag = false;
+			
+			/// updated 14 sep, 2019
+			
+			if(bh.hasNextOption()) {
+				applyOr(n, bh.getNextOption(),newDs);
+			}
+			/// update end
+			
+			
+			//// commented 14 sep, 2019
+			/*boolean flag = false;
 			for(OWLClassExpression dj : objUn.asDisjunctSet()) {
 				if(isConceptExist(n, dj)) {
+					//System.err.println("exists : " + dj);
 					flag = true;
 					bh.disjunctTaken(dj);
 					updateConceptDepSet(n, newDs, dj);
 					if(!(dj instanceof OWLClass) || !(dj instanceof OWLObjectOneOf) || !(dj instanceof OWLObjectComplementOf))
 						updateToDoEntryDepSet(n, dj, newDs);
 				
-				/*	plusConceptDepSet(n, ds, dj);
+					plusConceptDepSet(n, ds, dj);
 					if(!(dj instanceof OWLClass) || !(dj instanceof OWLObjectOneOf) || !(dj instanceof OWLObjectComplementOf))
-						plusToDoEntryDepSet(n, dj, n.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(dj)).iterator().next().getDs());*/
+						plusToDoEntryDepSet(n, dj, n.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(dj)).iterator().next().getDs());
 					break;
 				}	
 			}
@@ -2889,7 +3425,8 @@ public class RuleEngine {
 				if(bh.hasNextOption()) {
 					applyOr(n, bh.getNextOption(),newDs);
 				}
-			}
+			}*/ 
+			/// end
 		}
 	}
 	
@@ -2901,6 +3438,8 @@ public class RuleEngine {
 		boolean flag = false;
 		if(isConceptExist(n, ce)) {
 			flag = true;
+			//cg.saveN(n);
+		//	System.err.println("flag  ");
 			updateConceptDepSet(n, ds, ce);
 			if(!((ce instanceof OWLClass) || !(ce instanceof OWLObjectOneOf) || !(ce instanceof OWLObjectComplementOf)))
 				updateToDoEntryDepSet(n, ce, ds);
@@ -2970,6 +3509,9 @@ public class RuleEngine {
 					return;
 				}
 			}
+			for(Edge e : n.getIncomingEdges()) {
+				this.processAtMost(e.getFromNode());
+			}
 		}
 		}
 	}
@@ -3012,6 +3554,7 @@ public class RuleEngine {
 				else
 					isInconsistent(n);
 			}
+			processAtMost(n, ds);
 			return null;
 		}
 		else {
@@ -3166,9 +3709,9 @@ public class RuleEngine {
 						}
 					}
 					else {
-						System.out.println("clash check "+ c);
+						//System.out.println("clash check "+ c);
 						DependencySet clashSet = getClashSet(to, c, c.getComplementNNF());
-						System.out.println("clash set "+ clashSet.getbpList());
+					//	System.out.println("clash set "+ clashSet.getbpList());
 						if(!clashSet.isEmpty()) {
 							if(!clashHandler(clashSet))
 								isInconsistent(to);
@@ -3289,18 +3832,24 @@ public class RuleEngine {
 			
 			int level = clashSet.getMax();
 			
-			//System.out.println("level" + level);
+			System.out.println("level" + level);
 			//System.out.println(cg.getTotalNodes());
-			//System.out.println(branches.get(level));
+			//System.err.println(branches.get(level).getDs().getbpList());
 			if( branches.get(level).hasNextOption()) {
 				restore(level);
 				DependencySet newDS = DependencySet.create(clashSet);
+				//applyOr(cg.getCurrNode(), branches.get(level).getNextOption(), DependencySet.plus(newDS, branches.get(level).getDs()));
+				applyOr(cg.getCurrNode(), branches.get(level).getNextOption(), DependencySet.create(branches.get(level).getDs()));
+			//	applyOr(cg.getCurrNode(), branches.get(level).getNextOption(), newDS);
+				
 				//save(cg.getCurrNode());
 			//	System.out.println("restoring currentBranchingPoint : "+level +" Neighbour : "+cg.getCurrNode().getOutgoingEdges().size()+" total nodes : "+ cg.getTotalNodes());
 			//	System.out.println("branch node" + branches.get(level).getNode().getId());
 			//	System.out.println("graph curr node" + cg.getCurrNode().getId());
 			//	System.out.println("curr node label after" + cg.getCurrNode().getLabel());
-				boolean flag = false;
+				
+				/// comment start 15 sep, 2019
+				/*boolean flag = false;
 				for(OWLClassExpression ce :branches.get(level).getAllNextOptions()) {
 					if(isConceptExist(cg.getCurrNode(), ce)) {
 						flag = true;
@@ -3322,7 +3871,8 @@ public class RuleEngine {
 					// commented on 4 march 2019
 					//applyOr(cg.getCurrNode(), branches.get(level).getNextOption(), branches.get(level).getDs());
 				//applyOr(branches.get(level).getNode(), branches.get(level).getNextOption(), branches.get(level).ds);
-				}
+				}*/
+				/// comment end 15 sep, 2019
 			}
 			else {
 				branches.get(level).reset();
@@ -3356,7 +3906,14 @@ public class RuleEngine {
 	}
 
 	public boolean checkClash(Node n, OWLClassExpression c) {
+	//	System.err.println("check clash "+c);
+
+		if(c.isOWLNothing()) {
+		//	System.err.println("clash "+c +" "+ c.getComplementNNF());
+			return true;
+		}
 		if(n.getLabel().contains(c.getComplementNNF())) {
+		//	System.err.println("clash "+c);
 			return true;
 		}
 		
@@ -3471,7 +4028,13 @@ public class RuleEngine {
 	//	ConceptNDepSet cnd2 = n.getnLabel().getCndList().getCdSet().stream().filter(cds -> cds.getCe().equals(ceNNF)).iterator().next();
 		//System.out.println("exp "+ cnd1.getCe() + " ds "+ cnd1.getDs().getMax());
 		//System.out.println("exp "+ ceNNF + " ds "+ cnd2.getDs().getMax());
-		if(ceNNF != null) {
+		if(ce.isOWLNothing()) {
+			if(cnd1.getDs().isEmpty())
+				return DependencySet.create();
+			else 
+				return DependencySet.plus(DependencySet.create(cnd1.getDs()), DependencySet.create());
+		}
+		else if(ceNNF != null) {
 			if(cnd1.getDs().isEmpty() && cnd2.getDs().isEmpty())
 				return DependencySet.create();
 			else 
@@ -3520,12 +4083,12 @@ public class RuleEngine {
 	
 	
 	public void absorbRule1(OWLClassExpression ce, Node n, DependencySet ds) {
-	//	System.out.println("applying absorbRule 1 : "+ ce +" nid "+n.getId());
-	//	System.out.println("concept ds : "+ ds.getMax());
+		System.out.println("applying absorbRule 1 : "+ ce +" nid "+n.getId());
+		System.out.println("concept ds : "+ ds.getMax());
 		Set<OWLClassExpression> sup = this.intl.findConcept(ce);
 		if(sup.size()!=0) {
 			for(OWLClassExpression c : sup) {
-				//System.out.println("absorb : "+ c);
+				System.out.println(sup.size()+" absorb : "+ c);
 				if(c.isOWLNothing()) {
 					DependencySet clashSet = getClashSet(n, ce, null);
 					if(!clashSet.isEmpty()) {
@@ -3588,11 +4151,13 @@ public class RuleEngine {
 					else {
 						cg.addConceptToNode(n, cnds);
 						if(!checkClash(n, c)) {
+						//	System.err.println("no clash: "+ c+" label "+ n.getLabel());
 						//	Set<Set<OWLClassExpression>> djGrp = checkDisjointGroups(n);
 						//	if(djGrp.isEmpty()) {
 								if(c instanceof OWLClass) { 
 									n.addSimpleLabel(c);
 									absorbRule1(c, n, ds);
+									absorbRule2(n);
 								}
 								else {
 									addToDoEntry(n, c, cnds);
@@ -3712,6 +4277,7 @@ public class RuleEngine {
 									absorbRule1(c, n, dep);
 									absorbRule2(n);
 								}
+
 								else {
 									addToDoEntry(n, c, cnds);
 								}
@@ -3859,6 +4425,7 @@ public class RuleEngine {
 	}
 	
 	public boolean isConceptExist(Node n, OWLClassExpression ce) {
+		//n.getLabel().stream().forEach(lb -> System.out.println(lb));
 		if(n.getLabel().contains(ce))
 			return true;
 		return false;
@@ -3882,6 +4449,7 @@ public class RuleEngine {
 	}*/
 	public void updateConceptDepSet(Node n, DependencySet ds, OWLClassExpression filler) {
 		//System.out.println("node "+n.getId() +"filler "+ filler+" node label "+ n.getLabel());
+		cg.saveN(n);
 		List<ConceptNDepSet> cndList = n.getnLabel().getCndList().getCdSet();
 		ConceptNDepSet cnd = null;
 		for(ConceptNDepSet cnds : cndList){
@@ -3899,9 +4467,10 @@ public class RuleEngine {
 		else {
 			List<ConceptNDepSet> cndList1 = n.getnLabel().getCndList().getCdSet();
 			for(ConceptNDepSet cnds : cndList1){
-			if(cnds != null && cnds.getCe() != null && cnds.getCe().equals(filler)) {
-				cnds.setDs(DependencySet.plus(DependencySet.create(cnds.getDs()), DependencySet.create(ds)));
-			}
+				if(cnds != null && cnds.getCe() != null && cnds.getCe().equals(filler)) {
+					//FIXME check if below line should be commented??? 
+					cnds.setDs(DependencySet.plus(DependencySet.create(cnds.getDs()), DependencySet.create(ds)));
+				}
 			}
 			//n.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(filler)).forEach(cnds -> cnds.setDs(DependencySet.plus(DependencySet.create(cnds.getDs()), DependencySet.create(ds))));
 			//cnd.setDs(DependencySet.plus(cnd.getDs(), ds));
@@ -4054,7 +4623,7 @@ public class RuleEngine {
 			size = applicableOrEntries.size();
 			branchIndex = 0;
 			this.objUn = objUn;
-			this.ds = ds;
+			this.ds = DependencySet.create(ds);
 			this.n = n;
 			this.cnds = cnds;
 		}
@@ -4180,11 +4749,12 @@ public class RuleEngine {
 		//	OWLClassExpression sp =  asb.getSuperClass();
 			DependencySet ds = DependencySet.create();
 			OWLClassExpression ci = df.getOWLObjectOneOf(((OWLObjectOneOf)sb).individuals().iterator().next());
-			//System.out.println("nominal "+ ci);
+		//	System.err.println("nominal "+ ci);
 			Node nom = findNominalNode(ci);
 			
 			if(nom == null) {
 				Node n = cg.addNode(NodeType.NOMINAL, ci, ds);
+				this.absorbRule1(df.getOWLThing(), n, ds);
 				addTGAxiom(n, ds);
 				ConceptNDepSet cnds = new ConceptNDepSet(ci, ds);
 				cg.addConceptToNode(n, cnds);

@@ -13,7 +13,7 @@ public class EdgeInformation
   private final Set<OWLClassExpression> fillers;
   private int cardinality;
   private DependencySet ds;
-  private Set<Integer> nodeSet;
+  private Set<Integer> nodeSet = new HashSet<>();
   
   public EdgeInformation(Set<OWLObjectPropertyExpression> roles, Set<OWLClassExpression> fillers, int card)
   {

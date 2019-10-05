@@ -153,6 +153,7 @@ public class CplexModelGenerator10 {
 			//System.out.println("allQualifiers "+allQualifiers);
 			Set<OWLClassExpression> neg = new HashSet<>();
 			allQualifiers.stream().filter(c -> c instanceof OWLObjectComplementOf).forEach(c -> neg.add(c));
+		//	System.err.println(""+ neg.size());
 			if(!neg.isEmpty()) {
 				for(OWLClassExpression n : neg) {
 					if(allQualifiers.contains(n.getComplementNNF())) {
@@ -393,8 +394,9 @@ public class CplexModelGenerator10 {
 					IloLinearNumExpr objExpr = ppCplex.linearNumExpr();
 					for(int j = 0 ; j < b.length ; j++)
 						objExpr.addTerm(1 , b[j]);
-					
-					reducedCost.setExpr(ppCplex.diff(objExpr,ppCplex.scalProd(r, price)));
+					// FIXME changed Sep 23, 2019
+					reducedCost.setExpr(ppCplex.diff(ppCplex.prod(2.0, objExpr),ppCplex.scalProd(r, price)));
+				//	reducedCost.setExpr(ppCplex.diff(objExpr,ppCplex.scalProd(r, price)));
 
 					if(ppCplex.solve()){
 						
@@ -623,7 +625,7 @@ public class CplexModelGenerator10 {
 						}
 						
 						// Adding complement to ensure at most restrictions
-					/*	Set<QCR> tempMaxQcrs = qcrMap.values().stream().filter(qcr -> qcr.type.equals("MAX")).collect(Collectors.toSet());
+						Set<QCR> tempMaxQcrs = qcrMap.values().stream().filter(qcr -> qcr.type.equals("MAX")).collect(Collectors.toSet());
 						Map<QCR , Integer> check_complement = new HashMap<>();
 						for(QCR q : tempMaxQcrs){
 							check_complement.put(q, q.cardinality);
@@ -638,7 +640,7 @@ public class CplexModelGenerator10 {
 							Set<EdgeInformation> addedEdgeInformations = new HashSet<EdgeInformation>();
 							Set<EdgeInformation> reserveEdgeInformations = new HashSet<EdgeInformation>();
 							for(EdgeInformation e : edgeInformationSet){
-								if(e.getFillers().contains(q.qualifier)){
+								if(e.getEdges().contains(q.role) && e.getFillers().contains(q.qualifier)){
 									reserveEdgeInformations.add(e);
 									check_complement.put(q, check_complement.get(q) - e.getCardinality());
 									remained_nodes -= e.getCardinality();
@@ -652,7 +654,7 @@ public class CplexModelGenerator10 {
 									Set<OWLObjectPropertyExpression> tempObj = e.getEdges();
 									Set<OWLClassExpression> tempSet = e.getFillers();
 									int card = e.getCardinality();
-									if(!e.getFillers().contains(q.qualifier)){
+									if(e.getEdges().contains(q.role) && !e.getFillers().contains(q.qualifier)){
 										if(e.getCardinality() > check_complement.get(q)){
 											EdgeInformation tempEdgeInformation = new EdgeInformation(tempObj , tempSet , card - check_complement.get(q), e.getDs());
 											addedEdgeInformations.add(tempEdgeInformation);
@@ -672,8 +674,8 @@ public class CplexModelGenerator10 {
 								if(!reserveEdgeInformations.contains(e))
 									e.addFiller(q.qualifier.getComplementNNF());
 							}
-						}*/
-
+						}
+						///////////////////////////////////// at-most restriction end
 						Map<EdgeInformation , Integer> edge_map = new HashMap<>();
 						for(EdgeInformation e : edgeInformationSet){
 							EdgeInformation indic = this.containsEdge(edge_map.keySet(), e);
@@ -2369,10 +2371,12 @@ public class CplexModelGenerator10 {
 			}
 			
 			//adding binary subsumption 
+			
 			if(binarySubsumersMap.keySet() != null){
 				for (OWLClassExpression sb : binarySubsumersMap.keySet()){
 					IloLinearNumExpr exprBinarySub = ppCplex.linearNumExpr();
 					for(OWLClassExpression X : sb.asConjunctSet()){
+						//System.err.println(X);
 						exprBinarySub.addTerm(1, b[qualifiers.get(X)]);
 					}
 					for(OWLClassExpression sp : binarySubsumersMap.get(sb))
@@ -2395,9 +2399,9 @@ public class CplexModelGenerator10 {
 			
 			// handle negation
 			for (OWLClassExpression C : negations.keySet()){
-				System.out.println("neg "+ C);
+				//System.out.println("neg "+ C);
 				OWLClassExpression D = negations.get(C);
-				System.out.println("neg "+ C + " - "+ D);
+				//System.out.println("neg "+ C + " - "+ D);
 				ppCplex.addLe(ppCplex.sum(ppCplex.prod(1.0, b[qualifiers.get(C)]),
 							ppCplex.prod(1.0, b[qualifiers.get(D)])), 1);
 			}
