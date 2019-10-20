@@ -394,12 +394,17 @@ public class CplexModelGenerator10 {
 					IloLinearNumExpr objExpr = ppCplex.linearNumExpr();
 					for(int j = 0 ; j < b.length ; j++)
 						objExpr.addTerm(1 , b[j]);
+					
 					// FIXME changed Sep 23, 2019
-					reducedCost.setExpr(ppCplex.diff(ppCplex.prod(2.0, objExpr),ppCplex.scalProd(r, price)));
+					
+				//	System.err.println(ppCplex.prod(1.0/2,ppCplex.square(ppCplex.prod(2.0, objExpr))));
+				//	reducedCost.setExpr(ppCplex.diff(ppCplex.prod(1.0/2,ppCplex.square(ppCplex.prod(2.0, objExpr))),ppCplex.scalProd(r, price)));
+					reducedCost.setExpr(ppCplex.diff(ppCplex.square(objExpr),ppCplex.scalProd(r, price)));
+				//	reducedCost.setExpr(ppCplex.diff(ppCplex.prod(objExpr, objExpr),ppCplex.scalProd(r, price)));
 				//	reducedCost.setExpr(ppCplex.diff(objExpr,ppCplex.scalProd(r, price)));
 
 					if(ppCplex.solve()){
-						
+						System.err.println(ppCplex.getObjValue());
 						if ( ppCplex.getObjValue() > -RC_EPS ){
 							break;
 						}
@@ -424,15 +429,15 @@ public class CplexModelGenerator10 {
 							
 					//	}
 						for(int j = 0 ; j < bVal.length ; j++) {
-						//	System.out.println("bVal " + bVal[j]);
+							System.out.println("bVal " + bVal[j]);
 							cost += bVal[j];
 						}
 						/*if(cost>5) {
 							cost += cost-1;
 						}*/
 							
-					//	System.out.println("cost " + cost);
-						IloColumn column = rmpCplex.column(obj, cost);//Creates and returns a column from the specified objective and value.
+						System.out.println("cost " + cost + " square "+cost*cost);
+						IloColumn column = rmpCplex.column(obj, cost*cost);//Creates and returns a column from the specified objective and value.
 						for ( int i = 0; i < totalVar; i++ )
 							column = column.and(rmpCplex.column(Constraint[i], newCol[i]));//Creates and returns a column from the specified range and value.
 						

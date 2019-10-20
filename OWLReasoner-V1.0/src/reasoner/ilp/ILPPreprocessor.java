@@ -625,21 +625,28 @@ public class ILPPreprocessor {
 		//	OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
 		//	OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(e.getToNode().getCardinality(), role, qualifier);
 			
-			OWLObjectCardinalityRestriction crMin = null;
-			OWLObjectCardinalityRestriction crMax = null;
+			//OWLObjectCardinalityRestriction crMin = null;
+		//	OWLObjectCardinalityRestriction crMax = null;
+			OWLObjectCardinalityRestriction crExact = null;
 			if(this.currNode.isBlockableNode()) {
-				crMin = df.getOWLObjectMinCardinality(1, role, qualifier);
-				crMax = df.getOWLObjectMaxCardinality(1, role, qualifier);
+				//crMin = df.getOWLObjectMinCardinality(1, role, qualifier);
+				//crMax = df.getOWLObjectMaxCardinality(1, role, qualifier);
+				crExact = df.getOWLObjectExactCardinality(1, role, qualifier);
 			
 			}
 			else{
-				crMin = df.getOWLObjectMinCardinality(e.getToNode().getCardinality(), role, qualifier);
-				crMax = df.getOWLObjectMaxCardinality(e.getToNode().getCardinality(), role, qualifier);
+				//crMin = df.getOWLObjectMinCardinality(e.getToNode().getCardinality(), role, qualifier);
+				//crMax = df.getOWLObjectMaxCardinality(e.getToNode().getCardinality(), role, qualifier);
+				crExact = df.getOWLObjectExactCardinality(e.getToNode().getCardinality(), role, qualifier);
 			}
-			this.cardRes.add(crMin);
-			this.cardRes.add(crMax);
-			cardResDs.put(crMin, ds);
-			cardResDs.put(crMax, ds);
+		//	this.cardRes.add(crMin);
+		//	this.cardRes.add(crMax);
+		//	cardResDs.put(crMin, ds);
+		//	cardResDs.put(crMax, ds);
+			
+			this.cardRes.add(crExact);
+			cardResDs.put(crExact, ds);
+			
 			roles.add(role);
 		}
 		this.auxRoleHMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) auxRoleH.asMap();
