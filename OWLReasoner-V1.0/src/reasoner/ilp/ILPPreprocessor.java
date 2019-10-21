@@ -750,8 +750,8 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
 			}
 		}
+
 		for(OWLObjectMaxCardinality ex : this.maxDs.keySet()) {
-			
 			DependencySet ds = DependencySet.create();
 			for(DependencySet d : this.maxDs.get(ex))
 				ds.add(d);
@@ -775,6 +775,8 @@ public class ILPPreprocessor {
 				nominals.add((OWLObjectOneOf)filler);
 				nominalDs.put((OWLObjectOneOf)filler, ds);
 				conceptDs.put(filler, ds);
+				OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(filler, filler.getComplementNNF()));
+				this.processForAll(forAll, ds);
 			}
 			else if(filler instanceof OWLClass) {
 				this.maxCardRes.add(ex);
@@ -783,6 +785,8 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
 				simpleConcepts.add(filler);
 				conceptDs.put(filler, ds);
+				OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(filler, filler.getComplementNNF()));
+				this.processForAll(forAll, ds);
 			}
 			
 			else if(filler instanceof OWLObjectComplementOf) {
@@ -792,6 +796,8 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
 				simpleConcepts.add(filler);
 				conceptDs.put(filler, ds);
+				OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(filler, filler.getComplementNNF()));
+				this.processForAll(forAll, ds);
 			}
 			else if(filler instanceof OWLObjectIntersectionOf) {
 				
@@ -803,6 +809,12 @@ public class ILPPreprocessor {
 					
 					this.binaryMaxSubsumers.put(filler, qualifier);
 					this.simpleConcepts.addAll(filler.asConjunctSet());
+					//// 21 Oct, 2019
+					this.simpleConcepts.addAll(filler.getComplementNNF().asDisjunctSet());
+					OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(qualifier, qualifier.getComplementNNF()));
+					this.processForAll(forAll, ds);
+					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier.getComplementNNF(), filler.getComplementNNF()));
+					////
 				}
 				for(OWLClassExpression cj : filler.asConjunctSet()) {
 					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj));
@@ -814,6 +826,7 @@ public class ILPPreprocessor {
 				this.maxCardRes.add(cr);
 				cardResDs.put(cr, ds);
 				roles.add(role);
+				
 				
 				////// commented Sep 12, 2019 - start 
 				/*OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
@@ -843,6 +856,10 @@ public class ILPPreprocessor {
 					if((dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf)) {
 						this.simpleASubsumers.put(dj, qualifier);
 						this.simpleConcepts.add(dj);
+						/// 21-OCT-2019
+						OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(dj, dj.getComplementNNF()));
+						this.processForAll(forAll, ds);
+						///
 					}
 					
 				}
@@ -894,6 +911,7 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
 			}
 		}
+		
 	}
 	
 	private void processTopCardinalities() {

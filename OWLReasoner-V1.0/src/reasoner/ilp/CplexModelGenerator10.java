@@ -404,7 +404,7 @@ public class CplexModelGenerator10 {
 				//	reducedCost.setExpr(ppCplex.diff(objExpr,ppCplex.scalProd(r, price)));
 
 					if(ppCplex.solve()){
-						System.err.println(ppCplex.getObjValue());
+					//	System.err.println(ppCplex.getObjValue());
 						if ( ppCplex.getObjValue() > -RC_EPS ){
 							break;
 						}
@@ -429,14 +429,14 @@ public class CplexModelGenerator10 {
 							
 					//	}
 						for(int j = 0 ; j < bVal.length ; j++) {
-							System.out.println("bVal " + bVal[j]);
+							//System.out.println("bVal " + bVal[j]);
 							cost += bVal[j];
 						}
 						/*if(cost>5) {
 							cost += cost-1;
 						}*/
 							
-						System.out.println("cost " + cost + " square "+cost*cost);
+						//System.out.println("cost " + cost + " square "+cost*cost);
 						IloColumn column = rmpCplex.column(obj, cost*cost);//Creates and returns a column from the specified objective and value.
 						for ( int i = 0; i < totalVar; i++ )
 							column = column.and(rmpCplex.column(Constraint[i], newCol[i]));//Creates and returns a column from the specified range and value.
@@ -630,7 +630,7 @@ public class CplexModelGenerator10 {
 						}
 						
 						// Adding complement to ensure at most restrictions
-						Set<QCR> tempMaxQcrs = qcrMap.values().stream().filter(qcr -> qcr.type.equals("MAX")).collect(Collectors.toSet());
+						/*Set<QCR> tempMaxQcrs = qcrMap.values().stream().filter(qcr -> qcr.type.equals("MAX")).collect(Collectors.toSet());
 						Map<QCR , Integer> check_complement = new HashMap<>();
 						for(QCR q : tempMaxQcrs){
 							check_complement.put(q, q.cardinality);
@@ -679,7 +679,7 @@ public class CplexModelGenerator10 {
 								if(!reserveEdgeInformations.contains(e))
 									e.addFiller(q.qualifier.getComplementNNF());
 							}
-						}
+						}*/
 						///////////////////////////////////// at-most restriction end
 						Map<EdgeInformation , Integer> edge_map = new HashMap<>();
 						for(EdgeInformation e : edgeInformationSet){
@@ -895,7 +895,8 @@ public class CplexModelGenerator10 {
 						for(int j = 0 ; j < b.length ; j++)
 							objExpr.addTerm(1 , b[j]);
 						//System.out.println("r value  # "+r.length);
-						reducedCost.setExpr(ppCplex.diff(objExpr,ppCplex.scalProd(r, price)));
+						reducedCost.setExpr(ppCplex.diff(ppCplex.square(objExpr),ppCplex.scalProd(r, price)));
+						//reducedCost.setExpr(ppCplex.diff(objExpr,ppCplex.scalProd(r, price)));
 						
 						if(ppCplex.solve()){
 							//System.out.println("pp objective "+ppCplex.getObjValue());
@@ -932,7 +933,7 @@ public class CplexModelGenerator10 {
 							}*/
 								
 							//System.out.println("cost " + cost);
-							IloColumn column = rmpCplex.column(obj, cost);//Creates and returns a column from the specified objective and value.
+							IloColumn column = rmpCplex.column(obj, cost*cost);//Creates and returns a column from the specified objective and value.
 							for ( int ii = 0; ii < Constraint.length; ii++ )
 								column = column.and(rmpCplex.column(Constraint[ii], newCol[ii]));//Creates and returns a column from the specified range and value.
 							
@@ -1488,7 +1489,8 @@ public class CplexModelGenerator10 {
 						for(int j = 0 ; j < b.length ; j++)
 							objExpr.addTerm(1 , b[j]);
 						//System.out.println("r value  # "+r.length);
-						reducedCost.setExpr(ppCplex.diff(objExpr,ppCplex.scalProd(r, price)));
+						reducedCost.setExpr(ppCplex.diff(ppCplex.square(objExpr),ppCplex.scalProd(r, price)));
+						//	reducedCost.setExpr(ppCplex.diff(objExpr,ppCplex.scalProd(r, price)));
 						
 						if(ppCplex.solve()){
 							//System.out.println("pp objective "+ppCplex.getObjValue());
@@ -1525,7 +1527,7 @@ public class CplexModelGenerator10 {
 							}*/
 								
 							//System.out.println("cost " + cost);
-							IloColumn column = rmpCplex.column(obj, cost);//Creates and returns a column from the specified objective and value.
+							IloColumn column = rmpCplex.column(obj, cost*cost);//Creates and returns a column from the specified objective and value.
 							for ( int ii = 0; ii < Constraint.length; ii++ )
 								column = column.and(rmpCplex.column(Constraint[ii], newCol[ii]));//Creates and returns a column from the specified range and value.
 							
