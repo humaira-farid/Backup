@@ -33,7 +33,7 @@ public class TestReasoner{
 	// public TestReasoner(File file) {
 	public TestReasoner() {
 		 man = OWLManager.createOWLOntologyManager();
-		 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-Tests/p_57a.fowl.owl");
+		 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SimpleTests/test2.owl");
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {

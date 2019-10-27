@@ -3,6 +3,7 @@ package reasoner;
 import static reasoner.Helper.INITBRANCHINGLEVELVALUE;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -193,7 +194,7 @@ public class RuleEngine {
 		 						nodeForAllEntries.get(currNode).clear();
 		 						relatedForAllEntries.get(currNode).clear();
 		 						relatedMaxEntries.get(currNode).clear();
-		 						callILP(currNode, entries);
+		 						callILP(currNode, entries, new HashSet<OWLSubClassOfAxiom>(), outgoingEdges);
 		 						for(ToDoEntry en : unrelatedMaxEntries.get(currNode))
 									applyRules(en);
 		 						unrelatedMaxEntries.get(currNode).clear();
@@ -313,9 +314,9 @@ public class RuleEngine {
 					nodeForAllEntries.get(currNode).clear();
 					relatedForAllEntries.get(currNode).clear();
 					relatedMaxEntries.get(currNode).clear();
-					callILP(currNode, entries);
+					callILP(currNode, entries, new HashSet<OWLSubClassOfAxiom>(), outgoingEdges);
 					for(ToDoEntry en : unrelatedMaxEntries.get(currNode))
-							applyRules(en);
+						applyRules(en);
 					unrelatedMaxEntries.get(currNode).clear();
 					axiomRoles.get(currNode).clear();
 			}
@@ -843,7 +844,7 @@ public class RuleEngine {
 		return false;
 	}
 	
-	public void callILP(Node n, Set<ToDoEntry> entries) {
+	public void callILP(Node n, Set<ToDoEntry> entries, Set<OWLSubClassOfAxiom> subsumption, Set<Edge> outgoingEdges) {
 		System.out.println("Calling ILP module..."+ entries.size() +" node id: "+n.getId());
 	//	n.getLabel().stream().forEach(e -> System.out.println(e));
 	//	entries.stream().forEach(e -> System.err.println(e.getClassExpression()));
@@ -853,10 +854,23 @@ public class RuleEngine {
 			//cg.setNodeBlocked(n, blocker);
 			return;
 		}
+		
+		///// added 24-oct-2019
+		DependencySet newDs = DependencySet.create(getCurLevel());
+		for(ToDoEntry entry : entries) {
+			entry.setDs(DependencySet.plus(DependencySet.create(newDs),DependencySet.create(entry.getDs())));
+		}
+		BranchHandler bh = new BranchHandler(entries, newDs, n, outgoingEdges, subsumption);
+		this.branches.put(getCurLevel(), bh);
+		save(n);
+		incCurLevel();
+		
+		/////
+		
 	//	if(outgoingEdges.size() > 0)
 	//	System.err.println("inverse edges : "+outgoingEdges.size() +" card : "+outgoingEdges.iterator().next().getToNode().getCardinality());
 		
-		ILPPreprocessor ilpPro = new ILPPreprocessor(entries, this.intl, this.df, n, outgoingEdges);
+		ILPPreprocessor ilpPro = new ILPPreprocessor(entries, this.intl, this.df, n, outgoingEdges, subsumption);
 		ILPSolution sol = null;
 		try {
 			sol = ilpPro.callILP();
@@ -866,7 +880,8 @@ public class RuleEngine {
 		//System.out.print("hi there");
 		if(sol.isSolved()) {
 			for(EdgeInformation ei : sol.getEdgeInformation()) {
-				DependencySet ds = ei.getDs();
+			//	DependencySet ds = ei.getDs();
+				DependencySet ds = DependencySet.plus(ei.getDs(), newDs);
 				Set<OWLObjectPropertyExpression> roles = ei.getEdges();
 				Set<Integer> nodeIds = ei.getNodeSet();
 				
@@ -879,6 +894,7 @@ public class RuleEngine {
 						return;
 					}*/
 					if(ei.getFillers().stream().anyMatch(ce -> ce instanceof OWLObjectOneOf)) {
+						
 						Set<Node> nomNodes = new HashSet<>();
 						SetMultimap<OWLClassExpression, Node> nomNodesMap = HashMultimap.create();
 						for(OWLClassExpression filler : ei.getFillers().stream().filter(ce -> ce instanceof OWLObjectOneOf).map(ce -> (OWLClassExpression)ce).collect(Collectors.toSet())) {
@@ -1185,6 +1201,7 @@ public class RuleEngine {
 			
 		}
 		else {
+			//System.out.println(sol.getInfeasible_set());
 			boolean handleClash = false;
 			DependencySet clashSet = DependencySet.create();
 			//System.out.println("size "+entries.size());
@@ -1196,7 +1213,7 @@ public class RuleEngine {
 				}
 			}
 			if(handleClash) {
-				if(!clashHandler(clashSet))
+				if(!clashHandler(clashSet, n))
 					isInconsistent(n);
 			}
 			else
@@ -1230,9 +1247,10 @@ public class RuleEngine {
 				}
 				System.err.println(""+ totalNodes);
 				if(totalNodes < card) {
-					DependencySet ds = n.getnLabel().getCndList().getCdSet().stream().filter(ce -> ce.getCe().equals(minCard)).iterator().next().getDs();
+					DependencySet ds = DependencySet.create(n.getnLabel().getCndList().getCdSet().stream().filter(ce -> ce.getCe().equals(minCard)).iterator().next().getDs());
 					if(!ds.isEmpty()) {
-						if(!clashHandler(ds))
+						ds.setCe(minCard);
+						if(!clashHandler(ds, n))
 							isInconsistent(n);
 					}
 					else
@@ -1791,11 +1809,11 @@ public class RuleEngine {
 				if(!entry.getDs().isEmpty()) {
 					handleClash = true;
 					System.out.println("max "+entry.getDs().getMax()+" "+ entry.getClassExpression());
-					clashSet.add(entry.getDs());
+					clashSet.add(DependencySet.create(entry.getDs()));
 				}
 			}
 			if(handleClash) {
-				if(!clashHandler(clashSet))
+				if(!clashHandler(clashSet, n))
 					isInconsistent(n);
 			}
 			else
@@ -1967,12 +1985,15 @@ public class RuleEngine {
 				updateConceptDepSet(to, ds, ce);
 				if(!((ce instanceof OWLClass) || (ce instanceof OWLObjectOneOf) || (ce instanceof OWLObjectComplementOf)))
 					updateToDoEntryDepSet(to, ce, ds);
+				else
+					to.addSimpleILPLabel(ce);
 					//updateToDoEntryDepSet(to, ce, to.getnLabel().getCndList().getCdSet().stream().filter(cnds -> cnds.getCe().equals(ce)).iterator().next().getDs());
 			}
 			else {
 				ConceptNDepSet cnds = new ConceptNDepSet(ce,ds);
 				
 				if(ce instanceof OWLObjectOneOf) {
+					to.addSimpleILPLabel(ce);
 					this.cg.addConceptToNode(to, cnds);
 					if(ce.toString().contains("#ni")) {
 						to.makeNINode();
@@ -1980,7 +2001,9 @@ public class RuleEngine {
 					if(checkClash(to, ce)) {
 						DependencySet clashSet = getClashSet(to, ce, ce.getComplementNNF());
 						if(!clashSet.isEmpty()) {
-							if(!clashHandler(clashSet))
+							clashSet.setCe(ce);
+							clashSet.setCeNNF(ce.getComplementNNF());
+							if(!clashHandler(clashSet, to))
 								isInconsistent(to);
 						}
 						else
@@ -2013,7 +2036,9 @@ public class RuleEngine {
 						else {
 							DependencySet clashSet = getClashSet(to, ce, ce.getComplementNNF());
 							if(!clashSet.isEmpty()) {
-								if(!clashHandler(clashSet))
+								clashSet.setCe(ce);
+								clashSet.setCeNNF(ce.getComplementNNF());
+								if(!clashHandler(clashSet, to))
 									isInconsistent(to);
 							}
 							else
@@ -2028,7 +2053,10 @@ public class RuleEngine {
 					//////	
 						if(ce instanceof OWLClass) {
 							to.addSimpleLabel(ce);
-							
+							to.addSimpleILPLabel(ce);
+						}
+						else if(ce instanceof OWLObjectComplementOf) {
+							to.addSimpleILPLabel(ce);
 						}
 						else {
 							addToDoEntry(to, ce, cnds);
@@ -2037,7 +2065,9 @@ public class RuleEngine {
 					else {
 						DependencySet clashSet = getClashSet(to, ce, ce.getComplementNNF());
 						if(!clashSet.isEmpty()) {
-							if(!clashHandler(clashSet))
+							clashSet.setCe(ce);
+							clashSet.setCeNNF(ce.getComplementNNF());
+							if(!clashHandler(clashSet, to))
 								isInconsistent(to);
 						}
 						else
@@ -2048,7 +2078,7 @@ public class RuleEngine {
 			}
 		}
 		applyAbsorption(to, fillers, ds);
-		processAtMost(to);
+	//	processAtMost(to);
 		processForAll(to);
 		//System.out.println("to label "+ to .getLabel());
 		
@@ -2260,7 +2290,7 @@ public class RuleEngine {
 			//FIXME: check dependency set 
 			if(!ds.isEmpty() || !maxDs.isEmpty()) {
 				System.err.println("mxds "+ maxDs.getMax());
-				if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs))))
+				if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs)), n))
 					isInconsistent(n);
 			}
 			else
@@ -2281,7 +2311,8 @@ public class RuleEngine {
 							x.addDisjointNode(newNode);
 							
 							for(ConceptNDepSet cnds : x.getnLabel().getCndList().getCdSet()) {
-								cg.addConceptToNode(newNode, cnds);
+								if(cnds != null)
+									cg.addConceptToNode(newNode, cnds);
 							}
 							//newEdges.add(cg.addEdge(from, newNode, e.getLabel(), e.getDepSet(), e.isSuccEdge()));
 							for(Edge outE : x.getOutgoingEdges()) {
@@ -2330,7 +2361,7 @@ public class RuleEngine {
 				// not able to satisfy at-most restriction
 				//FIXME: Check dependencySet ds
 				if(!ds.isEmpty()) {
-					if(!clashHandler(ds))
+					if(!clashHandler(ds, n))
 						isInconsistent(n);
 				}
 				else
@@ -2413,7 +2444,7 @@ public class RuleEngine {
 			//FIXME: check dependency set 
 			if(!ds.isEmpty() || !maxDs.isEmpty()) {
 				System.err.println("mxds "+ maxDs.getMax());
-				if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs))))
+				if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs)), n))
 					isInconsistent(n);
 			}
 			else
@@ -2478,7 +2509,7 @@ public class RuleEngine {
 						}
 						for(int l = 0; l < node2.size(); l++) {
 							processForAll(node2.get(l));
-							processAtMost(node2.get(l));
+						//	processAtMost(node2.get(l));
 						}
 					}
 					if(otherNodes.size() <= cardinality)
@@ -2490,7 +2521,7 @@ public class RuleEngine {
 				// not able to satisfy at-most restriction
 				//FIXME: Check dependencySet ds
 				if(!ds.isEmpty()) {
-					if(!clashHandler(ds))
+					if(!clashHandler(ds, n))
 						isInconsistent(n);
 				}
 				else
@@ -2690,7 +2721,7 @@ public class RuleEngine {
 						updateConceptDepSet(nom, ds, ci);
 						processForAll(from);
 						processForAll(nom);
-						processAtMost(from);
+					//	processAtMost(from);
 						processAtMost(nom);
 						applyTransitiveRule(from, nom, e.getLabel(), ds);
 						
@@ -2705,7 +2736,7 @@ public class RuleEngine {
 						//e = this.cg.addEdge(from, to, role, ds);
 						this.cg.addConceptToNode(to, cnds);
 						processForAll(from);
-						processAtMost(from);
+					//	processAtMost(from);
 						absorbNominal(ci, to, ds);
 						applyTransitiveRule(from, to, e.getLabel(), ds);
 						
@@ -2722,7 +2753,7 @@ public class RuleEngine {
 					//e = this.cg.addEdge(from, to, role, ds);
 					this.cg.addConceptToNode(to, cnds);
 					processForAll(from);
-					processAtMost(from);
+					//processAtMost(from);
 					if(filler instanceof OWLClass ) { 
 						to.addSimpleLabel(filler);
 						absorbRule1(filler, to, ds);
@@ -2771,7 +2802,7 @@ public class RuleEngine {
 				updateConceptDepSet(nom, ds, ci);
 				processForAll(from);
 				processForAll(nom);
-				processAtMost(from);
+				//processAtMost(from);
 				processAtMost(nom);
 				applyTransitiveRule(from, nom, e.getLabel(), ds);
 			}
@@ -2786,7 +2817,7 @@ public class RuleEngine {
 				this.cg.addConceptToNode(to, cnds);
 				
 				processForAll(from);
-				processAtMost(from);
+			//	processAtMost(from);
 				absorbNominal(ci, to, ds);
 				applyTransitiveRule(from, to, e.getLabel(), ds);
 			}
@@ -2816,7 +2847,9 @@ public class RuleEngine {
 							else {
 								DependencySet clashSet = getClashSet(to, fa, fa.getComplementNNF());
 								if(!clashSet.isEmpty()) {
-									if(!clashHandler(clashSet))
+									clashSet.setCe(fa);
+									clashSet.setCeNNF(fa.getComplementNNF());
+									if(!clashHandler(clashSet, to))
 										isInconsistent(to);
 								}
 								else
@@ -2937,7 +2970,7 @@ public class RuleEngine {
 			//FIXME: check dependency set 
 			DependencySet clashSet = DependencySet.plus(DependencySet.create(ds), maxDs);
 			if(!clashSet.isEmpty()) {
-				if(!clashHandler(clashSet))
+				if(!clashHandler(clashSet, n))
 					isInconsistent(n);
 			}
 			else
@@ -3001,7 +3034,7 @@ public class RuleEngine {
 				}
 				for(int l = 0; l < niNodes.size(); l++) {
 					processForAll(niNodes.get(l));
-					processAtMost(niNodes.get(l));
+				//	processAtMost(niNodes.get(l));
 				}
 			}
 		}
@@ -3020,14 +3053,18 @@ public class RuleEngine {
 			//System.out.println("outgoing edges: "+ from.getOutgoingEdges().size());
 			//System.out.println("incoming edges: "+ from.getIncomingEdges().size());
 			Set<Edge> edges = this.cg.getEdge(from, role);
-			Set<Edge> newEdges = new HashSet<>();
+		//	Set<Edge> newEdges = new HashSet<>();
 			if(edges.size()!=0) {
 				boolean hasNominal = this.hasNominal(filler);
 				for(Edge e : edges) {
 					Node n = e.getToNode();
 					int nodeCard = n.getCardinality();
+					/// FIXME : reset in case of nominal propagation 
 					if(hasNominal && nodeCard > 1) {
-						List<Node> newNodes = new ArrayList<>();
+						reset(n);
+						this.splitNode(n);
+						return;
+					/*	List<Node> newNodes = new ArrayList<>();
 						for(int i = 0; i < nodeCard-1; i++) {
 							Node newNode = cg.addNode(NodeType.BLOCKABLE, ds);
 						//	this.absorbRule1(df.getOWLThing(), newNode, ds);
@@ -3053,12 +3090,12 @@ public class RuleEngine {
 							}
 						}
 						
-						cg.updateNodeCardinality(n, 1);
+						cg.updateNodeCardinality(n, 1);*/
 					}
 				}
 			}
 			
-			edges.addAll(newEdges);
+		//	edges.addAll(newEdges);
 			if(edges.size()!=0) {
 			for(Edge e : edges) {
 				Node n = e.getToNode();
@@ -3101,7 +3138,9 @@ public class RuleEngine {
 							else {
 								DependencySet clashSet = getClashSet(n, filler, filler.getComplementNNF());
 								if(!clashSet.isEmpty()) {
-									if(!clashHandler(clashSet))
+									clashSet.setCe(filler);
+									clashSet.setCeNNF(filler.getComplementNNF());
+									if(!clashHandler(clashSet, n))
 										isInconsistent(n);
 								}
 								else
@@ -3144,7 +3183,9 @@ public class RuleEngine {
 							else {
 								DependencySet clashSet = getClashSet(n, filler, filler.getComplementNNF());
 								if(!clashSet.isEmpty()) {
-									if(!clashHandler(clashSet))
+									clashSet.setCe(filler);
+									clashSet.setCeNNF(filler.getComplementNNF());
+									if(!clashHandler(clashSet, n))
 										isInconsistent(n);
 								}
 								else
@@ -3154,6 +3195,11 @@ public class RuleEngine {
 						}
 					}
 					if(!flag) {
+						//// 25-Oct-2019
+						if(e.isPredEdge()) {
+							n.addBackPropagatedLabel(filler);
+						}
+						////
 						DependencySet depSet =  updateDepSetForAll(e, ds);
 						ConceptNDepSet cnds = new ConceptNDepSet(filler, depSet);
 						this.cg.addConceptToNode(n, cnds);
@@ -3173,7 +3219,9 @@ public class RuleEngine {
 							//System.out.println("clash "+ filler.getComplementNNF() + ""+ n.getnLabel().getCndList().getCdSet().stream().filter(cn -> cn.getCe().equals(filler.getComplementNNF())).iterator().next().getDs().getbpList());
 							DependencySet clashSet = getClashSet(n, filler, filler.getComplementNNF());
 							if(!clashSet.isEmpty()) {
-								if(!clashHandler(clashSet))
+								clashSet.setCe(filler);
+								clashSet.setCeNNF(filler.getComplementNNF());
+								if(!clashHandler(clashSet, n))
 									isInconsistent(n);
 							}
 							else
@@ -3193,7 +3241,7 @@ public class RuleEngine {
 		System.out.println("process at most"+ n.getId());
 		if(needToApplyAtMost(n)) {
 
-			System.err.println("mxds ");
+			//System.err.println("mxds ");
 		/*if(n.isNominalNode() && n.getLabel().stream().anyMatch(ce -> ce instanceof OWLObjectMaxCardinality) && n.getOutgoingEdges().stream().anyMatch(e -> e.isPredEdge())) {
 			if(isNIRuleApplicable(n))
 				this.applyNIRule(n);
@@ -3213,7 +3261,7 @@ public class RuleEngine {
 		System.out.println("process at most"+ n.getId());
 		if(needToApplyAtMost(n)) {
 
-			System.err.println("mxds ");
+			//System.err.println("mxds ");
 		/*if(n.isNominalNode() && n.getLabel().stream().anyMatch(ce -> ce instanceof OWLObjectMaxCardinality) && n.getOutgoingEdges().stream().anyMatch(e -> e.isPredEdge())) {
 			if(isNIRuleApplicable(n))
 				this.applyNIRule(n);
@@ -3276,7 +3324,7 @@ public class RuleEngine {
 					//FIXME: check dependency set 
 					if(!ds.isEmpty() || !maxDs.isEmpty()) {
 						System.err.println("mxds "+ maxDs.getMax() +" "+filler);
-						if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs))))
+						if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs)), n))
 							isInconsistent(n);
 					}
 					else
@@ -3342,7 +3390,7 @@ public class RuleEngine {
 				//FIXME: check dependency set 
 				if(!ds.isEmpty() || !maxDs.isEmpty()) {
 					System.err.println("mxds "+ maxDs.getMax() +" "+filler);
-					if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs))))
+					if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs)), n))
 						isInconsistent(n);
 				}
 				else
@@ -3384,7 +3432,7 @@ public class RuleEngine {
 					//FIXME: check dependency set 
 					if(!ds.isEmpty() || !maxDs.isEmpty()) {
 					//	System.err.println("mxds "+ maxDs.getMax() +" "+filler);
-						if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs))))
+						if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs)), n))
 							isInconsistent(n);
 					}
 					else
@@ -3428,7 +3476,7 @@ public class RuleEngine {
 				//FIXME: check dependency set 
 				if(!ds.isEmpty() || !maxDs.isEmpty()) {
 					//System.err.println("mxds "+ maxDs.getMax() +" "+filler);
-					if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs))))
+					if(!clashHandler(DependencySet.plus(DependencySet.create(ds), DependencySet.create(maxDs)), n))
 						isInconsistent(n);
 				}
 				else
@@ -3475,7 +3523,7 @@ public class RuleEngine {
 						if( mergeN != null) {
 							n = mergeN; // remaining conjuncts will be applied on merged node
 							processForAll(n);
-							processAtMost(n);
+							//processAtMost(n);
 						}
 						else
 							return;
@@ -3494,7 +3542,9 @@ public class RuleEngine {
 							else {
 								DependencySet clashSet = getClashSet(n, ce, ce.getComplementNNF());
 								if(!clashSet.isEmpty()) {
-									if(!clashHandler(clashSet))
+									clashSet.setCe(ce);
+									clashSet.setCeNNF(ce.getComplementNNF());
+									if(!clashHandler(clashSet, n))
 										isInconsistent(n);
 								}
 								else
@@ -3517,7 +3567,9 @@ public class RuleEngine {
 						else {
 							DependencySet clashSet = getClashSet(n, ce, ce.getComplementNNF());
 							if(!clashSet.isEmpty()) {
-								if(!clashHandler(clashSet))
+								clashSet.setCe(ce);
+								clashSet.setCeNNF(ce.getComplementNNF());
+								if(!clashHandler(clashSet, n))
 									isInconsistent(n);
 							}
 							else
@@ -3637,7 +3689,9 @@ public class RuleEngine {
 					else {
 						DependencySet clashSet = getClashSet(n, ce, ce.getComplementNNF());
 						if(!clashSet.isEmpty()) {
-							if(!clashHandler(clashSet))
+							clashSet.setCe(ce);
+							clashSet.setCeNNF(ce.getComplementNNF());
+							if(!clashHandler(clashSet, n))
 								isInconsistent(n);
 						}
 						else
@@ -3661,7 +3715,9 @@ public class RuleEngine {
 				else {
 					DependencySet clashSet = getClashSet(n, ce, ce.getComplementNNF());
 					if(!clashSet.isEmpty()) {
-						if(!clashHandler(clashSet))
+						clashSet.setCe(ce);
+						clashSet.setCeNNF(ce.getComplementNNF());
+						if(!clashHandler(clashSet, n))
 							isInconsistent(n);
 					}
 					else
@@ -3669,9 +3725,9 @@ public class RuleEngine {
 					return;
 				}
 			}
-			for(Edge e : n.getIncomingEdges()) {
+			/*for(Edge e : n.getIncomingEdges()) {
 				this.processAtMost(e.getFromNode());
-			}
+			}*/
 		}
 		}
 	}
@@ -3708,13 +3764,15 @@ public class RuleEngine {
 			else {
 				DependencySet clashSet = getClashSet(n, ce, ce.getComplementNNF());
 				if(!clashSet.isEmpty()) {
-					if(!clashHandler(clashSet))
+					clashSet.setCe(ce);
+					clashSet.setCeNNF(ce.getComplementNNF());
+					if(!clashHandler(clashSet, n))
 						isInconsistent(n);
 				}
 				else
 					isInconsistent(n);
 			}
-			processAtMost(n, ds);
+			//processAtMost(n, ds);
 			return null;
 		}
 		else {
@@ -3730,7 +3788,7 @@ public class RuleEngine {
 					
 					Node to = mergeNodes(n, nom, ci, ds);
 					processForAll(to);
-					processAtMost(to);
+					//processAtMost(to);
 					return to;
 			//	}
 			/*	else{
@@ -3752,7 +3810,7 @@ public class RuleEngine {
 		/// newcode 14 jul 2k19
 		if(from.getDisjointNodes().contains(to)) {
 			if(!depSet.isEmpty()) {
-				if(!clashHandler(depSet))
+				if(!clashHandler(depSet, to))
 					isInconsistent(to);
 			}
 			else
@@ -3811,7 +3869,7 @@ public class RuleEngine {
 		
 		if(from.getDisjointNodes().contains(to)) {
 			if(!depSet.isEmpty()) {
-				if(!clashHandler(depSet))
+				if(!clashHandler(depSet, to))
 					isInconsistent(to);
 			}
 			else
@@ -3873,7 +3931,9 @@ public class RuleEngine {
 						DependencySet clashSet = getClashSet(to, c, c.getComplementNNF());
 					//	System.out.println("clash set "+ clashSet.getbpList());
 						if(!clashSet.isEmpty()) {
-							if(!clashHandler(clashSet))
+							clashSet.setCe(c);
+							clashSet.setCeNNF(c.getComplementNNF());
+							if(!clashHandler(clashSet, to))
 								isInconsistent(to);
 						}
 						else
@@ -3910,7 +3970,9 @@ public class RuleEngine {
 					else {
 						DependencySet clashSet = getClashSet(to, c, c.getComplementNNF());
 						if(!clashSet.isEmpty()) {
-							if(!clashHandler(clashSet))
+							clashSet.setCe(c);
+							clashSet.setCeNNF(c.getComplementNNF());
+							if(!clashHandler(clashSet, to))
 								isInconsistent(to);
 						}
 						else
@@ -3939,7 +4001,7 @@ public class RuleEngine {
 		//}
 		
 	}
-	private boolean clashHandler(DependencySet clashSet) {
+	private boolean clashHandler(DependencySet clashSet, Node node) {
 		
 		System.out.println("Clash handler...");
 		
@@ -3995,7 +4057,96 @@ public class RuleEngine {
 			System.out.println("level" + level);
 			//System.out.println(cg.getTotalNodes());
 			//System.err.println(branches.get(level).getDs().getbpList());
-			if( branches.get(level).hasNextOption()) {
+			
+			//// added 25-oct-2019
+			if(branches.get(level).ILPBranching) {
+				Set<OWLSubClassOfAxiom> subAx = new HashSet<>();
+				Node n = branches.get(level).getNode();
+				//System.err.println("n: "+ n.getId()+ " node: "+node.getId());
+				if(!n.equals(node)) {
+					 Set<OWLClassExpression> relatedConcepts = branches.get(level).getRelatedConcepts(node);
+					// System.err.println("relatedConcepts: "+ relatedConcepts.size() +" node.getBackPropagatedLabel() "+ node.getBackPropagatedLabel());
+					 OWLClassExpression ce = clashSet.getCe();
+					 OWLClassExpression ceNNF = clashSet.getCeNNF();
+					 
+					 if(!node.getSimpleILPLabel().contains(ce) && node.getSimpleILPLabel().contains(ceNNF)) {
+						 for(OWLClassExpression bpl : node.getBackPropagatedLabel()) {
+							 if(bpl.equals(ce)) {
+								 for(OWLClassExpression rc : relatedConcepts) {
+									 subAx.add(df.getOWLSubClassOfAxiom(rc, bpl));
+								 }
+							 }
+							 else if(bpl instanceof OWLObjectUnionOf) {
+								 if(bpl.asDisjunctSet().contains(ce)) {
+									 for(OWLClassExpression rc : relatedConcepts) {
+										 subAx.add(df.getOWLSubClassOfAxiom(rc, bpl));
+									 }
+								 }
+									 
+							 }
+							 else if(bpl instanceof OWLObjectIntersectionOf) {
+								 if(bpl.asConjunctSet().contains(ce)) {
+									 for(OWLClassExpression rc : relatedConcepts) {
+										 subAx.add(df.getOWLSubClassOfAxiom(rc, bpl));
+									 }
+								 }
+							 }
+						 }
+					 }
+					 else if(!node.getSimpleILPLabel().contains(ceNNF) && node.getSimpleILPLabel().contains(ce)) {
+						 for(OWLClassExpression bpl : node.getBackPropagatedLabel()) {
+							 if(bpl.equals(ceNNF)) {
+								 for(OWLClassExpression rc : relatedConcepts) {
+									 subAx.add(df.getOWLSubClassOfAxiom(rc, bpl));
+								 }
+							 }
+							 else if(bpl instanceof OWLObjectUnionOf) {
+								 if(bpl.asDisjunctSet().contains(ceNNF)) {
+									 for(OWLClassExpression rc : relatedConcepts) {
+										 subAx.add(df.getOWLSubClassOfAxiom(rc, bpl));
+									 }
+								 }
+									 
+							 }
+							 else if(bpl instanceof OWLObjectIntersectionOf) {
+								 if(bpl.asConjunctSet().contains(ceNNF)) {
+									 for(OWLClassExpression rc : relatedConcepts) {
+										 subAx.add(df.getOWLSubClassOfAxiom(rc, bpl));
+									 }
+								 }
+							 }
+						 }
+					 }
+					 
+					 if(!subAx.isEmpty()){
+						 reset(n);
+						 subAx.addAll(branches.get(level).getSubsumption());
+						 this.callILP(n, branches.get(level).getAllEntries(), subAx, branches.get(level).outgoingEdges);
+					 }
+					 else {
+					 
+						// branches.get(level).reset2();
+							//branches.remove(level);
+						clashSet.removeLevel(level);
+						if(!clashHandler(clashSet, n))
+							return false;
+					 }
+					 
+				}
+				else {
+				//	branches.get(level).reset2();
+					//branches.remove(level);
+					clashSet.removeLevel(level);
+					if(!clashHandler(clashSet, n))
+						return false;
+				}
+			}
+			
+			
+			///
+			
+			else {
+			 if( branches.get(level).hasNextOption()) {
 				restore(level);
 				DependencySet newDS = DependencySet.create(clashSet);
 				//applyOr(cg.getCurrNode(), branches.get(level).getNextOption(), DependencySet.plus(newDS, branches.get(level).getDs()));
@@ -4035,12 +4186,14 @@ public class RuleEngine {
 				/// comment end 15 sep, 2019
 			}
 			else {
+				Node n = branches.get(level).getNode();
 				branches.get(level).reset();
 				//branches.remove(level);
 				clashSet.removeLevel(level);
-				if(!clashHandler(clashSet))
+				if(!clashHandler(clashSet, n))
 					return false;
 			}
+		 }
 		}
 		else {
 			return false;
@@ -4243,16 +4396,16 @@ public class RuleEngine {
 	
 	
 	public void absorbRule1(OWLClassExpression ce, Node n, DependencySet ds) {
-		System.out.println("applying absorbRule 1 : "+ ce +" nid "+n.getId());
-		System.out.println("concept ds : "+ ds.getMax());
+	//	System.out.println("applying absorbRule 1 : "+ ce +" nid "+n.getId());
+	//	System.out.println("concept ds : "+ ds.getMax());
 		Set<OWLClassExpression> sup = this.intl.findConcept(ce);
 		if(sup.size()!=0) {
 			for(OWLClassExpression c : sup) {
-				System.out.println(sup.size()+" absorb : "+ c);
+			//	System.out.println(sup.size()+" absorb : "+ c);
 				if(c.isOWLNothing()) {
 					DependencySet clashSet = getClashSet(n, ce, null);
 					if(!clashSet.isEmpty()) {
-						if(!clashHandler(clashSet))
+						if(!clashHandler(clashSet, n))
 							isInconsistent(n);
 					}
 					else
@@ -4299,7 +4452,9 @@ public class RuleEngine {
 							else {
 								DependencySet clashSet = getClashSet(n, c, c.getComplementNNF());
 								if(!clashSet.isEmpty()) {
-									if(!clashHandler(clashSet))
+									clashSet.setCe(c);
+									clashSet.setCeNNF(c.getComplementNNF());
+									if(!clashHandler(clashSet, n))
 										isInconsistent(n);
 								}
 								else
@@ -4337,7 +4492,9 @@ public class RuleEngine {
 						else {
 							DependencySet clashSet = getClashSet(n, c, c.getComplementNNF());
 							if(!clashSet.isEmpty()) {
-								if(!clashHandler(clashSet))
+								clashSet.setCe(c);
+								clashSet.setCeNNF(c.getComplementNNF());
+								if(!clashHandler(clashSet, n))
 									isInconsistent(n);
 							}
 							else
@@ -4373,7 +4530,7 @@ public class RuleEngine {
 				if(c.isOWLNothing()) {
 					DependencySet clashSet = getClashSet2(n, sb.getSubClass().asConjunctSet());
 					if(!clashSet.isEmpty()) {
-						if(!clashHandler(clashSet))
+						if(!clashHandler(clashSet, n))
 							isInconsistent(n);
 					}
 					else
@@ -4418,7 +4575,9 @@ public class RuleEngine {
 							else {
 								DependencySet clashSet = getClashSet(n, c, c.getComplementNNF());
 								if(!clashSet.isEmpty()) {
-									if(!clashHandler(clashSet))
+									clashSet.setCe(c);
+									clashSet.setCeNNF(c.getComplementNNF());
+									if(!clashHandler(clashSet, n))
 										isInconsistent(n);
 								}
 								else
@@ -4456,7 +4615,9 @@ public class RuleEngine {
 						else {
 							DependencySet clashSet = getClashSet(n, c, c.getComplementNNF());
 							if(!clashSet.isEmpty()) {
-								if(!clashHandler(clashSet))
+								clashSet.setCe(c);
+								clashSet.setCeNNF(c.getComplementNNF());
+								if(!clashHandler(clashSet, n))
 									isInconsistent(n);
 							}
 							else
@@ -4519,7 +4680,9 @@ public class RuleEngine {
 							else {
 								DependencySet clashSet = getClashSet(n, c, c.getComplementNNF());
 								if(!clashSet.isEmpty()) {
-									if(!clashHandler(clashSet))
+									clashSet.setCe(c);
+									clashSet.setCeNNF(c.getComplementNNF());
+									if(!clashHandler(clashSet, n))
 										isInconsistent(n);
 								}
 								else
@@ -4556,7 +4719,9 @@ public class RuleEngine {
 						else {
 							DependencySet clashSet = getClashSet(n, c, c.getComplementNNF());
 							if(!clashSet.isEmpty()) {
-								if(!clashHandler(clashSet))
+								clashSet.setCe(c);
+								clashSet.setCeNNF(c.getComplementNNF());
+								if(!clashHandler(clashSet, n))
 									isInconsistent(n);
 							}
 							else
@@ -4778,16 +4943,30 @@ public class RuleEngine {
 		private DependencySet ds;
 		private Node n;
 		private ConceptNDepSet cnds;
+		private Set<ToDoEntry> entries;
+		private boolean ILPBranching = false;
+		Set<Edge> outgoingEdges = new HashSet<>();
+		Set<OWLSubClassOfAxiom> subsumption = new HashSet<>();
 		protected BranchHandler(OWLObjectUnionOf objUn, ConceptNDepSet cnds, DependencySet ds , Node n) {
 			objUn.asDisjunctSet().stream().forEach(ce -> applicableOrEntries.add(ce));
-			size = applicableOrEntries.size();
-			branchIndex = 0;
+			this.size = applicableOrEntries.size();
+			this.branchIndex = 0;
 			this.objUn = objUn;
 			this.ds = DependencySet.create(ds);
 			this.n = n;
 			this.cnds = cnds;
 		}
-		
+		public Set<OWLSubClassOfAxiom> getSubsumption() {
+			return this.subsumption;
+		}
+		protected BranchHandler(Set<ToDoEntry> entries, DependencySet ds , Node n, Set<Edge> outgoingEdges, Set<OWLSubClassOfAxiom> subsumption) {
+			this.entries = entries;
+			this.ds = DependencySet.create(ds);
+			this.n = n;
+			this.ILPBranching = true;
+			this.outgoingEdges = outgoingEdges;
+			this.subsumption.addAll(subsumption);
+		}
 		protected ConceptNDepSet getCnds() {
 			return this.cnds;
 		}
@@ -4799,13 +4978,13 @@ public class RuleEngine {
 		}
 		protected List<OWLClassExpression> getAllNextOptions() {
 			List<OWLClassExpression> ce = new ArrayList<>();
-			for(int i = branchIndex; i< size; i++)
+			for(int i = branchIndex; i< this.size; i++)
 					ce.add(applicableOrEntries.get(i));
 			ce.removeAll(this.djTaken);
 			return ce;
 		}
 		protected OWLClassExpression getNextOption() {
-			if(size >= branchIndex + 1){
+			if(this.size >= branchIndex + 1){
 				
 			
 			OWLClassExpression ce = applicableOrEntries.get(branchIndex);
@@ -4838,7 +5017,7 @@ public class RuleEngine {
 			this.objUn.asDisjunctSet().stream().forEach(ce -> applicableOrEntries.add(ce));
 			
 		}
-
+		
 		public List<OWLClassExpression> getApplicableOrEntries() {
 			return applicableOrEntries;
 		}
@@ -4847,18 +5026,61 @@ public class RuleEngine {
 		public void setApplicableOrEntries(List<OWLClassExpression> applicableOrEntries) {
 			this.applicableOrEntries = applicableOrEntries;
 		}
+		public boolean isILPBranching(){
+			return this.ILPBranching;
+		}
+		public Set<ToDoEntry> getAllEntries(){
+			return this.entries;
+		}
+		public Set<OWLClassExpression> getRelatedConcepts(Node node){
+			Set<OWLClassExpression> relatedConcepts = new HashSet<>();
+			for(ToDoEntry entry : this.entries) {
+				if(entry.getType().equals(NodeTag.LE)) {
+					OWLObjectMinCardinality minCard = (OWLObjectMinCardinality) entry.getClassExpression();
+					OWLClassExpression filler = minCard.getFiller();
+					if(filler instanceof OWLClass || filler instanceof OWLObjectOneOf || filler instanceof OWLObjectComplementOf) {
+						if(node.getSimpleILPLabel().contains(filler))
+							relatedConcepts.add(filler);
+					}
+					else if(filler instanceof OWLObjectUnionOf) {
+						for(OWLClassExpression ce : filler.asDisjunctSet()) {
+							if(node.getSimpleILPLabel().contains(ce))
+								relatedConcepts.add(ce);
+						}
+					}
+					else if(filler instanceof OWLObjectIntersectionOf) {
+						for(OWLClassExpression ce : filler.asConjunctSet()) {
+							if(node.getSimpleILPLabel().contains(ce))
+								relatedConcepts.add(ce);
+						}
+					}
+				}
+				if(entry.getType().equals(NodeTag.EXISTS)) {
+					OWLObjectSomeValuesFrom someValue = (OWLObjectSomeValuesFrom) entry.getClassExpression();
+					OWLClassExpression filler = someValue.getFiller();
+					if(filler instanceof OWLClass || filler instanceof OWLObjectOneOf || filler instanceof OWLObjectComplementOf) {
+						if(node.getSimpleILPLabel().contains(filler))
+							relatedConcepts.add(filler);
+					}
+					else if(filler instanceof OWLObjectUnionOf) {
+						for(OWLClassExpression ce : filler.asDisjunctSet()) {
+							if(node.getSimpleILPLabel().contains(ce))
+								relatedConcepts.add(ce);
+						}
+					}
+					else if(filler instanceof OWLObjectIntersectionOf) {
+						for(OWLClassExpression ce : filler.asConjunctSet()) {
+							if(node.getSimpleILPLabel().contains(ce))
+								relatedConcepts.add(ce);
+						}
+					}
+					
+				}
+			}
+			return relatedConcepts;
+		}
 	}
 	
-	
-	    
-	    public enum AddConceptResult {
-	        /** acrClash */
-	        CLASH,
-	        /** acrExist */
-	        EXIST,
-	        /** acrDone */
-	        DONE
-	    }
 
 	    public void checkAboxConsistency(Set<OWLSubClassOfAxiom> aboxClassAss, OWLClassExpression tgAxiom) {
 			this.tgAxiom = tgAxiom;

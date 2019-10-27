@@ -709,6 +709,7 @@ public class CplexModelGenerator10 {
 							}
 						}
 						returnSolution.setInfeasible_set(infeasible_set);
+
 					}
 				}
 				else{
@@ -727,6 +728,19 @@ public class CplexModelGenerator10 {
 						infeasible_set.add(crMap.get(i));
 					}
 				}
+				//// 25-oct-2k19
+				/*
+				double[] infeas = rmpCplex.getInfeasibilities(Constraint);
+				double[] infeas2 = ppCplex.getInfeasibilities(b);
+				double[] infeas3 = ppCplex.getInfeasibilities(r);
+				System.err.println(infeas2.length);
+				for(int  i = 0; i < infeas.length; i++) {
+					System.err.println(infeas[i]);
+					if(infeas[i]!=0)
+					
+					System.err.println(qcrMap.get(Constraint[i]).qualifier);
+				}*/
+				////
 				rmpCplex.end();
 				ppCplex.end();
 				returnSolution.setSolved(false);

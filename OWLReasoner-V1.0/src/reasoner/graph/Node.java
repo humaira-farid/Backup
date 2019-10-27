@@ -20,6 +20,8 @@ public class Node implements Cloneable {
 	private NodeType nodeType;
 	private Set<OWLClassExpression> nodeLabel = new HashSet<OWLClassExpression>();
 	private Set<OWLClassExpression> simpleLabel = new HashSet<OWLClassExpression>();
+	private Set<OWLClassExpression> simpleILPLabel = new HashSet<OWLClassExpression>();
+	private Set<OWLClassExpression> backPropagatedLabel = new HashSet<OWLClassExpression>();
 	private Multimap<OWLObjectCardinalityRestriction, DependencySet> qLE = HashMultimap.create();
 	private final int id;
 	private int cardinality = 1;
@@ -127,9 +129,18 @@ public class Node implements Cloneable {
 	public int getId() {
     	return id;
     }
-	
-	
-
+	public void addSimpleILPLabel(OWLClassExpression ce) {
+		this.simpleILPLabel.add(ce);
+	}
+	public Set<OWLClassExpression> getSimpleILPLabel(){
+		return this.simpleILPLabel;
+	}
+	public void addBackPropagatedLabel(OWLClassExpression ce) {
+		this.backPropagatedLabel.add(ce);
+	}
+	public Set<OWLClassExpression> getBackPropagatedLabel(){
+		return this.backPropagatedLabel;
+	}
     public DependencySet getDs() {
 		return ds;
 	}
@@ -346,7 +357,7 @@ public class Node implements Cloneable {
 	        
 	    }
 	 private void restore(@Nullable NodeSaveState nss) {
-		 System.err.println(nss == null);
+		//System.err.println(nss == null);
 	        if (nss == null) {
 	            return;
 	        }

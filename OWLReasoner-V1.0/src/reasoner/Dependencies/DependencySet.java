@@ -7,8 +7,12 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
-public class DependencySet {
+import org.semanticweb.owlapi.model.OWLClassExpression;
 
+public class DependencySet {
+	
+	private OWLClassExpression ce = null;
+	private OWLClassExpression ceNNF = null;
 	private int branchPoint;
 	private Set<Integer> bpList = new HashSet<Integer>();
 	
@@ -113,5 +117,19 @@ public class DependencySet {
 		branchPoint = getMax();
 		
 	}
+	public OWLClassExpression getCe() {
+		return ce;
+	}
+	public void setCe(OWLClassExpression ce) {
+		this.ce = ce;
+	}
+	public OWLClassExpression getCeNNF() {
+		return ceNNF;
+	}
+	public void setCeNNF(OWLClassExpression ceNNF) {
+		this.ceNNF = ceNNF;
+	}
+	
+	
 	
 }

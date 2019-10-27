@@ -572,16 +572,20 @@ public class CompletionGraph implements Cloneable {
 		else 
 			blocker = findEqualityBlocker(n);
 		
-		if(blocker != null) {
+		if(config.isSHO()||config.isSHOI()||config.isSHOIQ()||config.isSHOQ()){
+			if(blocker != null) {
+		
 		//	System.err.println("blocker node "+blocker.getId() +" label: "+ blocker.getLabel());
 		//	System.err.println("blocked node "+n.getId() +" label: "+ n.getLabel());
 			if(!hasNominalInPath(blocker, n)) {
 				//System.err.println("blocker node "+blocker.getId() +" label: "+ blocker.getLabel());
 				return blocker;
 			}
+			else
+				return null;
+			}
 		}
-		return null;
-			
+			return blocker;
 		
 	}
 	public Node findPairwiseBlocker(Node n) {
@@ -785,17 +789,19 @@ public class CompletionGraph implements Cloneable {
 	        currNode = s.getCurrNode();
 	       // System.out.println(level + " restore graph curr node" + s.getCurrNode().getId());
 	        int nSaved = s.getsNodes();
-	       // System.out.println("total nodes: "+ totalNodes + " nsaved: "+ nSaved+ " saved nodes: "+ savedNodes.size());
+	        System.err.println("total nodes: "+ totalNodes + " nsaved: "+ nSaved+ " saved nodes: "+ savedNodes.size());
 	        if (totalNodes < Math.abs(savedNodes.size() - nSaved)) {
 	            // it's cheaper to restore all nodes
 	            nodeBase.stream().limit(totalNodes).forEach(p -> restoreNode(p, level));
 	        } else {
 	            for (int i = nSaved; i < savedNodes.size(); i++) {
 	            	if(savedNodes.get(i) != null) {
-	                if (savedNodes.get(i).getId() < totalNodes) {
+	            	//	System.err.println("Node id: "+ savedNodes.get(i).getId());
+	            		// commented on 22-oct-2019
+	             //   if (savedNodes.get(i).getId() < totalNodes) {
 	                    // don't restore nodes that are dead anyway
 	                    restoreNode(savedNodes.get(i), level);
-	               }
+	             //  }
 	            }
 	            }
 	        }
