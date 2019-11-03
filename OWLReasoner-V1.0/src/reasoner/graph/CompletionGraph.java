@@ -299,13 +299,17 @@ public class CompletionGraph implements Cloneable {
 		           if(!q.getToNode().equals(to)) { 
 		        	   if (q.isPredEdge()) {
 		                moveEdge2(to, q, q.isPredEdge(), DependencySet.plus(DependencySet.create(q.getDepSet()), DependencySet.create(ds)));
-		               getEdge(q.getToNode(), from).setReset(true);
-		                from.setReset(true);
+		                if(this.getEdge(q.getToNode(), from) != null){
+		        			   this.getEdge(q.getToNode(), from).setReset(true);
+		        		    }
+		               //  from.setReset(true);
 		            }
 		            else if (q.isSuccEdge() && q.getToNode().isNominalNode()) {
 		                moveEdge2(to, q, q.isPredEdge(), DependencySet.plus(DependencySet.create(q.getDepSet()), DependencySet.create(ds)));
-		                getEdge(q.getToNode(), from).setReset(true);
-		                from.setReset(true);
+		                if(this.getEdge(q.getToNode(), from) != null){
+		        			   this.getEdge(q.getToNode(), from).setReset(true);
+		        		   	}
+		               // from.setReset(true);
 		            }
 		            else if (q.isSuccEdge() && !q.getToNode().isNominalNode()) {
 		            		succEdges.add(q);
@@ -313,7 +317,7 @@ public class CompletionGraph implements Cloneable {
 		            }
 		           }
 				 }});
-		  
+		  from.setReset(true);
 		  /*from.getIncomingEdges().forEach(q -> {
 	            if (q.isSuccEdge()) {
 	            		moveEdge2(to, q, q.isPredEdge(), DependencySet.plus(DependencySet.create(q.getDepSet()), DependencySet.create(ds)));   
@@ -373,6 +377,7 @@ public class CompletionGraph implements Cloneable {
 			this.getEdge(n, from).setReset(true);
 		n.setReset(true);
 		n.getOutgoingEdges().forEach(q -> {
+			
 			if(q != null) {
 				if(!q.getToNode().equals(from)) { 
 		        	   if (q.isSuccEdge() && !q.getToNode().isNominalNode()) {
@@ -380,7 +385,9 @@ public class CompletionGraph implements Cloneable {
 		            }
 		        	   else if (q.isSuccEdge() && q.getToNode().isNominalNode()) {
 		        		   q.setReset(true);
-		        		   this.getEdge(q.getToNode(), n).setReset(true);
+		        		   if(this.getEdge(q.getToNode(), n) != null){
+		        			   this.getEdge(q.getToNode(), n).setReset(true);
+		        		   }
 			       }
 	            }
 	           }
@@ -419,7 +426,7 @@ public class CompletionGraph implements Cloneable {
 				e.addLabel(q.getLabel());
 				e.updateDepSet(ds);
 				Edge invE = getInvEdge(to, node);
-				if(invE != null)
+				if(invE != null && !q.equals(invE))
 					q.getLabel().stream().forEach(el -> invE.addLabel(el.getInverseProperty()));
 			}
 			q.setReset(true);
@@ -435,11 +442,12 @@ public class CompletionGraph implements Cloneable {
 				e.addLabel(q.getLabel());
 				e.updateDepSet(ds);
 				Edge invE = getInvEdge(nn, node);
-				if(invE != null)
+				if(invE != null && !q.equals(invE))
 					q.getLabel().stream().forEach(el -> invE.addLabel(el.getInverseProperty()));
 			}
 			q.setReset(true);
 		}
+		
 	}
 	
 	 /*private void moveEdge2(Node to, Edge q, boolean isPredEdge, DependencySet ds) {
@@ -610,12 +618,16 @@ public class CompletionGraph implements Cloneable {
 						for(Node x : xNodes) {
 							for(Node y : yNodes) {
 								if(x.getLabel().equals(y.getLabel())) {
-									if(getEdge(x,n).getLabel().equals(getEdge(y,p).getLabel())) {
+									Edge e1 = getEdge(x,n);
+									Edge e2 = getEdge(y,p);
+									if(e1!=null && e2!=null) {
+									if(e1.getLabel().equals(e2.getLabel())) {
 										x1 = x;
 										x2 = n;
 										y1 = y;
 										y2 = p;
 										return p;
+									}
 									}
 								}
 							}
@@ -763,7 +775,7 @@ public class CompletionGraph implements Cloneable {
 	        s.setnNodes(totalNodes);
 	        s.setsNodes(savedNodes.size());
 	        s.setnEdges(ctEdgeHeap.size());
-	        System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+ savedNodes.size());
+	        System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+ savedNodes.size()+" totalNodes: "+ totalNodes);
 
 	        s.setCurrNode(currNode);
 	        saveMap.put(branchingLevel, s);
@@ -836,16 +848,23 @@ public class CompletionGraph implements Cloneable {
 	
 	public Node findNominalNode(OWLClassExpression ce) {
 		Node n = null; 
+		Set<Node> nodes = new HashSet<>();
 		if(nodeBase.stream().anyMatch(node -> node.getLabel().contains(ce))) {
-
-			n = nodeBase.stream().filter(node -> node.getLabel().contains(ce)).iterator().next();
+			nodeBase.stream().filter(node -> node.getLabel().contains(ce)).forEach(node -> {
+					if(node !=null && !node.isReset()) 
+						nodes.add(node);
+					});
+			//n = nodeBase.stream().filter(node -> node.getLabel().contains(ce)).iterator().next();
 			//System.err.println("node id : "+n.getId() + "expression: "+ce);
 		}
-		if(n!=null) {
+		/*if(n!=null) {
 			if(!n.isReset()) 
 				return n;
 			else
 				return null;
+		}*/
+		if(nodes.size()==1) {
+			return nodes.iterator().next();
 		}
 		return null;
 	}

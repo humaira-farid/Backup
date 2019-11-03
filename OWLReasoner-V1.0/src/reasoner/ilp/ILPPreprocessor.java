@@ -126,7 +126,7 @@ public class ILPPreprocessor {
 		createMaps();
 	}
 
-	public ILPPreprocessor(Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges, Set<OWLSubClassOfAxiom> subsumption) {
+	public ILPPreprocessor(Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges, Set<OWLSubClassOfAxiom> subsumption, Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap2) {
 		counter = 0;
 		this.df = df;
 		this.currNode = n;
@@ -135,7 +135,7 @@ public class ILPPreprocessor {
 		this.ontology = intl.getOntology();
 		this.base = this.prefixManager.getDefaultPrefix();
 		//this.superRoles = ontology.getSuperRoles();
-		this.superRolesMap = ontology.getSuperRolesMap();
+		this.superRolesMap = superRolesMap2;
 		this.learnedSubsumption = subsumption;
 		for(ToDoEntry entry : entries)
 			processEntry(entry);
@@ -542,12 +542,19 @@ public class ILPPreprocessor {
 			else if(filler instanceof OWLObjectIntersectionOf) {
 				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
 				auxiliaryConcepts.add(qualifier);
+				//boolean isNI = false;
 				for(OWLClassExpression cj : filler.asConjunctSet()) {
+					/*if(cj.toString().contains("#ni_"))
+						isNI = true;*/
 					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj));
 					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
 					conceptDs.put(cj, ds);
 				}
 				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
+				/*if(isNI)
+					cr = df.getOWLObjectExactCardinality(1, role, qualifier);
+				else
+					cr = df.getOWLObjectMinCardinality(1, role, qualifier);*/
 				this.cardRes.add(cr);
 				cardResDs.put(cr, ds);
 				roles.add(role);
@@ -943,7 +950,7 @@ public class ILPPreprocessor {
 				
 				// process forAll restrictions 
 				//System.out.println("forAll pre "+getForAllRes().size());
-
+		System.err.println("roles  "+roles);
 		Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> tempSuperRolesMap = new HashMap<>(superRolesMap);
 		tempSuperRolesMap.putAll(auxRoleHMap);
 				int k=1;
@@ -956,9 +963,9 @@ public class ILPPreprocessor {
 							OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#H"+k));// create Helper Role
 							tempRoleH.put(role, rh);
 							k++;
-							//System.out.println("1) role "+ role +"H role : "+rh);
+							System.out.println("1) role "+ role +"H role : "+rh);
 							//addForAll = true;
-							
+							System.out.println("tempSuperRolesMap.keySet() "+ tempSuperRolesMap.keySet());
 							for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
 								if(roles.contains(r)) {
 									if(tempSuperRolesMap.get(r).contains(role)) {
@@ -966,7 +973,7 @@ public class ILPPreprocessor {
 											OWLObjectPropertyExpression rh1 = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
 											tempRoleH.put(r, rh1);
 											k++;
-											//System.out.println("2) role "+ r +"H role : "+rh1);
+											System.out.println("2) role "+ r +"H role : "+rh1);
 											
 										}
 				

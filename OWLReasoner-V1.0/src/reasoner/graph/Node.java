@@ -276,7 +276,7 @@ public class Node implements Cloneable {
 	}
 	
 	public boolean isBlockableNode() {
-		return this.nodeType != NodeType.NOMINAL;
+		return this.nodeType != NodeType.NOMINAL && !this.nomIntro;
 	}
 	
 	public boolean isNominalNode() {

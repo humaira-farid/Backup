@@ -436,7 +436,7 @@ public class CplexModelGenerator10 {
 							cost += cost-1;
 						}*/
 							
-						//System.out.println("cost " + cost + " square "+cost*cost);
+					//	System.err.println("cost " + cost + " square "+cost*cost);
 						IloColumn column = rmpCplex.column(obj, cost*cost);//Creates and returns a column from the specified objective and value.
 						for ( int i = 0; i < totalVar; i++ )
 							column = column.and(rmpCplex.column(Constraint[i], newCol[i]));//Creates and returns a column from the specified range and value.
@@ -723,11 +723,30 @@ public class CplexModelGenerator10 {
 			}
 			else{
 				Set<OWLObjectCardinalityRestriction> infeasible_set  = new HashSet<>();
+				List<Integer> remove = new  ArrayList<>();
 				for(int i = 0; i < totalVar; i++){
 					if(rmpCplex.getValue(h.getElement(i)) > 0.1){
 						infeasible_set.add(crMap.get(i));
+						///
+						remove.add(i);
 					}
 				}
+				for(int i = 0; i < remove.size(); i++){
+					// if it is back edge inequality
+					if(ilpPro.getNodeIdMap().containsKey(crMap.get(remove.get(i)).getFiller())) {
+						rmpCplex.remove(Constraint[remove.get(i)]);
+						if(rmpCplex.solve()) {
+							return runILPAgain(crMap.get(remove.get(i)));
+							
+						}
+					}
+					
+					
+				}
+			//	System.err.println("solved? "+ rmpCplex.solve() + rmpCplex.getObjValue() );
+				
+				////
+				
 				//// 25-oct-2k19
 				/*
 				double[] infeas = rmpCplex.getInfeasibilities(Constraint);
@@ -749,6 +768,11 @@ public class CplexModelGenerator10 {
 			}
 		}
 	
+	private ILPSolution runILPAgain(OWLObjectCardinalityRestriction owlObjectCardinalityRestriction) throws IloException {
+		System.out.println(conceptSubsumersMap.remove(owlObjectCardinalityRestriction.getFiller()));
+		return this.solve();
+	}
+
 	/**
 	 * @param rmpModel
 	 * @param ppModel
