@@ -53,7 +53,7 @@ public class Ontology {
     Set<Set<OWLClassExpression>> disjointGroups = new HashSet<>();
     Set<Set<OWLClassExpression>> disjointNomGroups = new HashSet<>();
     SetMultimap<OWLClassExpression, OWLClassExpression> diffIndividuals = HashMultimap.create();
-
+    Set<OWLObjectPropertyExpression> symmRoles = new HashSet<>();
 	public Ontology(Set<OWLSubClassOfAxiom> subAx, 
 			Set<OWLEquivalentClassesAxiom> eqAx,
 			Set<OWLObjectPropertyDomainAxiom> objdAx, 
@@ -68,7 +68,7 @@ public class Ontology {
 			Set<OWLSubClassOfAxiom> aboxObjProAss, 
 			Set<OWLSubObjectPropertyOfAxiom> subObjProAx, 
 			Set<OWLInverseObjectPropertiesAxiom> invObjProAx, 
-			Set<OWLSubClassOfAxiom> tu, Set<OWLSubClassOfAxiom> tui) {
+			Set<OWLSubClassOfAxiom> tu, Set<OWLSubClassOfAxiom> tui, Set<OWLObjectPropertyExpression> symmRoles) {
 		this.subAx = subAx;
 		this.Eq = eqAx;
 		this.objdAx = objdAx;
@@ -87,6 +87,7 @@ public class Ontology {
 		this.invObjProAx = invObjProAx;
 		this.Tu = tu;
 		this.Tui = tui;
+		this.symmRoles = symmRoles;
 		createSuperRolesMap();
 		createMaps();
 	}
@@ -247,6 +248,10 @@ public class Ontology {
 	private void createSuperRolesMap() {
 		for(OWLSubObjectPropertyOfAxiom obj : getSubObjProAx()) {
 			superRoles.put(obj.getSubProperty(), obj.getSuperProperty());
+		}
+		for(OWLObjectPropertyExpression sr : symmRoles) {
+			superRoles.put(sr, sr.getInverseProperty());
+			superRoles.put(sr.getInverseProperty(), sr);
 		}
 		this.superRolesMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) superRoles.asMap();
 		
@@ -688,5 +693,6 @@ public class Ontology {
 	public Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> getSuperRolesMap() {
 		return superRolesMap;
 	}
+	
 	
 }
