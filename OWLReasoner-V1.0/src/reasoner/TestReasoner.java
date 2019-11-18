@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collector;
@@ -30,24 +31,39 @@ public class TestReasoner{
 	DefaultPrefixManager prefixManager = new DefaultPrefixManager();
 	Ontology ontology;
 	Configuration config;
-	// public TestReasoner(File file) {
-	public TestReasoner() {
-		 man = OWLManager.createOWLOntologyManager();
-		// File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/newtests/ILP-Clash-con.owl");
-		 File file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/proxy-nodes-1.fowl.owl");
+	public TestReasoner(String fileName) {
+		File file = null;
+		if (fileName == null || fileName.isEmpty()) {
+		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/newtests/00001.fowl.owl");
+		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/p_53c.fowl.owl");
+			// file = new File("/Users/temp/Documents/PhD/PhD
+			// Research/OWL-API/00325.fowl.owl");
+		} else {
+			file = new File(fileName);
+		}
+		
+		man = OWLManager.createOWLOntologyManager();
+
 		 try {
 			ont = man.loadOntologyFromOntologyDocument(file);
 		} catch (OWLOntologyCreationException e) {
 			e.printStackTrace();
 		}
+		 try {
 		prefixManager.setDefaultPrefix(((IRI)ont.getOntologyID().getOntologyIRI().get()).toString());
+		 }catch (NoSuchElementException e) {
+			 prefixManager.setDefaultPrefix("");
+			}
 		df = man.getOWLDataFactory();
+		//System.out.println("getDefaultPrefix " +df.getOWLThing().getComplementNNF());
+		
 	    reasonerFactory = new ReasonerFactory();
 		todo = new ToDoList();
 		intr = new Internalization(df);
 		intr.setPrefixManager(prefixManager);
 		reasoner = reasonerFactory.createReasoner(ont);
 	    config = this.reasoner.getConfiguration();
+	    intr.setSymmetricRoles(getSymmetricRoles());
 	    ontology =  intr.internalize(ont);
 		re = new RuleEngine(intr, todo, df, config);
 	}
@@ -61,9 +77,7 @@ public class TestReasoner{
 	     checkExpressivity();
 	     
 	     
-	     Set<OWLObjectPropertyExpression> trans = getTransitiveRoles();
-	      
-	     
+	    
 	     OWLClassExpression tgAxiom = intr.getTgAxiom();
 	 //    for (OWLSubClassOfAxiom sbg : intr.getTg()) 
 	   //  	 	System.out.println("TG: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
@@ -75,14 +89,21 @@ public class TestReasoner{
 //	 	  for (OWLSubClassOfAxiom sbg : intr.getTu()) 
 //	 	   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	     	 	
-	 	  // System.out.println( tgAxiom);
-	 	   re.setTransitiveRoles(trans);
+	 	//   System.out.println( tgAxiom);
+	 	   re.setTransitiveRoles(getTransitiveRoles());
+	 	   if(!getFunctionalRoles().isEmpty()) {
+	 		   intr.addFunctionalRoleAxiom(getFunctionalRoles());
+	 	   }
+	 	  if(!getInverseFunctionalRoles().isEmpty()) {
+	 		   intr.addInverseFunctionalRoleAxiom(getInverseFunctionalRoles());
+	 	   }
+	 	 
 	   if(tgAxiom !=null) {
 	    		re.checkConsistency(tgAxiom);
-		 	re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
+		 	re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom,false);
 	    }
 	    else {
-	    		re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
+	    		re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom,false);
 	    }
 	    needAboxCheckAgain(tgAxiom);
 	    System.out.println("Ontology is Consistent");
@@ -91,7 +112,7 @@ public class TestReasoner{
 	}
 	public void needAboxCheckAgain( OWLClassExpression tgAxiom) {
 		if(re.indLeft(intr.getAboxClassAss())) {
-			re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom);
+			re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom, true);
 			needAboxCheckAgain(tgAxiom);
 		}
 		else
@@ -103,6 +124,24 @@ public class TestReasoner{
 		for(OWLAxiom axiom : ont.axioms().filter(ax -> ax instanceof OWLTransitiveObjectPropertyAxiom).collect(Collectors.toSet()))
 			trans.add(((OWLTransitiveObjectPropertyAxiom)axiom).getProperty());
 		return trans;
+	}
+	private Set<OWLObjectPropertyExpression> getSymmetricRoles() {
+		Set<OWLObjectPropertyExpression> symm = new HashSet<>();
+		for(OWLAxiom axiom : ont.axioms().filter(ax -> ax instanceof OWLSymmetricObjectPropertyAxiom).collect(Collectors.toSet()))
+			symm.add(((OWLSymmetricObjectPropertyAxiom)axiom).getProperty());
+		return symm;
+	}
+	private Set<OWLObjectPropertyExpression> getFunctionalRoles() {
+		Set<OWLObjectPropertyExpression> func = new HashSet<>();
+		for(OWLAxiom axiom : ont.axioms().filter(ax -> ax instanceof OWLFunctionalObjectPropertyAxiom).collect(Collectors.toSet()))
+			func.add(((OWLFunctionalObjectPropertyAxiom)axiom).getProperty());
+		return func;
+	}
+	private Set<OWLObjectPropertyExpression> getInverseFunctionalRoles() {
+		Set<OWLObjectPropertyExpression> invFunc = new HashSet<>();
+		for(OWLAxiom axiom : ont.axioms().filter(ax -> ax instanceof OWLInverseFunctionalObjectPropertyAxiom).collect(Collectors.toSet()))
+			invFunc.add(((OWLInverseFunctionalObjectPropertyAxiom)axiom).getProperty());
+		return invFunc;
 	}
 	public Ontology getOntology() {
 		return ontology;
@@ -124,7 +163,7 @@ public class TestReasoner{
 			System.err.println("Reasoner cannot Proccess your Ontology. It contains Cardinatilty Restriction.");
 			System.exit(0);
 		}*/
-		if(ont.axioms().anyMatch(ax -> ax instanceof OWLFunctionalObjectPropertyAxiom)) {
+		if(ont.axioms().anyMatch(ax -> ax instanceof OWLReflexiveObjectPropertyAxiom) || ont.axioms().anyMatch(ax -> ax instanceof OWLIrreflexiveObjectPropertyAxiom) || ont.axioms().anyMatch(ax -> ax instanceof OWLAsymmetricObjectPropertyAxiom)) {
 			System.err.println("Reasoner cannot Proccess your Ontology. It contains unhandled object property axioms.");
 			getExecutionTime();
 			System.exit(0);

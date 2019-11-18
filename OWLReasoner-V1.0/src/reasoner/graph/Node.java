@@ -193,11 +193,27 @@ public class Node implements Cloneable {
     }
    
     public List<Edge> getIncomingEdges(){
-    	 return this.incomingEdge;
+    	 
+		List<Edge> e2 = new ArrayList<Edge>();
+		for (Edge e : this.incomingEdge) {
+			if (e != null)
+				e2.add(e);
+		}
+		this.incomingEdge = e2;
+		return e2;    	
+		//return this.incomingEdge.stream().filter(e -> e!=null ).collect(Collectors.toList());
     }
     public List<Edge> getOutgoingEdges(){
-    		return this.outgoingEdge;
-   	 	//return this.outgoingEdge.stream().filter(e -> !e.isReset()).collect(Collectors.toList());
+    		List<Edge> e2 = new ArrayList<Edge>();
+    	//	System.out.println("size "+this.outgoingEdge.size());
+    		for (Edge e : this.outgoingEdge) {
+    		//	System.out.println(e);
+    			if (e != null)
+    				e2.add(e);
+    		}
+    		this.outgoingEdge = e2;
+    		return e2;
+   	 	//return this.outgoingEdge.stream().filter(e -> e!=null ).collect(Collectors.toList());
    }
     
     public boolean hasEdge(Node from, Node to) {
@@ -303,6 +319,7 @@ public class Node implements Cloneable {
      * @return check if node needs to be saved
      */
     public boolean needSave(int newLevel) {
+  //  	System.err.println("need save? cur level: "+ curLevel + " new level: " + newLevel + "   " + (curLevel < newLevel));
         return curLevel < newLevel;
     }
 
@@ -312,11 +329,19 @@ public class Node implements Cloneable {
      * @param level
      *        level
      */
+    /*public void save(int level) {
+    		NodeSaveState node = new NodeSaveState();
+    		saves.push(node);
+        save(node);
+         // System.out.println("node: node "+ this.getId() + " currlevel " + curLevel);
+        curLevel = level;
+       // System.err.println(" changed to " + curLevel);
+    }*/
     public void save(int level) {
     	NodeSaveState node = new NodeSaveState();
 //      saves.push(node);
     	// 5 mar
-    	saves.push(node);
+//    	saves.push(node);
     	//
         save(node);
         saveMap.put(level-1, node);
@@ -331,7 +356,7 @@ public class Node implements Cloneable {
      * @return check if node needs to be restored
      */
     public boolean needRestore(int restLevel) {
-    	System.out.println("n id"+ this.getId()+" need restore? curr level: "+ curLevel + " restore level "+ restLevel);
+    //	System.out.println("n id "+ this.getId()+" need restore? curr level: "+ curLevel + " restore level "+ restLevel);
         return curLevel > restLevel;
     }
 
@@ -339,15 +364,22 @@ public class Node implements Cloneable {
      * @param level
      *        level number restore node to given level
      */
+    /*public void restore(int level) {
+        
+    		System.err.println("Node restore level "+ level);
+     	restore(saves.pop(level));
+     }*/
     public void restore(int level) {
        // restore(saves.pop(level));
     	/// 5 mar
    // 	restore(saves.pop(level));
+  // 	System.err.println("Node restore level "+ level);
     		restore(saveMap.get(level));
     		///
     }
 	
 	 private void save(NodeSaveState nss) {
+		//    System.out.println("saving nss level: " + curLevel);
 	        nss.setCurLevel(curLevel);
 	        nss.setCardinality(cardinality);
 	        nss.setnNeighbours(neighbour.size());
@@ -356,20 +388,40 @@ public class Node implements Cloneable {
 	        nLabel.save(nss.getLab());
 	        
 	    }
+/*	 private void restore(@Nullable NodeSaveState nss) {
+		 System.err.println("before restore node "+ this.getId() +" edges " +outgoingEdge.size());
+		    
+		 if (nss == null) {
+	            return;
+	        }
+		 System.out.println("restore node: currlevel "+ curLevel +" restore level"+ nss.getCurLevel()); 
+	       
+	        // level restore
+	        curLevel = nss.getCurLevel();
+	        cardinality = nss.getCardinality();
+	        // label restore
+	        nLabel.restore(nss.getLab(), curLevel);
+	        
+	        resize(neighbour, nss.getnNeighbours(), null);
+	        resize(outgoingEdge, nss.getnOutgoingEdges(), null);
+	        resize(incomingEdge, nss.getnIncomingEdges(), null);
+	       
+	    }*/
 	 private void restore(@Nullable NodeSaveState nss) {
-		//System.err.println(nss == null);
+	//	System.err.println("nss is null "+ (nss == null));
 	        if (nss == null) {
 	            return;
 	        }
 	       
 	        // level restore
 	        curLevel = nss.getCurLevel();
+	       
 	        cardinality = nss.getCardinality();
-	      //  System.out.println("restore node: currlevel "+ curLevel +" restore level"+ nss.getCurLevel()); 
+	       // System.out.println("restore node: currlevel "+ curLevel +" restore level"+ nss.getCurLevel()); 
 	        // label restore
 	      
 	        /// 5 mar 19
-	    //    nLabel.restore(nss.getLab(), curLevel);
+	    //   nLabel.restore(nss.getLab(), curLevel);
 	        nLabel.restore(nss.getLab(), nss.getCurLevel());
 	        ///
 	        //nLabel.restore(nss.getLab(), curLevel);
@@ -380,23 +432,38 @@ public class Node implements Cloneable {
 	        resize(outgoingEdge, nss.getnOutgoingEdges(), null);
 	        resize(incomingEdge, nss.getnIncomingEdges(), null);
 	        
-	       
+	   //     System.err.println("after restore node "+ this.getId() +" edges " +outgoingEdge.size());
+	 	   
 	       
 	        //} else {
-	          //  for (int j = neighbour.size() - 1; j >= 0; --j) {
-	            //    if (neighbour.get(j).getArcEnd().curLevel <= curLevel) {
-	              //      Helper.resize(neighbour, j + 1, null);
-	                //    break;
-	               // }
-	           // }
+	            /*for (int j = neighbour.size() - 1; j >= 0; --j) {
+	                if (neighbour.get(j).getToNode().curLevel <= curLevel) {
+	                    Helper.resize(neighbour, j + 1, null);
+	                    break;
+	                }
+	            }
+	            for (int j = outgoingEdge.size() - 1; j >= 0; --j) {
+	                if (outgoingEdge.get(j).getToNode().curLevel <= curLevel) {
+	                    Helper.resize(outgoingEdge, j + 1, null);
+	                    break;
+	                }
+	            }
+	            for (int j = incomingEdge.size() - 1; j >= 0; --j) {
+	                if (incomingEdge.get(j).getToNode().curLevel <= curLevel) {
+	                    Helper.resize(incomingEdge, j + 1, null);
+	                    break;
+	                }
+	            }*/
 	      //  }
 	        // it's cheaper to dirty affected flag than to consistently save nodes
 	      //  affected = true;
 	        
 	    }
+	 
 	public void removeLabel(){
 		 nLabel.removeLabel();
 	 }
+	 
 	 
 	 public void remove() {
 		 this.neighbour.clear();

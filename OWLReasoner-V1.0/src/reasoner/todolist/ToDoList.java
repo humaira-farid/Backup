@@ -148,10 +148,21 @@ public class ToDoList {
        saveMap.put(level, state);
        // saveStack.push(state, level);
     }
+   /* public void save(int level) {
+    	TDLSaveState state = new TDLSaveState();
+        saveState(state);
+        saveStack.push(state);
+    //   saveMap.put(level, state);
+       // saveStack.push(state, level);
+    }*/
     
     /**
      * restore state to the given level using internal stack
      */
+    /*public void restore(int level) {
+        restoreState(saveStack.pop(level));
+    }*/
+    
     public void restore(int level) {
     		//restoreState(saveStack.pop(level));
     		restoreState(saveMap.get(level));

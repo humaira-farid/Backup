@@ -733,9 +733,13 @@ public class CplexModelGenerator10 {
 				}
 				for(int i = 0; i < remove.size(); i++){
 					// if it is back edge inequality
+					if(remove.get(i)==null || crMap.get(remove.get(i)) == null) continue;
 					if(ilpPro.getNodeIdMap().containsKey(crMap.get(remove.get(i)).getFiller())) {
 						rmpCplex.remove(Constraint[remove.get(i)]);
 						if(rmpCplex.solve()) {
+							rmpCplex.end();
+							ppCplex.end();
+							if(conceptSubsumersMap.get(crMap.get(remove.get(i))) == null) continue;
 							return runILPAgain(crMap.get(remove.get(i)));
 							
 						}
@@ -769,6 +773,7 @@ public class CplexModelGenerator10 {
 		}
 	
 	private ILPSolution runILPAgain(OWLObjectCardinalityRestriction owlObjectCardinalityRestriction) throws IloException {
+		
 		System.out.println(conceptSubsumersMap.remove(owlObjectCardinalityRestriction.getFiller()));
 		return this.solve();
 	}

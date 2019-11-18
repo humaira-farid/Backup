@@ -950,7 +950,7 @@ public class ILPPreprocessor {
 				
 				// process forAll restrictions 
 				//System.out.println("forAll pre "+getForAllRes().size());
-		System.err.println("roles  "+roles);
+	//	System.err.println("roles  "+roles);
 		Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> tempSuperRolesMap = new HashMap<>(superRolesMap);
 		tempSuperRolesMap.putAll(auxRoleHMap);
 				int k=1;
@@ -963,9 +963,9 @@ public class ILPPreprocessor {
 							OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#H"+k));// create Helper Role
 							tempRoleH.put(role, rh);
 							k++;
-							System.out.println("1) role "+ role +"H role : "+rh);
+						//	System.out.println("1) role "+ role +"H role : "+rh);
 							//addForAll = true;
-							System.out.println("tempSuperRolesMap.keySet() "+ tempSuperRolesMap.keySet());
+						//	System.out.println("tempSuperRolesMap.keySet() "+ tempSuperRolesMap.keySet());
 							for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
 								if(roles.contains(r)) {
 									if(tempSuperRolesMap.get(r).contains(role)) {
@@ -973,7 +973,7 @@ public class ILPPreprocessor {
 											OWLObjectPropertyExpression rh1 = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
 											tempRoleH.put(r, rh1);
 											k++;
-											System.out.println("2) role "+ r +"H role : "+rh1);
+									//		System.out.println("2) role "+ r +"H role : "+rh1);
 											
 										}
 				
