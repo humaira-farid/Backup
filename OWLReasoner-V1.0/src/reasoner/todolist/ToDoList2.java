@@ -16,14 +16,14 @@ import reasoner.graph.*;
 import reasoner.state.SaveStack;
 
 
-public class ToDoList {
+public class ToDoList2 {
 	private final List<RegQueue> waitQueue = new ArrayList<>(NREGULAROPTIONS);
 	private final PriorityMatrix matrix = new PriorityMatrix();
 	private final SaveStack<TDLSaveState> saveStack = new SaveStack<>();
 	/** number of un-processed entries */
     private int noe;
     private Map<Integer, TDLSaveState> saveMap = new HashMap<>();
-	public ToDoList() {
+	public ToDoList2() {
 		noe = 0;
 		for (int i = 0; i < NREGULAROPTIONS; i++) {
             waitQueue.add(new RegQueue());
@@ -51,6 +51,7 @@ public class ToDoList {
         }*/
         ++noe; 
     }
+	
 	public ToDoEntry getNextEntry() {
         if(isEmpty())
         		return null;
@@ -78,34 +79,6 @@ public class ToDoList {
 	        return null;
         }
     }
-	/*
-	public ToDoEntry getNextEntry() {
-        if(isEmpty())
-        		return null;
-        // decrease amount of elements-to-process
-       
-        // check ID queue
-        if (!queueID.isEmpty()) {
-            return queueID.get();
-        }
-        // check NN queue
-        if (!queueNN.isEmpty()) {
-            return queueNN.get();
-        }
-        // check regular queues
-        else {
-	        	 --noe;
-	        	// System.out.println("entry remaining : "+noe);
-	        for (int i = 0; i < NREGULAROPTIONS; ++i) {
-	            RegQueue arrayQueue = waitQueue.get(i);
-	            if (!arrayQueue.isEmpty()) {
-	                return arrayQueue.get();
-	            }
-	        }
-	        // that's impossible, but still...
-	        return null;
-        }
-    }*/
 	public Set<ToDoEntry> getAllToDoEntry(Node n, NodeTag type) {
 		if(isEmpty())
     			return new HashSet<>();
@@ -134,7 +107,7 @@ public class ToDoList {
     public void saveState(TDLSaveState tss) {
       //  tss.backupIDsp = queueID.getsPointer();
        // tss.backupIDep = queueID.getWaitSize();
-     /*//   queueNN.save(tss);
+     //   queueNN.save(tss);
         tss.backup6key = waitQueue.get(6).getsPointer();
         tss.backup6value = waitQueue.get(6).getWaitSize();
         tss.backup5key = waitQueue.get(5).getsPointer();
@@ -144,12 +117,11 @@ public class ToDoList {
         tss.backup3key = waitQueue.get(3).getsPointer();
         tss.backup3value = waitQueue.get(3).getWaitSize();
         tss.backup2key = waitQueue.get(2).getsPointer();
-        tss.backup2value = waitQueue.get(2).getWaitSize();*/
+        tss.backup2value = waitQueue.get(2).getWaitSize();
         tss.backup1key = waitQueue.get(1).getsPointer();
         tss.backup1value = waitQueue.get(1).getWaitSize();
         tss.backup0key = waitQueue.get(0).getsPointer();
         tss.backup0value = waitQueue.get(0).getWaitSize();
-        tss.waitingQueue = new ArrayList<>(waitQueue.get(1).wait);
         tss.noe = noe;
     }
     
@@ -158,13 +130,12 @@ public class ToDoList {
        // queueNN.restore(tss);
     	System.err.println("before noe "+ noe);
         waitQueue.get(0).restore(tss.backup0key, tss.backup0value);
-        waitQueue.get(1).restoreWait(tss.backup1key, tss.waitingQueue);
-     //   waitQueue.get(1).restore(tss.backup1key, tss.backup1value);
-        /* waitQueue.get(2).restore(tss.backup2key, tss.backup2value);
+        waitQueue.get(1).restore(tss.backup1key, tss.backup1value);
+        waitQueue.get(2).restore(tss.backup2key, tss.backup2value);
         waitQueue.get(3).restore(tss.backup3key, tss.backup3value);
         waitQueue.get(4).restore(tss.backup4key, tss.backup4value);
         waitQueue.get(5).restore(tss.backup5key, tss.backup5value);
-        waitQueue.get(6).restore(tss.backup6key, tss.backup6value);*/
+        waitQueue.get(6).restore(tss.backup6key, tss.backup6value);
         noe = tss.noe;
         System.err.println("after noe "+ noe);
     }

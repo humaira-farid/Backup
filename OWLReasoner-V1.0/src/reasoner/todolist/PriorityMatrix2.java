@@ -6,10 +6,10 @@ import org.semanticweb.owlapi.reasoner.ReasonerInternalException;
 import reasoner.graph.NodeTag;
 
 
-public class PriorityMatrix {
+public class PriorityMatrix2 {
 
 	/** number of regular options (o- and NN-rules are not included) */
-	public static final int NREGULAROPTIONS = 2;
+	public static final int NREGULAROPTIONS = 7;
     /**
      * priority index for o- operations (note that these ops have the
      * highest priority)
@@ -20,36 +20,41 @@ public class PriorityMatrix {
     // regular operation indexes
     private int indexAnd;
     private int indexOr;
-    private int indexAll;
+    private int indexExists;
+    private int indexForall;
+    private int indexLE;
+    private int indexGE;
 
     public void initPriorities(String options) {
         // check for correctness
-        if (options.length() < 2) {
-            throw new ReasonerInternalException("ToDo List option string should have length 2");
+        if (options.length() < 7) {
+            throw new ReasonerInternalException("ToDo List option string should have length 7");
         }
         // init values by symbols loaded
-        indexAll =  options.charAt(1) - '0';
-     //   indexOr = options.charAt(2) - '0';
-       // indexAll = options.charAt(3) - '0';
-        
+        indexAnd =  options.charAt(1) - '0';
+        indexOr = options.charAt(2) - '0';
+        indexExists = options.charAt(3) - '0';
+        indexForall = options.charAt(4) - '0';
+        indexLE = options.charAt(5) - '0';
+        indexGE = options.charAt(6) - '0';
         
     }
     public int getIndex(NodeTag op) {
         switch (op) {
             case AND:
-                return indexAll;
+                return indexAnd;
             case FORALL:
-            		return indexAll;
+            		return indexForall;
             case TOP: // no need to process these ops
                 return NREGULAROPTIONS;
             case OR:
-            		return indexAll;
+            		return indexOr;
             case EXISTS:
-        			return indexAll;
+        			return indexExists;
             case LE:
-    				return indexAll;
+    				return indexLE;
             case GE:
-    				return indexAll;
+    				return indexGE;
             default: // safety check
                 return -1;
         }

@@ -1,6 +1,7 @@
 package reasoner.graph;
 
 import static reasoner.Helper.INITBRANCHINGLEVELVALUE;
+import static reasoner.Helper.resize;
 
 import java.util.*;
 import org.semanticweb.owlapi.model.*;
@@ -30,6 +31,12 @@ public class CompletionGraph implements Cloneable {
 	RuleEngine re;
 	Configuration config;
 	OWLDataFactory df;
+
+	
+	
+	public List<Node> getNodeBase() {
+		return nodeBase;
+	}
 
 	public CompletionGraph(RuleEngine r) {
 		nodeBase = new ArrayList<>();
@@ -446,8 +453,7 @@ public class CompletionGraph implements Cloneable {
 		if (config.isSHO() || config.isSHOI() || config.isSHOIQ() || config.isSHOQ()) {
 			if (blocker != null) {
 
-				// System.err.println("blocker node "+blocker.getId() +" label: "+
-				// blocker.getLabel());
+				// System.err.println("blocker node "+blocker.getId() +" label: "+ blocker.getLabel());
 				// System.err.println("blocked node "+n.getId() +" label: "+ n.getLabel());
 				if (!hasNominalInPath(blocker, n)) {
 					// System.err.println("blocker node "+blocker.getId() +" label: "+
@@ -457,6 +463,7 @@ public class CompletionGraph implements Cloneable {
 					return null;
 			}
 		}
+		
 		return blocker;
 
 	}
@@ -527,9 +534,10 @@ public class CompletionGraph implements Cloneable {
 	public Node findEqualityBlocker(Node n) {
 
 		if (n.isBlockableNode() && !n.isReset()) {
-			for (int i = 0; i < nodeBase.size() && i < n.getId(); i++) {
+			System.out.println("nodeBase.size() "+nodeBase.size());
+			for (int i = 0; i < nodeBase.size() /*&& i < n.getId()*/; i++) {
 				Node p = nodeBase.get(i);
-				if (p.isBlockableNode() && !p.isBlocked() && !p.isReset()) {
+				if (p!=null && !p.equals(n) && p.isBlockableNode() && !p.isBlocked() && !p.isReset()) {
 					if (p.getLabel().equals(n.getLabel()))
 						// return nodeBase.get(i);
 						return p;
@@ -613,7 +621,7 @@ public class CompletionGraph implements Cloneable {
 	 */
 
 	private void restoreNode(Node node, int level) {
-	//	System.err.println("level "+level+" need to restore node? "+node.needRestore(level));
+		System.err.println("level "+level+" need to restore node? "+ node.getId()+" "+node.needRestore(level));
 
 		if (node.needRestore(level)) {
 			updateReset(node);
@@ -662,11 +670,10 @@ public class CompletionGraph implements Cloneable {
 		// stack.push(s);
 		//
 		s.setnNodes(totalNodes);
+		s.setbNodes(nodeBase.size());
 		s.setsNodes(savedNodes.size());
 		s.setnEdges(ctEdgeHeap.size());
-		// System.out.println("saving currentBranchingPoint : "+branchingLevel +"
-		// currentNode : "+currNode.getId() +" savedNodes: "+ savedNodes.size()+"
-		// totalNodes: "+ totalNodes);
+		 System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+ savedNodes.size()+"totalNodes: "+ totalNodes);
 
 		s.setCurrNode(currNode);
 		saveMap.put(branchingLevel, s);
@@ -709,14 +716,13 @@ public class CompletionGraph implements Cloneable {
 		CGSaveState s = saveMap.get(level);
 		totalNodes = s.getnNodes();
 		currNode = s.getCurrNode();
-		// System.out.println(level + " restore graph curr node" +
-		// s.getCurrNode().getId());
+		 System.out.println("cg level "+level + " restore graph curr node" + s.getCurrNode().getId());
 		int nSaved = s.getsNodes();
 		// System.err.println("total nodes: "+ totalNodes + " nsaved: "+ nSaved+ " saved
 		// nodes: "+ savedNodes.size());
 		if (totalNodes < Math.abs(savedNodes.size() - nSaved)) {
 			// it's cheaper to restore all nodes
-			nodeBase.stream().limit(totalNodes).forEach(p -> restoreNode(p, level));
+			nodeBase.stream().limit(totalNodes).filter(p -> p!=null).forEach(p -> restoreNode(p, level));
 		} else {
 			for (int i = nSaved; i < savedNodes.size(); i++) {
 				if (savedNodes.get(i) != null) {
@@ -732,14 +738,18 @@ public class CompletionGraph implements Cloneable {
 
 		Helper.resize(savedNodes, nSaved, null);
 		Helper.resize(ctEdgeHeap, s.getnEdges(), null);
+		System.out.println("nodeBase before "+nodeBase.size());
+		Helper.resize(nodeBase, s.getbNodes(), null);
+		System.out.println("nodeBase after "+nodeBase.size());
 
 		/// 5 mar 19
 		
-		 for(Node n : nodeBase) { 
+		/* for(Node n : nodeBase) { 
 			 if(n.getId()>s.getCurrNode().getId()) {
-				 n.removeLabel(); 
+				 restoreNode(n, level);
+				// n.removeLabel(); 
 		  } 
-			 }
+			 }*/
 		 
 		///
 	}

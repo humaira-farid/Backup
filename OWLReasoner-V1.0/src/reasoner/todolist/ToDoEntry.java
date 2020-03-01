@@ -6,7 +6,7 @@ import reasoner.graph.*;
 import reasoner.Dependencies.DependencySet;
 import reasoner.graph.Node;
 
-public class ToDoEntry {
+public class ToDoEntry implements Comparable<ToDoEntry>{
 	
 	private Node node;
 	private final OWLClassExpression ce;
@@ -41,7 +41,14 @@ public class ToDoEntry {
 	public NodeTag getType() {
 		return type;
 	}
-
+	public String getTypeValue() {
+		if(this.getType().equals(NodeTag.AND))
+			return "Aab";
+		else if(this.getType().equals(NodeTag.OR))
+			return "Bbc";
+		else
+			return "Ccd";
+	}
 	public DependencySet getDs() {
 		return ds;
 	}
@@ -54,4 +61,21 @@ public class ToDoEntry {
 		this.node = to;
 		
 	}
+
+///*
+	@Override
+	public int compareTo(ToDoEntry e1) {
+		int value1 = this.node.getId()-e1.getNode().getId();
+		if(value1 == 0) {
+			int value2 = this.getTypeValue().compareTo(e1.getTypeValue());
+			if(value2 == 0) {
+				return value1;
+			}
+			else 
+				return value2;
+		}
+		return value1;
+		//return this.node.getId()-e1.getNode().getId();
+	}
+	//*/
 }

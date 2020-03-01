@@ -45,10 +45,10 @@ public class ConceptNDepList {
 	public void restore(int ss, int level) {
 		for (int i = size - 1; i >= ss && i >= 0; i--) {
 			assert cdSet.get(i) != null;
-		//	System.out.println("restore level "+level+" concept " + cdSet.get(i).getCe() +" ds "+cdSet.get(i).getDs().getbpList());
+			System.out.println("restore level "+level+" concept " + cdSet.get(i).getCe() +" ds "+cdSet.get(i).getDs().getbpList());
 			if (cdSet.get(i).getDs().getMax() >= level) {
 				OWLClassExpression concept = cdSet.get(i).getCe();
-			//	System.out.println("remove concept " + concept);
+				System.out.println("remove concept " + concept);
 				concepts.remove(concept);
 				cdSet.remove(i);
 				size--;

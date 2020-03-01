@@ -9,6 +9,7 @@ public class CGSaveState {
     private int sNodes = 0;
     /** number of used edges */
     private int nEdges = 0;
+    private int bNodes = 0;
     private Node currNode;
     /** @return nNodes */
     public int getnNodes() {
@@ -61,4 +62,13 @@ public class CGSaveState {
     public String toString() {
         return "CGSaveState (" + nNodes + ',' + nEdges + ',' + sNodes + ')';
     }
+
+	public void setbNodes(int bNodes) {
+		this.bNodes = bNodes;
+		
+	}
+	public int getbNodes() {
+		return this.bNodes;
+		
+	}
 }

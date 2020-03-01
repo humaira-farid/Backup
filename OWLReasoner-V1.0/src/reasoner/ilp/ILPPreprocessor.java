@@ -180,7 +180,7 @@ public class ILPPreprocessor {
 					
 					this.simpleASubsumers.put(sb.getSubClass(), sb.getSuperClass());
 					for(OWLClassExpression c : sb.getSuperClass().asDisjunctSet()) {
-						//System.out.println(" disjunct "+ c);
+						//System.err.println(" disjunct "+ c);
 						if(c instanceof OWLObjectOneOf) {
 							nominals.add((OWLObjectOneOf)c);
 							nominalDs.put((OWLObjectOneOf)c, ds);
@@ -833,7 +833,9 @@ public class ILPPreprocessor {
 					this.simpleConcepts.addAll(filler.getComplementNNF().asDisjunctSet());
 					OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(qualifier, qualifier.getComplementNNF()));
 					this.processForAll(forAll, ds);
+					//System.err.println("forall rule "+filler.getComplementNNF());
 					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier.getComplementNNF(), filler.getComplementNNF()));
+					this.auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier.getComplementNNF(), filler.getComplementNNF()),ds);
 					////
 				}
 				for(OWLClassExpression cj : filler.asConjunctSet()) {

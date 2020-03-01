@@ -2,11 +2,18 @@ package reasoner;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.logging.FileHandler;
+import java.util.logging.Formatter;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
@@ -19,8 +26,10 @@ import reasoner.preprocessing.Internalization;
 import reasoner.todolist.ToDoList;
 
 public class TestReasoner{
+	private final static Logger LOG = Logger.getLogger(RuleEngine.class.getName());
 	private static long startTime;
 	ToDoList todo; 
+	
 	Internalization intr;
 	OWLOntology ont;
 	RuleEngine re;
@@ -35,12 +44,27 @@ public class TestReasoner{
 		File file = null;
 		if (fileName == null || fileName.isEmpty()) {
 		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/newtests/EU_Members_inc.owl");
-		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/p_53c.fowl.owl");
+			file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/proxy-nodes-5.fowl.owl");
 			// file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/00325.fowl.owl");
-			file = new File("/Users/temp/Desktop/TestOntologies_shoiq/Test3.owl");
+		//	file = new File("/Users/temp/Desktop/test-ontologies/Canadian_Parliament/canadian-parliament-ALCQ-inc.fowl.owl");
 		} else {
 			file = new File(fileName);
 		}
+		
+		Formatter simpleFormatter = null;
+		 Handler fileHandler = null;
+		 LOG.setLevel(Level.INFO);
+		// LOG.addHandler(new ConsoleHandler());
+		 try {
+			 fileHandler = new FileHandler("./Logger.log");
+			LOG.addHandler(fileHandler);
+			simpleFormatter = new SimpleFormatter();
+			fileHandler.setFormatter(simpleFormatter);
+		} catch (SecurityException | IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		 
 		
 		man = OWLManager.createOWLOntologyManager();
 
@@ -59,6 +83,7 @@ public class TestReasoner{
 		
 	    reasonerFactory = new ReasonerFactory();
 		todo = new ToDoList();
+	
 		intr = new Internalization(df);
 		intr.setPrefixManager(prefixManager);
 		reasoner = reasonerFactory.createReasoner(ont);
@@ -89,7 +114,7 @@ public class TestReasoner{
 //	 	  for (OWLSubClassOfAxiom sbg : intr.getTu()) 
 //	 	   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	     	 	
-	 	//   System.out.println( tgAxiom);
+	 //	   System.out.println( tgAxiom);
 	 	   re.setTransitiveRoles(getTransitiveRoles());
 	 	   if(!getFunctionalRoles().isEmpty()) {
 	 		   intr.addFunctionalRoleAxiom(getFunctionalRoles());
@@ -98,13 +123,16 @@ public class TestReasoner{
 	 		   intr.addInverseFunctionalRoleAxiom(getInverseFunctionalRoles());
 	 	   }
 	 	 
-	   if(tgAxiom !=null) {
+	 	  /*if(!intr.getAboxClassAss().isEmpty()) {
+	 		 re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom,false);
+	 	  }
+	 	  else*/ if(tgAxiom !=null) {
 	    		re.checkConsistency(tgAxiom);
 		 	re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom,false);
-	    }
-	    else {
+	 	  }
+	 	  else {
 	    		re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom,false);
-	    }
+	 	  }
 	    needAboxCheckAgain(tgAxiom);
 	    System.out.println("Ontology is Consistent");
 	    getExecutionTime();
