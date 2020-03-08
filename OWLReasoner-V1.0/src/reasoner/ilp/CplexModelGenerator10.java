@@ -379,7 +379,7 @@ public class CplexModelGenerator10 {
 					if(rmpCplex.solve()){
 						isRMPFeasible = true;
 						relaxed_opt = rmpCplex.getObjValue();
-					//	System.out.println("relaxed_opt "+relaxed_opt);
+				//		System.out.println("relaxed_opt "+relaxed_opt);
 				//	for(int j=0; j<x.getSize(); j++)
 				//		System.out.println("x value  "+rmpCplex.getValue(x.getElement(j)));
 					
@@ -432,11 +432,13 @@ public class CplexModelGenerator10 {
 							//System.out.println("bVal " + bVal[j]);
 							cost += bVal[j];
 						}
-						/*if(cost>5) {
-							cost += cost-1;
+						/*int cost2 = 0;
+						for(int j = 0 ; j < newCol.length ; j++) {
+							cost2 += newCol[j];
+							
 						}*/
 							
-					//	System.err.println("cost " + cost + " square "+cost*cost);
+				//		System.err.println("cost " + cost + " square "+cost*cost +" cost2 "+ cost2 + " square cost2 "+cost2*cost2);
 						IloColumn column = rmpCplex.column(obj, cost*cost);//Creates and returns a column from the specified objective and value.
 						for ( int i = 0; i < totalVar; i++ )
 							column = column.and(rmpCplex.column(Constraint[i], newCol[i]));//Creates and returns a column from the specified range and value.
@@ -454,7 +456,7 @@ public class CplexModelGenerator10 {
 					return returnSolution;
 				}
 			}
-		//	System.out.println("final relaxed_opt " + relaxed_opt);
+			//System.out.println("final relaxed_opt " + relaxed_opt);
 			if( relaxed_opt < M ){
 				
 				//System.out.println("x.getSize() " + x.getSize());

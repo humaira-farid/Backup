@@ -123,9 +123,9 @@ public class CompletionGraph implements Cloneable {
 			re.processUnblockedNode(blocked);
 		} else {
 			Node blocker = findBlocker(n);
-			if (blocker != null)
+			if (blocker != null && !n.equals(blocker)) {
 				setNodeBlocked(n, blocker);
-
+			}
 		}
 	}
 
@@ -738,9 +738,9 @@ public class CompletionGraph implements Cloneable {
 
 		Helper.resize(savedNodes, nSaved, null);
 		Helper.resize(ctEdgeHeap, s.getnEdges(), null);
-		System.out.println("nodeBase before "+nodeBase.size());
+	//	System.out.println("nodeBase before "+nodeBase.size());
 		Helper.resize(nodeBase, s.getbNodes(), null);
-		System.out.println("nodeBase after "+nodeBase.size());
+	//	System.out.println("nodeBase after "+nodeBase.size());
 
 		/// 5 mar 19
 		

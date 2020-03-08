@@ -345,13 +345,13 @@ public class Node implements Cloneable {
     }*/
     public void save(int level) {
   //  	System.out.println("node: node "+ this.getId() + " level " + level);
-    	NodeSaveState node = new NodeSaveState();
+    	NodeSaveState nodeNSS = new NodeSaveState();
 //      saves.push(node);
     	// 5 mar
 //    	saves.push(node);
     	//
-        save(node, level-1);
-        saveMap.put(level-1, node);
+        save(nodeNSS, level-1);
+        saveMap.put(level-1, nodeNSS);
         System.out.println("node: node "+ this.getId() + " currlevel " + curLevel);
         curLevel = level;
        // System.err.println(" changed to " + curLevel);
@@ -386,9 +386,10 @@ public class Node implements Cloneable {
     }
 	
 	 private void save(NodeSaveState nss, int level) {
-		//    System.out.println("saving nss level: " + curLevel);
+		    System.out.println("saving nss level: " + curLevel);
 	        nss.setCurLevel(level);
 	        nss.setCardinality(cardinality);
+	        System.out.println("neighbour.size() " + neighbour.size());
 	        nss.setnNeighbours(neighbour.size());
 	        nss.setnOutgoingEdges(outgoingEdge.size());
 	        nss.setnIncommingEdges(incomingEdge.size());

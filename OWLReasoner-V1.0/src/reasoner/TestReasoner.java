@@ -44,8 +44,8 @@ public class TestReasoner{
 		File file = null;
 		if (fileName == null || fileName.isEmpty()) {
 		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/newtests/EU_Members_inc.owl");
-			file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/proxy-nodes-5.fowl.owl");
-			// file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/00325.fowl.owl");
+			file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/rh-1.fowl.owl");
+		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/00325.fowl.owl");
 		//	file = new File("/Users/temp/Desktop/test-ontologies/Canadian_Parliament/canadian-parliament-ALCQ-inc.fowl.owl");
 		} else {
 			file = new File(fileName);
