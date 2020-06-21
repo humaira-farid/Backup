@@ -156,7 +156,7 @@ public class ToDoList {
     public void restoreState(TDLSaveState tss) {
        // queueID.restore(tss.backupIDsp, tss.backupIDep);
        // queueNN.restore(tss);
-    	System.err.println("before noe "+ noe);
+    //	System.err.println("before noe "+ noe);
         waitQueue.get(0).restore(tss.backup0key, tss.backup0value);
         waitQueue.get(1).restoreWait(tss.backup1key, tss.waitingQueue);
      //   waitQueue.get(1).restore(tss.backup1key, tss.backup1value);
@@ -166,7 +166,7 @@ public class ToDoList {
         waitQueue.get(5).restore(tss.backup5key, tss.backup5value);
         waitQueue.get(6).restore(tss.backup6key, tss.backup6value);*/
         noe = tss.noe;
-        System.err.println("after noe "+ noe);
+     //   System.err.println("after noe "+ noe);
     }
     /** save current state using internal stack 
      * @param level */

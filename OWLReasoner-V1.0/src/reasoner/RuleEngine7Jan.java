@@ -1094,7 +1094,7 @@ public class RuleEngine7Jan {
 		
 			//System.err.println("inverse edges : "+outgoingEdges.size() +"  : "+outgoingEdges.stream().filter(predicate) +outgoingEdges.iterator().next().getLabel());
 		
-		ILPPreprocessor ilpPro = new ILPPreprocessor(entries, this.intl, this.df, n, outgoingEdges, subsumption, superRolesMap);
+		ILPPreprocessor ilpPro = new ILPPreprocessor(cg, entries, this.intl, this.df, n, outgoingEdges, subsumption, superRolesMap);
 		ILPSolution sol = null;
 		try {
 			sol = ilpPro.callILP();

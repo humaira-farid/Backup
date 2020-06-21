@@ -442,7 +442,7 @@ public class CompletionGraph implements Cloneable {
 	}
 
 	public Node findBlocker(Node n) {
-		// System.out.println("n node "+ n.getId() +" label: "+ n.getLabel());
+	// System.out.println("n node "+ n.getId()  +"pair-wise blocking "+config.isUsePairwiseBlocking());
 		saveNode(n, branchingLevel);
 		Node blocker = null;
 		if (config.isUsePairwiseBlocking())
@@ -450,11 +450,12 @@ public class CompletionGraph implements Cloneable {
 		else
 			blocker = findEqualityBlocker(n);
 
-		if (config.isSHO() || config.isSHOI() || config.isSHOIQ() || config.isSHOQ()) {
+		/*if (config.isSHO() || config.isSHOI() || config.isSHOIQ() || config.isSHOQ()) {
 			if (blocker != null) {
 
-				// System.err.println("blocker node "+blocker.getId() +" label: "+ blocker.getLabel());
-				// System.err.println("blocked node "+n.getId() +" label: "+ n.getLabel());
+			//	 System.err.println("blocker node "+blocker.getId() +" label: "+ blocker.getLabel());
+			//	 System.err.println("blocked node "+n.getId() +" label: "+ n.getLabel());
+				 System.err.println("hasNominalInPath "+hasNominalInPath(blocker, n));
 				if (!hasNominalInPath(blocker, n)) {
 					// System.err.println("blocker node "+blocker.getId() +" label: "+
 					// blocker.getLabel());
@@ -462,7 +463,7 @@ public class CompletionGraph implements Cloneable {
 				} else
 					return null;
 			}
-		}
+		}*/
 		
 		return blocker;
 
@@ -482,13 +483,14 @@ public class CompletionGraph implements Cloneable {
 			}
 			for (int i = 0; i < nodeBase.size() && i < n.getId(); i++) {
 				Node p = nodeBase.get(i);
-				if (p.isBlockableNode() && !p.isBlocked() && !p.isReset()) {
+				if (p!=null && p.getOutgoingEdges().size() > 0 
+						&& p.isBlockableNode() && !p.isBlocked() && !p.isReset()) {
 					if (p.getLabel().equals(n.getLabel())) {
 						List<Edge> yEdges = p.getIncomingEdges();
 						List<Node> yNodes = new ArrayList<>();
 						for (Edge e : yEdges) {
-							if (e.isSuccEdge() && e.getFromNode().isBlockableNode() && !e.getFromNode().isBlocked()
-									&& !e.getFromNode().isReset())
+							if (e.isSuccEdge() && e.getFromNode().isBlockableNode() 
+									&& !e.getFromNode().isBlocked() && !e.getFromNode().isReset())
 								yNodes.add(e.getFromNode());
 						}
 						for (Node x : xNodes) {
@@ -502,7 +504,14 @@ public class CompletionGraph implements Cloneable {
 											x2 = n;
 											y1 = y;
 											y2 = p;
-											return p;
+											if (config.isSHO() || config.isSHOI() || config.isSHOIQ() 
+													|| config.isSHOQ()) {
+												if (!hasNominalInPath(p, n)) {
+													return p;
+												}
+											}
+											else
+												return p;
 										}
 									}
 								}
@@ -534,13 +543,20 @@ public class CompletionGraph implements Cloneable {
 	public Node findEqualityBlocker(Node n) {
 
 		if (n.isBlockableNode() && !n.isReset()) {
-			System.out.println("nodeBase.size() "+nodeBase.size());
+		//	System.out.println("nodeBase.size() "+nodeBase.size());
 			for (int i = 0; i < nodeBase.size() /*&& i < n.getId()*/; i++) {
 				Node p = nodeBase.get(i);
-				if (p!=null && !p.equals(n) && p.isBlockableNode() && !p.isBlocked() && !p.isReset()) {
-					if (p.getLabel().equals(n.getLabel()))
-						// return nodeBase.get(i);
-						return p;
+				if (p!=null && p.getOutgoingEdges().size() > 0 && !p.equals(n) 
+						&& p.isBlockableNode() && !p.isBlocked() && !p.isReset()) {
+					if (p.getLabel().equals(n.getLabel())) {
+						if (config.isSHO() || config.isSHOI() || config.isSHOIQ() || config.isSHOQ()) {
+							if (!hasNominalInPath(p, n)) {
+								return p;
+							}
+						}
+						else
+							return p;
+					}
 				}
 			}
 		}
@@ -621,7 +637,7 @@ public class CompletionGraph implements Cloneable {
 	 */
 
 	private void restoreNode(Node node, int level) {
-		System.err.println("level "+level+" need to restore node? "+ node.getId()+" "+node.needRestore(level));
+		//System.err.println("level "+level+" need to restore node? "+ node.getId()+" "+node.needRestore(level));
 
 		if (node.needRestore(level)) {
 			updateReset(node);
@@ -629,7 +645,7 @@ public class CompletionGraph implements Cloneable {
 		}
 	}
 
-	private void updateReset(Node n) {
+	public void updateReset(Node n) {
 		n.setReset(false);
 		for (Edge e : n.getOutgoingEdges()) {
 			if (e != null && e.isPredEdge()) {
@@ -673,7 +689,7 @@ public class CompletionGraph implements Cloneable {
 		s.setbNodes(nodeBase.size());
 		s.setsNodes(savedNodes.size());
 		s.setnEdges(ctEdgeHeap.size());
-		 System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+ savedNodes.size()+"totalNodes: "+ totalNodes);
+	//	 System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+ savedNodes.size()+"totalNodes: "+ totalNodes);
 
 		s.setCurrNode(currNode);
 		saveMap.put(branchingLevel, s);
@@ -716,7 +732,7 @@ public class CompletionGraph implements Cloneable {
 		CGSaveState s = saveMap.get(level);
 		totalNodes = s.getnNodes();
 		currNode = s.getCurrNode();
-		 System.out.println("cg level "+level + " restore graph curr node" + s.getCurrNode().getId());
+		// System.out.println("cg level "+level + " restore graph curr node" + s.getCurrNode().getId());
 		int nSaved = s.getsNodes();
 		// System.err.println("total nodes: "+ totalNodes + " nsaved: "+ nSaved+ " saved
 		// nodes: "+ savedNodes.size());
@@ -825,12 +841,15 @@ public class CompletionGraph implements Cloneable {
 	private boolean checkAllPaths(Node x, Node y, List<Edge> outgoingEdges, Set<Node> proccessedNodes) {
 		// System.out.println("out going edges : "+ outgoingEdges.size() + "node : "+
 		// y.getId());
+		boolean hasNominal = false;
 		for (Edge e : outgoingEdges) {
+			hasNominal = false;
 			Node to = e.getToNode();
 			if (!to.isReset()) {
 				if (!proccessedNodes.contains(to)) {
 					proccessedNodes.add(to);
 					if (to.isNominalNode()) {
+						hasNominal = true;
 						continue;
 					}
 					if (to.equals(x)) {
@@ -842,15 +861,51 @@ public class CompletionGraph implements Cloneable {
 				}
 			}
 		}
-		return true;
+		return hasNominal;
 	}
 
 	public Edge addEdge(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel, DependencySet ds) {
+		if (config.isSHI() || config.isSHOI() || config.isSHOIQ() || config.isSHIQ())
+			return addEdge(from, to, edgeLabel, ds, true, true);
 		return addEdge(from, to, edgeLabel, ds, true);
 	}
 
 	public Edge addEdge(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel, DependencySet ds,
 			boolean succEdge) {
+		// System.err.println("edge label to be added " + edgeLabel);
+		Edge edge = new Edge(from, to, edgeLabel, ds);
+		// Set<OWLObjectPropertyExpression> invRoles = new
+		// HashSet<>(edgeLabel.stream().map(r ->
+		// r.getInverseProperty()).collect(Collectors.toSet()));
+		//Set<OWLObjectPropertyExpression> invRoles = new HashSet<>();
+		//edgeLabel.stream().forEach(r -> invRoles.add(r.getInverseProperty()));
+		// System.err.println("inverse roles " + invRoles);
+		//Edge invEdge = new Edge(to, from, invRoles, ds);
+		this.ctEdgeHeap.add(edge);
+	//	this.ctEdgeHeap.add(invEdge);
+
+		from.getNeighbour().add(edge);
+		from.getOutgoingEdges().add(edge);
+		//from.getIncomingEdges().add(invEdge);
+
+	//	to.getNeighbour().add(invEdge);
+	//	to.getOutgoingEdges().add(invEdge);
+	//	to.getIncomingEdges().add(edge);
+
+		saveNode(from, branchingLevel);
+		saveNode(to, branchingLevel);
+		// System.err.println("getOutgoingEdges " + to.getOutgoingEdges().size());
+
+		// System.err.println("getOutgoingEdges " + to.getOutgoingEdges().size());
+		edge.setSuccEdge(succEdge);
+	//	invEdge.setSuccEdge(!succEdge);
+
+		// from.getSuccEdges1().add(edge);
+		// to.getPredEdges1().add(invEdge);
+		return edge;
+	}
+	public Edge addEdge(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel, DependencySet ds,
+			boolean succEdge, boolean inverseEdge) {
 		// System.err.println("edge label to be added " + edgeLabel);
 		Edge edge = new Edge(from, to, edgeLabel, ds);
 		// Set<OWLObjectPropertyExpression> invRoles = new

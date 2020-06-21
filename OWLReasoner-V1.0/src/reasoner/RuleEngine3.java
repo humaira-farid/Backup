@@ -1129,7 +1129,7 @@ public class RuleEngine3 {
 		
 			//System.err.println("inverse edges : "+outgoingEdges.size() +"  : "+outgoingEdges.stream().filter(predicate) +outgoingEdges.iterator().next().getLabel());
 		
-		ILPPreprocessor ilpPro = new ILPPreprocessor(entries, this.intl, this.df, n, outgoingEdges, subsumption, superRolesMap);
+		ILPPreprocessor ilpPro = new ILPPreprocessor(cg, entries, this.intl, this.df, n, outgoingEdges, subsumption, superRolesMap);
 		ILPSolution sol = null;
 		try {
 			sol = ilpPro.callILP();
@@ -2096,7 +2096,7 @@ public class RuleEngine3 {
 			//cg.setNodeBlocked(n, blocker);
 			return;
 		}
-		ILPPreprocessor ilpPro = new ILPPreprocessor(entries, this.intl, this.df, n, outgoingEdges);
+		ILPPreprocessor ilpPro = new ILPPreprocessor(cg, entries, this.intl, this.df, n, outgoingEdges);
 		ILPSolution sol = null;
 		try {
 			sol = ilpPro.callILP();

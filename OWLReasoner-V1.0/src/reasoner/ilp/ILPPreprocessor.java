@@ -6,6 +6,8 @@ import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.*;
 import org.semanticweb.owlapi.util.DefaultPrefixManager;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
 
@@ -35,6 +37,8 @@ public class ILPPreprocessor {
 	Set<OWLObjectMinCardinality> topMinCardinalities = new HashSet<>();
 	Set<OWLObjectMaxCardinality> topMaxCardinalities = new HashSet<>();
 	SetMultimap<OWLClassExpression, OWLClassExpression> conceptSubsumers = HashMultimap.create();
+	SetMultimap<OWLClassExpression, OWLClassExpression> complexCSubsumers = HashMultimap.create(); // complex concept subsumers 
+	SetMultimap<OWLClassExpression, OWLClassExpression> complexNSubsumers = HashMultimap.create(); // complex nominal subsumers
 	Map<OWLClassExpression, Set<OWLClassExpression>> binarySubsumers = new HashMap<>();
 	SetMultimap<OWLClassExpression, OWLClassExpression> conceptDisjoints = HashMultimap.create();
 	SetMultimap<OWLClassExpression, OWLClassExpression> nominalSubsumers = HashMultimap.create();
@@ -45,6 +49,7 @@ public class ILPPreprocessor {
 	SetMultimap<OWLClassExpression, OWLClassExpression> extraSubsumers = HashMultimap.create();
 	SetMultimap<OWLObjectPropertyExpression, OWLObjectPropertyExpression> auxRoleH = HashMultimap.create();
 	Map<OWLClassExpression, Integer> nodeIdMap = new HashMap<>();
+	Map<Integer, Set<OWLClassExpression>> nodeLabelMap = new HashMap<>();
 	Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> auxRoleHMap = new HashMap<>();
 	SetMultimap<OWLClassExpression, DependencySet> conceptDs = HashMultimap.create();
 	SetMultimap<OWLObjectOneOf, DependencySet> nominalDs = HashMultimap.create();
@@ -55,6 +60,8 @@ public class ILPPreprocessor {
 	SetMultimap<OWLObjectMinCardinality, DependencySet> minDs = HashMultimap.create();
 	SetMultimap<OWLObjectMaxCardinality, DependencySet> maxDs = HashMultimap.create();
 	SetMultimap<OWLObjectHasValue, DependencySet> hasValueDs = HashMultimap.create();
+	
+	CompletionGraph cg;
 	
 	Set<Set<OWLClassExpression>> disjointGroups = new HashSet<>();
 	Set<QCR> qcrs = new HashSet<>();
@@ -105,8 +112,9 @@ public class ILPPreprocessor {
 		processConcepts();
 		createMaps();
 	}
-	public ILPPreprocessor(Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges) {
+	public ILPPreprocessor(CompletionGraph cg, Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges) {
 		counter = 0;
+		this.cg = cg;
 		this.df = df;
 		this.currNode = n;
 		this.outgoingEdges= outgoingEdges;
@@ -126,8 +134,9 @@ public class ILPPreprocessor {
 		createMaps();
 	}
 
-	public ILPPreprocessor(Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges, Set<OWLSubClassOfAxiom> subsumption, Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap2) {
+	public ILPPreprocessor(CompletionGraph cg, Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges, Set<OWLSubClassOfAxiom> subsumption, Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap2) {
 		counter = 0;
+		this.cg = cg;
 		this.df = df;
 		this.currNode = n;
 		this.outgoingEdges = outgoingEdges;
@@ -283,6 +292,7 @@ public class ILPPreprocessor {
 						conceptSubsumers.put(sb, sp);
 					}
 					else if(sp instanceof OWLObjectComplementOf) {
+						this.simpleConcepts.add(sp);
 						subsumptionConcepts.add(sp);
 						conceptSubsumers.put(sb, sp);
 					}
@@ -305,7 +315,7 @@ public class ILPPreprocessor {
 										//subsumptionConcepts.add(c);
 									}
 								}
-								else if(c instanceof OWLClass) {
+								else if((c instanceof OWLClass) || (c instanceof OWLObjectComplementOf)) {
 									if(!subsumptionConcepts.contains(c)) {
 										this.simpleConcepts.add(c);
 										subsumptionConcepts.add(c);
@@ -328,6 +338,7 @@ public class ILPPreprocessor {
 						nominalSubsumers.put(sb, sp);
 					}
 					else if(sp instanceof OWLObjectComplementOf) {
+						this.simpleConcepts.add(sp);
 						subsumptionConcepts.add(sp);
 						nominalSubsumers.put(sb, sp);
 					}
@@ -348,7 +359,7 @@ public class ILPPreprocessor {
 										//subsumptionConcepts.add(c);
 									}
 								}
-								else if(c instanceof OWLClass) {
+								else if((c instanceof OWLClass) || (c instanceof OWLObjectComplementOf)) {
 									if(!subsumptionConcepts.contains(c)) {
 										this.simpleConcepts.add(c);
 										subsumptionConcepts.add(c);
@@ -1202,24 +1213,28 @@ public class ILPPreprocessor {
 		}
 		this.sRMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) sR.asMap();
 		*/
-		// disjointness -concepts
-		for(OWLClassExpression ce : simpleConcepts) {
-			if(!(ce instanceof OWLObjectComplementOf)) {
-				if(!ontology.getDisjointConcepts(ce).isEmpty()) {
-					ontology.getDisjointConcepts(ce).stream().forEach(d -> conceptDisjoints.put(ce, d));
-				}
-			}
-		}
-		// disjointness -nominals
-		for(OWLObjectOneOf o : nominals) {
-			if(!ontology.getDisjointConcepts(o).isEmpty()) {
-				ontology.getDisjointConcepts(o).stream().forEach(d -> nominalDisjoints.put(o, d));
-			}
-		}
+		
 		for(OWLClassExpression ce : simpleConcepts) 
 			addSubsumption(ce);
 		for(OWLObjectOneOf o : nominals)
 			addSubsumption(o);
+		
+		// disjointness -concepts
+				for(OWLClassExpression ce : simpleConcepts) {
+					if(!(ce instanceof OWLObjectComplementOf)) {
+						if(!ontology.getDisjointConcepts(ce).isEmpty()) {
+							ontology.getDisjointConcepts(ce).stream().forEach(d -> conceptDisjoints.put(ce, d));
+						}
+					}
+				}
+				// disjointness -nominals
+				for(OWLObjectOneOf o : nominals) {
+					if(!ontology.getDisjointConcepts(o).isEmpty()) {
+						//System.out.println("ontology.getDisjointConcepts(o) "+o+" "+ontology.getDisjointConcepts(o));
+						ontology.getDisjointConcepts(o).stream().forEach(d -> nominalDisjoints.put(o, d));
+					}
+				}
+		
 		/*
 		// subsumption- concepts
 		
@@ -1293,6 +1308,10 @@ public class ILPPreprocessor {
 		}*/
 		nominals.addAll(tempNom);
 		
+		/// --- information about existing nominal nodes 
+		existingNomNodes();
+		
+		///
 		Set<OWLClassExpression> concepts = new  HashSet<>(simpleConcepts);
 		concepts.addAll(nominals);
 		concepts.addAll(subsumptionConcepts);
@@ -1310,10 +1329,10 @@ public class ILPPreprocessor {
 			crMap.put(i, q);
 			//roles.add(q.getProperty());
 			if(!isAlreadyExists(q, ds)) {
-			QCR qcr = new QCR(q,ds);
-			qcrMap.put(i, qcr);
-			qcrs.add(qcr);
-			++i;
+				QCR qcr = new QCR(q,ds);
+				qcrMap.put(i, qcr);
+				qcrs.add(qcr);
+				++i;
 			}
 		}
 		for(OWLObjectOneOf o : getNominalDs().keySet()) {
@@ -1328,7 +1347,43 @@ public class ILPPreprocessor {
 		}
 		
 	}
-	
+
+	private void existingNomNodes() {
+		/// --- information about existing nominal nodes
+		SetMultimap<OWLObjectOneOf, DependencySet> tempNominalDs = HashMultimap.create();
+		for (OWLObjectOneOf o : getNominalDs().keySet()) {
+			Node nomNode = cg.findNominalNode(o);
+			if (nomNode != null) {
+				Set<OWLClassExpression> fillers = nomNode.getLabel();
+				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+				nodeIdMap.put(qualifier, nomNode.getId());
+				nodeLabelMap.put(nomNode.getId(), fillers);
+				auxiliaryConcepts.add(qualifier);
+				this.simpleASubsumers.put(o, qualifier);
+				for (OWLClassExpression c : fillers) {
+					if ((c instanceof OWLClass) || (c instanceof OWLObjectOneOf)
+							|| (c instanceof OWLObjectComplementOf)) {
+						this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, c));
+						DependencySet ds = DependencySet.create();
+						for (DependencySet d : getNominalDs().get(o))
+							ds.add(d);
+						auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, c), ds);
+						if (c instanceof OWLObjectOneOf) {
+							this.simpleASubsumers.put(qualifier, c);
+							nominals.add((OWLObjectOneOf) c);
+							tempNominalDs.put((OWLObjectOneOf) c, ds);
+							conceptDs.put(c, ds);
+						} else if ((c instanceof OWLClass) || (c instanceof OWLObjectComplementOf)) {
+							this.simpleASubsumers.put(qualifier, c);
+							simpleConcepts.add(c);
+							conceptDs.put(c, ds);
+						}
+					}
+				}
+			}
+		}
+		nominalDs.putAll(tempNominalDs);
+	}
 
 	private boolean isAlreadyExists(OWLObjectCardinalityRestriction q, DependencySet ds) {
 		for(QCR qcr : qcrMap.values()) {
@@ -1361,7 +1416,7 @@ public class ILPPreprocessor {
 	
 	private void addSubsumption(OWLClassExpression ce) {
 		// subsumption- concepts
-		//System.err.println("concept "+ce);
+	//	System.err.println("concept "+ce);
 		if(ce instanceof OWLClass) {
 			subsumptionConcepts.add(df.getOWLThing());
 			conceptSubsumers.put(ce, df.getOWLThing());
@@ -1369,6 +1424,67 @@ public class ILPPreprocessor {
 			if(ontology.getAllSubsumers(ce) != null) {
 				for(OWLClassExpression sp : ontology.getAllSubsumers(ce)) {
 				  if(!sp.isOWLThing()) {
+				//	System.out.println("subsumer "+sp);
+					if(sp instanceof OWLObjectOneOf) {
+						//subsumptionConcepts.add(sp);
+						nominals.add((OWLObjectOneOf)sp);
+						nominalDs.put((OWLObjectOneOf)sp, DependencySet.create());
+						conceptSubsumers.put(ce, sp);
+					}
+					if(sp instanceof OWLObjectComplementOf) {
+						subsumptionConcepts.add(sp);
+						conceptSubsumers.put(ce, sp);
+					}
+					else if(sp instanceof OWLClass) {
+						subsumptionConcepts.add(sp);
+						conceptSubsumers.put(ce, sp);
+					}
+					else if(sp instanceof OWLObjectUnionOf) {
+						if(sp.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) 
+								|| (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf))) {
+							conceptSubsumers.put(ce, sp);
+							for(OWLClassExpression c : sp.asDisjunctSet()) {
+								
+								if(c instanceof OWLObjectOneOf) {
+									if(!nominals.contains(c)) {
+										nominals.add((OWLObjectOneOf)c);
+										nominalDs.put((OWLObjectOneOf)c, DependencySet.create());
+										//subsumptionConcepts.add(c);
+									}
+								}
+								else if((c instanceof OWLClass) || (c instanceof OWLObjectComplementOf)) {
+									if(!subsumptionConcepts.contains(c)) {
+										subsumptionConcepts.add(c);
+										addSubsumption(c);
+									}
+								}
+								
+								else
+									subsumptionConcepts.add(c);
+							}
+						}
+						else {
+							complexCSubsumers.put(ce, sp);
+						}
+					}
+					else if(sp instanceof OWLObjectIntersectionOf)
+						checkIntersection(ce, sp);
+					else
+						complexCSubsumers.put(ce, sp);
+				} 
+			  }
+			}
+		}
+		
+		else if(ce instanceof OWLObjectComplementOf) {
+			
+			//System.err.println("concept "+ce);
+			if(ontology.getAllComplementEq(ce.getComplementNNF()) != null) {
+				for(OWLClassExpression sp : ontology.getAllSubsumers(ce)) {
+				  if(sp.isOWLThing()) {
+					  subsumptionConcepts.add(df.getOWLThing());
+					  conceptSubsumers.put(ce, df.getOWLThing());
+				  }
 					//System.out.println("subsumer "+sp);
 					if(sp instanceof OWLObjectOneOf) {
 						//subsumptionConcepts.add(sp);
@@ -1397,7 +1513,7 @@ public class ILPPreprocessor {
 										//subsumptionConcepts.add(c);
 									}
 								}
-								else if(c instanceof OWLClass) {
+								else if((c instanceof OWLClass) || (c instanceof OWLObjectComplementOf)) {
 									if(!subsumptionConcepts.contains(c)) {
 										subsumptionConcepts.add(c);
 										addSubsumption(c);
@@ -1407,22 +1523,28 @@ public class ILPPreprocessor {
 									subsumptionConcepts.add(c);
 							}
 						}
+						else {
+							complexCSubsumers.put(ce, sp);
+						}
 					}
 					else if(sp instanceof OWLObjectIntersectionOf)
 						checkIntersection(ce, sp);
-				} 
+					else
+						complexCSubsumers.put(ce, sp);
+				
 			  }
 			}
 		}
+		
 				////
 				// subsumption - nominals
-		if(ce instanceof OWLObjectOneOf) {	
+		else if(ce instanceof OWLObjectOneOf) {	
 			subsumptionConcepts.add(df.getOWLThing());
 			nominalSubsumers.put(ce, df.getOWLThing());
 			//System.out.println("concept "+ce);
 					if(!ontology.getAllSubsumers((OWLObjectOneOf)ce).isEmpty()) {
 						for(OWLClassExpression sp : ontology.getAllSubsumers((OWLObjectOneOf)ce)) {
-							//System.out.println("subsumer "+sp);
+					//		System.out.println("subsumer "+sp);
 							if(!sp.isOWLThing()) {
 							if(sp instanceof OWLObjectOneOf) {
 								tempNom.add((OWLObjectOneOf)sp);
@@ -1431,6 +1553,10 @@ public class ILPPreprocessor {
 								nominalSubsumers.put(ce, sp);
 							}
 							else if(sp instanceof OWLClass) {
+								subsumptionConcepts.add(sp);
+								nominalSubsumers.put(ce, sp);
+							}
+							if(sp instanceof OWLObjectComplementOf) {
 								subsumptionConcepts.add(sp);
 								nominalSubsumers.put(ce, sp);
 							}
@@ -1446,7 +1572,7 @@ public class ILPPreprocessor {
 												addSubsumption(c);
 											}
 										}
-										else if(c instanceof OWLClass) {
+										else if((c instanceof OWLClass) || (c instanceof OWLObjectComplementOf)) {
 											if(!subsumptionConcepts.contains(c)) {
 												subsumptionConcepts.add(c);
 												addSubsumption(c);
@@ -1456,14 +1582,21 @@ public class ILPPreprocessor {
 											subsumptionConcepts.add(c);
 									}
 								}
+								else {
+									complexNSubsumers.put(ce, sp);
+								}
 							}
 							else if(sp instanceof OWLObjectIntersectionOf)
 								checkIntersection(ce, sp);
+							else {
+								complexNSubsumers.put(ce, sp);
+							}
 						} 
 						}
 					}
 		
 		}
+		
 	}
 	private SetMultimap<OWLObjectOneOf, DependencySet> getNominalDs() {
 		return nominalDs;
@@ -1495,9 +1628,15 @@ public class ILPPreprocessor {
 							}
 						}
 					}
+					else {
+						complexCSubsumers.put(ce, cj);
+					}
 				}
 				else if(cj instanceof OWLObjectIntersectionOf)
 					checkIntersection(ce, cj);
+				else {
+					complexCSubsumers.put(ce, cj);
+				}
 			}
 		}
 		else if(ce instanceof OWLObjectOneOf) {
@@ -1526,9 +1665,15 @@ public class ILPPreprocessor {
 							}
 						}
 					}
+					else {
+						complexNSubsumers.put(ce, cj);
+					}
 				}
 				else if(cj instanceof OWLObjectIntersectionOf)
 					checkIntersection(ce, cj);
+				else {
+					complexNSubsumers.put(ce, cj);
+				}
 			}
 		}
 	}
@@ -1548,6 +1693,7 @@ public class ILPPreprocessor {
 					conceptSubsumers.put(ce, cj);
 				}
 				else if(cj instanceof OWLObjectComplementOf) {
+					simpleConcepts.add(cj);
 					subsumptionConcepts.add(cj);
 					conceptSubsumers.put(ce, cj);
 				}
@@ -1559,14 +1705,20 @@ public class ILPPreprocessor {
 								nominals.add((OWLObjectOneOf)c);
 								nominalDs.put((OWLObjectOneOf)c, DependencySet.create());
 							}
-							else if(c instanceof OWLClass) {
+							else if((c instanceof OWLClass)|| (c instanceof OWLObjectComplementOf)) {
 								simpleConcepts.add(c);
 							}
 						}
 					}
+					else {
+						complexCSubsumers.put(ce, cj);
+					}
 				}
 				else if(cj instanceof OWLObjectIntersectionOf)
 					checkIntersection2(ce, cj);
+				else {
+					complexCSubsumers.put(ce, cj);
+				}
 			}
 		}
 		else if(ce instanceof OWLObjectOneOf) {
@@ -1583,6 +1735,7 @@ public class ILPPreprocessor {
 					nominalSubsumers.put(ce, cj);
 				}
 				else if(cj instanceof OWLObjectComplementOf) {
+					simpleConcepts.add(cj);
 					subsumptionConcepts.add(cj);
 					nominalSubsumers.put(ce, cj);
 				}
@@ -1594,20 +1747,32 @@ public class ILPPreprocessor {
 								nominals.add((OWLObjectOneOf)c);
 								nominalDs.put((OWLObjectOneOf)c, DependencySet.create());
 							}
-							else if(c instanceof OWLClass) {
+							else if((c instanceof OWLClass) || (c instanceof OWLObjectComplementOf))  {
 								simpleConcepts.add(c);
 							}
 						}
 					}
+					else {
+						complexNSubsumers.put(ce, cj);
+					}
 				}
 				else if(cj instanceof OWLObjectIntersectionOf)
 					checkIntersection2(ce, cj);
+				else {
+					complexNSubsumers.put(ce, cj);
+				}
 			}
 		}
 	}
 	
 	public Set<OWLClassExpression> getAuxiliaryConcepts() {
 		return auxiliaryConcepts;
+	}
+	public Set<OWLClassExpression> getComSubConcepts() {
+		return this.complexCSubsumers.keySet();
+	}
+	public Set<OWLClassExpression> getComSubNom() {
+		return this.complexNSubsumers.keySet();
 	}
 
 	public SetMultimap<OWLClassExpression, OWLClassExpression> getComplexASubsumers() {
@@ -1764,6 +1929,12 @@ public class ILPPreprocessor {
 
 	public Set<OWLClassExpression> getComplexASubsumers(OWLClassExpression ce) {
 		return this.complexASubsumers.get(ce);
+	}
+	public Set<OWLClassExpression> getComplexCSubsumers(OWLClassExpression ce) {
+		return this.complexCSubsumers.get(ce);
+	}
+	public Set<OWLClassExpression> getComplexNSubsumers(OWLClassExpression ce) {
+		return this.complexNSubsumers.get(ce);
 	}
 
 	

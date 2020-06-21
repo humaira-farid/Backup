@@ -352,7 +352,7 @@ public class Node implements Cloneable {
     	//
         save(nodeNSS, level-1);
         saveMap.put(level-1, nodeNSS);
-        System.out.println("node: node "+ this.getId() + " currlevel " + curLevel);
+    //    System.out.println("node: node "+ this.getId() + " currlevel " + curLevel);
         curLevel = level;
        // System.err.println(" changed to " + curLevel);
     }
@@ -380,16 +380,16 @@ public class Node implements Cloneable {
        // restore(saves.pop(level));
     	/// 5 mar
    // 	restore(saves.pop(level));
-  	System.err.println("Node restore level "+ level);
+  	//System.err.println("Node restore level "+ level +" node "+this.getNodeId());
     		restore(saveMap.get(level));
     		///
     }
 	
 	 private void save(NodeSaveState nss, int level) {
-		    System.out.println("saving nss level: " + curLevel);
+		 //   System.out.println("saving nss level: " + curLevel);
 	        nss.setCurLevel(level);
 	        nss.setCardinality(cardinality);
-	        System.out.println("neighbour.size() " + neighbour.size());
+	       // System.out.println("neighbour.size() " + neighbour.size());
 	        nss.setnNeighbours(neighbour.size());
 	        nss.setnOutgoingEdges(outgoingEdge.size());
 	        nss.setnIncommingEdges(incomingEdge.size());
@@ -416,7 +416,7 @@ public class Node implements Cloneable {
 	       
 	    }*/
 	 private void restore(@Nullable NodeSaveState nss) {
-		System.err.println("nss is null "+ (nss == null));
+	//	System.err.println("nss is null "+ (nss == null));
 	        if (nss == null) {
 	            return;
 	        }
@@ -425,7 +425,7 @@ public class Node implements Cloneable {
 	        curLevel = nss.getCurLevel();
 	       
 	        cardinality = nss.getCardinality();
-	        System.out.println("restore node: currlevel "+ curLevel +" restore level"+ nss.getCurLevel()); 
+	     //   System.out.println("restore node: currlevel "+ curLevel +" restore level"+ nss.getCurLevel()); 
 	        // label restore
 	      
 	        /// 5 mar 19

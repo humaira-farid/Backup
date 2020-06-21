@@ -29,9 +29,9 @@ import ilog.concert.*;
 import ilog.cplex.*;
 import reasoner.Dependencies.DependencySet;
 import reasoner.ilp.CplexModelGenerator.IloNumVarArray;
+// 18 june 2020
 
-
-public class CplexModelGenerator10 {
+public class CplexModelGenerator10a {
 	//IloCplex cplexModel;
 	ILPPreprocessor ilpPro;
 	List<OWLObjectCardinalityRestriction> qcrList = new ArrayList<>();
@@ -69,7 +69,7 @@ public class CplexModelGenerator10 {
 	static double RC_EPS = 1.0e-6d;
 	int totalCardinality = 0;
 	
-	public CplexModelGenerator10(ILPPreprocessor ilpPr, 
+	public CplexModelGenerator10a(ILPPreprocessor ilpPr, 
 			Map<OWLClassExpression, Set<OWLClassExpression>> conceptSubsumersMap,
 			Map<OWLClassExpression, Set<OWLClassExpression>> binarySubsumers, 
 			SetMultimap<OWLClassExpression, OWLClassExpression> conceptDisjoints,
@@ -83,7 +83,7 @@ public class CplexModelGenerator10 {
 		ilpPro = ilpPr;
 		qcrs = ilpPro.getQcrs();
 		qcrQualifiers = qcrs.stream().map(qcr -> qcr.qualifier).collect(Collectors.toSet());
-		qcrMap  = ilpPro.getQCRMap(); 
+		qcrMap  = ilpPro.getQCRMap();
 		crMap = ilpPro.getCRMap();
 		qcrList = ilpPro.getCardRes();
 		
@@ -163,6 +163,8 @@ public class CplexModelGenerator10 {
 					}
 				}
 			}
+			
+			
 			int tempQN = 0;
 			for(OWLClassExpression C : allQualifiers){
 				qualifiers.put(C, tempQN);
@@ -568,11 +570,12 @@ public class CplexModelGenerator10 {
 								}
 								tempClassSet.removeAll(ilpPro.getAuxiliaryConcepts());
 
+								System.err.println(" -------------------- ");
 								if (addIt) {
 									DependencySet ds = DependencySet.create();
 									for (int j = 0; j < tempSubSet.getRolesIndexSet().length; j++) {
 										if (tempSubSet.getRolesIndexSet()[j] > 0) { // if r value is 1
-											// System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier);
+											 System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier);
 											if (qcrMap.get(j).role != null) {
 												tempRoleSet.add(qcrMap.get(j).role);
 												ds.add(qcrMap.get(j).ds);
@@ -1982,7 +1985,6 @@ public class CplexModelGenerator10 {
 		IloObjective reducedCost;
 		IloNumVar[] r ;
 		IloNumVar[] b ;
-		IloNumVar[] br ;
 		IloNumVar[] sr ;
 		IloNumVar[] hr ;
 		
@@ -2004,9 +2006,6 @@ public class CplexModelGenerator10 {
 		public IloNumVar[] getB() {
 			return b;
 		}
-		public IloNumVar[] getBr() {
-			return br;
-		}
 		
 		@SuppressWarnings("unchecked")
 		public PPModel GeneratePpModel() throws IloException {
@@ -2020,7 +2019,6 @@ public class CplexModelGenerator10 {
 			//System.out.println("all qualifiers "+ allQualifiers);
 			reducedCost = ppCplex.addMinimize();
 			r = ppCplex.numVarArray(totalVar, 0., 1, IloNumVarType.Int);
-			br = ppCplex.numVarArray(allQualifiers.size(), 0., 1, IloNumVarType.Int);
 			b = ppCplex.numVarArray(allQualifiers.size(), 0., 1, IloNumVarType.Int);
 			//if(otherRoles.size()!=0)
 			sr = ppCplex.boolVarArray(srRoles.size());//numVarArray(otherRoles.size(), 0., 1, IloNumVarType.Int);
@@ -2031,7 +2029,7 @@ public class CplexModelGenerator10 {
 			
 			
 			SetMultimap<OWLObjectPropertyExpression, Integer> axiomRolesMap = HashMultimap.create();
-			/*
+			
 			for (int i = 0; i < totalVar; i++ ) {
 				if(qcrMap.get(i).role!=null) {
 					axiomRolesMap.put(qcrMap.get(i).role, i);
@@ -2051,32 +2049,9 @@ public class CplexModelGenerator10 {
 					ppCplex.addLe(r[i] , b[qualifiers.get(qcrMap.get(i).qualifier)]);
 					ppCplex.addLe(b[qualifiers.get(qcrMap.get(i).qualifier)] , r[i]);
 				}
-			}*/
-			
-
-			for (int i = 0; i < totalVar; i++ ) {
-				if(qcrMap.get(i).role!=null) {
-					axiomRolesMap.put(qcrMap.get(i).role, i);
-					if(tempRoleH.containsKey(qcrMap.get(i).role))
-						ppCplex.addLe(r[i] , hr[tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role))]);
-					//System.out.println("r["+i+"]: role "+"hr["+tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role.getNamedProperty()))+"] "+ tempRoleH.get(qcrMap.get(i).role.getNamedProperty()));
-					//System.out.println("r["+i+"]: role "+qcrMap.get(i).role.getNamedProperty()+ "qualifier "+qcrMap.get(i).qualifier);
-					
-				}
-			//	System.out.println("r["+i+"]: role "+qcrMap.get(i).role + "qualifier "+qcrMap.get(i).qualifier);
-				if(qcrMap.get(i).type.equals("MIN")) {
-					ppCplex.addLe(r[i] , br[qualifiers.get(qcrMap.get(i).qualifier)]);
-					ppCplex.addLe(br[qualifiers.get(qcrMap.get(i).qualifier)], b[qualifiers.get(qcrMap.get(i).qualifier)]);
-				}else if (qcrMap.get(i).type.equals("MAX")) {
-					ppCplex.addLe(br[qualifiers.get(qcrMap.get(i).qualifier)] , r[i]);
-					ppCplex.addLe(br[qualifiers.get(qcrMap.get(i).qualifier)], b[qualifiers.get(qcrMap.get(i).qualifier)]);
-				}else {
-					//System.out.println("r["+i+"]: role "+qcrMap.get(i).role + "qualifier "+qcrMap.get(i).qualifier);
-					ppCplex.addLe(r[i] , b[qualifiers.get(qcrMap.get(i).qualifier)]);
-					ppCplex.addLe(b[qualifiers.get(qcrMap.get(i).qualifier)] , r[i]);
-					//ppCplex.addLe(br[qualifiers.get(qcrMap.get(i).qualifier)], b[qualifiers.get(qcrMap.get(i).qualifier)]);
-				}
 			}
+			
+			
 			
 			// Role Hierarchy
 			for (OWLObjectPropertyExpression role : superRoles.keySet()){
@@ -2128,14 +2103,14 @@ public class CplexModelGenerator10 {
 						OWLClassExpression C = topMaxMap.get(role);
 						//System.out.println("role "+ role+ " class  "+C);
 							
-						ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], br[qualifiers.get(C)]);
+						ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], b[qualifiers.get(C)]);
 							if(srRolesMap.get(role)!=null)
-								ppCplex.addLe(sr[srRolesMap.get(role)], br[qualifiers.get(C)]);
+								ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
 						
 					}
 					else {
 						OWLClassExpression C = topMaxMap.get(role);
-							ppCplex.addLe(sr[srRolesMap.get(role)], br[qualifiers.get(C)]);
+							ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
 					}
 				}
 			}
@@ -2249,6 +2224,113 @@ public class CplexModelGenerator10 {
 			return this;
 		}
 	}
+	private class RMPCopy{
+		IloCplex rmpCplex;
+		private RMPCopy() throws IloException{
+			rmpCplex = new IloCplex();
+		}
+		private RMPCopy(RMPCopy rmpCopy){
+			rmpCplex = rmpCopy.getRmpCplex();
+			
+			
+		}
+		public RMPCopy(IloCplex rmpCpOrig, RMPModel rmpModel) throws IloException {
+			rmpCplex = new IloCplex();
+		//	rmpCpOrig.exportModel("lpModel.lp");
+		//	rmpCpOrig.clearModel();
+		//	rmpCpOrig.importModel("lpModel.lp");
+		//	rmpCplex.setModel(rmpCpOrig.getModel());
+			
 
+			//IloLPMatrix lp = (IloLPMatrix)rmpCpOrig.LPMatrixIterator().next(); 
+			IloCopyManager cm = new IloCopyManager(rmpCpOrig);
+			IloObjective obj;
+			try {
+				obj = (IloObjective)rmpCpOrig.getObjective().makeCopy(cm);
+				rmpCplex.add(obj);
+				
+				int numRanges = rmpModel.getConstraint().length;
+					for(int r=0;r<numRanges;r++)
+				    {                                                       
+				    	//System.out.println("Adding -> "+lp.getRange(r).toString());//uncomment to print constraints                                        
+				        IloRange temp = (IloRange)rmpModel.getConstraint()[r].makeCopy(cm);                                          
+				        rmpCplex.add(temp);//Adding the individual constraints                                                                           
+				    }
+				
+			//	System.out.println("lp.getRanges() "+lp);
+			//	int numRanges = lp.getRanges().length;
+			//	for(int r=0;r<numRanges;r++)
+			//    {                                                       
+			    	//System.out.println("Adding -> "+lp.getRange(r).toString());//uncomment to print constraints                                        
+			//        IloRange temp = (IloRange)lp.getRange(r).makeCopy(cm);                                          
+			//        rmpCplex.add(temp);//Adding the individual constraints                                                                           
+			//    }              
+			} catch (IloException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} 
+		}
+		public IloCplex getRmpCplex() {
+			return rmpCplex;
+		}
+		public void setRmpCplex(IloCplex rmpCplex) {
+			this.rmpCplex = rmpCplex;
+		
+		/*	try {
+			// Create byte array output stream and use it to create object output stream
+			ByteArrayOutputStream bos = new ByteArrayOutputStream();
+			ObjectOutputStream oos = new ObjectOutputStream(bos);
+			
+			oos.writeObject(rmpCplex);
+			oos.flush();
+			// toByteArray creates & returns a copy of stream’s byte array
+			byte[] bytes = bos.toByteArray();
+
+			// Create byte array input stream and use it to create object input stream
+			ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+
+			ObjectInputStream ois = new ObjectInputStream(bis);
+			this.rmpCplex = (IloCplex) ois.readObject();		// deserialize & typecast
+			} catch (IOException | ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}		// serialize
+			*/
+		}
+		
+	}
+	private class PPCopy{
+		IloCplex ppCplex;
+		private PPCopy() throws IloException{
+			ppCplex = new IloCplex();
+		}
+		private PPCopy(PPCopy rmpCopy){
+			this.ppCplex = rmpCopy.ppCplex;
+			
+		}
+		public PPCopy(IloCplex ppCpOrig, PPModel ppModel) throws IloException {
+			ppCplex = new IloCplex();
+			IloCopyManager cm = new IloCopyManager(ppCpOrig);
+			IloObjective obj = (IloObjective)ppCpOrig.getObjective().makeCopy(cm);
+			ppCplex.add(obj);
+			//ppCpOrig.get
+			//ppCplex.setModel(ppCpOrig.getModel());
+			/*	int numRanges = ppModel.getConstraint().length;
+					for(int r=0;r<numRanges;r++)
+				    {                                                       
+				    	//System.out.println("Adding -> "+lp.getRange(r).toString());//uncomment to print constraints                                        
+				        IloRange temp = (IloRange)ppModel.getConstraint()[r].makeCopy(cm);                                          
+				        ppCplex.add(temp);//Adding the individual constraints                                                                           
+				    }*/
+					
+		}
+		public IloCplex getPpCplex() {
+			return ppCplex;
+		}
+		public void setPpCplex(IloCplex ppCplex) {
+			this.ppCplex = ppCplex;
+		}
+		
+	}
 }
 

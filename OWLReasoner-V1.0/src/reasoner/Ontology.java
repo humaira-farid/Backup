@@ -159,6 +159,10 @@ public class Ontology {
 		//	nomSubAx.put((OWLObjectOneOf)sb.getSubClass(), sb.getSuperClass());
 			nominalSubsumers.put((OWLObjectOneOf)sb.getSubClass(), sb.getSuperClass());
 		}
+		for(OWLSubClassOfAxiom sb : this.diffIndSubAx) {
+			//	nomSubAx.put((OWLObjectOneOf)sb.getSubClass(), sb.getSuperClass());
+				nominalSubsumers.put((OWLObjectOneOf)sb.getSubClass(), sb.getSuperClass());
+			}
 		this.nominalSubsumersMap = (Map<OWLObjectOneOf, Set<OWLClassExpression>>) (Map<?, ?>) nominalSubsumers.asMap();
 		for(OWLObjectOneOf sb : nominalSubsumers.keySet()) {
 			for(OWLObjectOneOf c : nominalSubsumersMap.keySet()) {
@@ -508,6 +512,25 @@ public class Ontology {
 		}
 		ce.addAll(ce2);
 		//System.err.println("c "+ c+" subsumers "+ce.size());
+		return ce;
+	}
+	public Set<OWLClassExpression> getAllComplementEq(OWLClassExpression c){
+		Set<OWLClassExpression> ce = new HashSet<OWLClassExpression>();
+		if(this.conceptEqMap.get(c) != null) {
+			for(OWLClassExpression ceq : conceptEqMap.get(c)) {
+				OWLClassExpression ceqNNF = ceq.getComplementNNF();
+				ce.add(ceqNNF);
+				if(ceqNNF instanceof OWLClass) {
+					if(this.conceptSubsumersMap.get(ceqNNF) != null)
+						ce.addAll(conceptSubsumersMap.get(ceqNNF));
+				}
+				else if(ceqNNF instanceof OWLObjectOneOf) {
+					if(this.nominalSubsumersMap.get(ceqNNF) != null)
+						ce.addAll(nominalSubsumersMap.get(ceqNNF));
+				}
+			}
+		}
+			//conceptEqMap.get(c).stream().forEach(ceq -> ce.add(ceq.getComplementNNF()));
 		return ce;
 	}
 	public Set<OWLClassExpression> getAllSubsumers(OWLObjectOneOf o){

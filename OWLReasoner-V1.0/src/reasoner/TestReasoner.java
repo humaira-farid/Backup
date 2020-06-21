@@ -43,10 +43,12 @@ public class TestReasoner{
 	public TestReasoner(String fileName) {
 		File file = null;
 		if (fileName == null || fileName.isEmpty()) {
-		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/newtests/EU_Members_inc.owl");
-			file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/rh-1.fowl.owl");
+	//		 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/HARD-Test-Cases-Humaira/HARD-Test-Cases-Humaira/ALCQ-ALCHQ/C-restr-num-ALCQ/restr-num-1/restr-num-1-13.fowl.owl");
+		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOQ-tests/nom-1-B-not-sub-C-cons.fowl.owl");
+		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/SHOIQ-tests/paper-1b-inc-2.fowl.owl");
 		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/00325.fowl.owl");
-		//	file = new File("/Users/temp/Desktop/test-ontologies/Canadian_Parliament/canadian-parliament-ALCQ-inc.fowl.owl");
+		//	file = new File("/Users/temp/Desktop/test-ontologies/abb/pizza.owl");
+			file = new File("/Users/temp/Desktop/test-ontologies/ab/p_1.fowl.owl");
 		} else {
 			file = new File(fileName);
 		}
@@ -83,11 +85,11 @@ public class TestReasoner{
 		
 	    reasonerFactory = new ReasonerFactory();
 		todo = new ToDoList();
-	
-		intr = new Internalization(df);
-		intr.setPrefixManager(prefixManager);
 		reasoner = reasonerFactory.createReasoner(ont);
 	    config = this.reasoner.getConfiguration();
+		intr = new Internalization(df, config);
+		intr.setPrefixManager(prefixManager);
+		
 	    intr.setSymmetricRoles(getSymmetricRoles());
 	    ontology =  intr.internalize(ont);
 		re = new RuleEngine(intr, todo, df, config);
@@ -114,7 +116,7 @@ public class TestReasoner{
 //	 	  for (OWLSubClassOfAxiom sbg : intr.getTu()) 
 //	 	   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	     	 	
-	 //	   System.out.println( tgAxiom);
+	    System.out.println( tgAxiom);
 	 	   re.setTransitiveRoles(getTransitiveRoles());
 	 	   if(!getFunctionalRoles().isEmpty()) {
 	 		   intr.addFunctionalRoleAxiom(getFunctionalRoles());
@@ -127,7 +129,7 @@ public class TestReasoner{
 	 		 re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom,false);
 	 	  }
 	 	  else*/ if(tgAxiom !=null) {
-	    		re.checkConsistency(tgAxiom);
+	 		  re.checkConsistency(tgAxiom);
 		 	re.checkAboxConsistency(intr.getAboxClassAss(),tgAxiom,false);
 	 	  }
 	 	  else {
@@ -208,7 +210,7 @@ public class TestReasoner{
 			hasQCRs = true;
 		}
 				
-		if(ont.axioms().anyMatch(ax -> ax instanceof OWLInverseObjectPropertiesAxiom) ) {
+		if(ont.axioms().anyMatch(ax -> ax instanceof OWLInverseObjectPropertiesAxiom) || ont.axioms().anyMatch(ax -> ax instanceof OWLInverseFunctionalObjectPropertyAxiom)) {
 			hasInverseRoles = true;
 		}
 		else {
@@ -275,7 +277,7 @@ public class TestReasoner{
 			config.setUseEqualityBlocking(true);
 		}
 		else if(!hasNominal && hasQCRs && hasInverseRoles) {
-			//System.err.println("SHIQ");
+			System.err.println("SHIQ");
 			config.setSHIQ(true);
 			config.setUsePairwiseBlocking(true);
 		}
