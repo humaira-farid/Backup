@@ -10,6 +10,8 @@ public class QCR {
 	String type;
 	OWLObjectPropertyExpression role;
 	DependencySet ds;
+	boolean isAux = false;
+	OWLClassExpression realQualifier;
 	
 	QCR(OWLObjectCardinalityRestriction qcr, DependencySet ds){
 		this.role = qcr.getProperty();
@@ -36,4 +38,17 @@ public class QCR {
 	public void updateDS(DependencySet ds) {
 		this.ds = ds;
 	}
+	public boolean isAux() {
+		return isAux;
+	}
+	public void setAux(boolean isAux) {
+		this.isAux = isAux;
+	}
+	public OWLClassExpression getRealQualifier() {
+		return realQualifier;
+	}
+	public void setRealQualifier(OWLClassExpression realQualifier) {
+		this.realQualifier = realQualifier;
+	}
+	
 }

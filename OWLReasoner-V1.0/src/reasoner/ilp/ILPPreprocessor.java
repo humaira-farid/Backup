@@ -40,6 +40,7 @@ public class ILPPreprocessor {
 	SetMultimap<OWLClassExpression, OWLClassExpression> complexCSubsumers = HashMultimap.create(); // complex concept subsumers 
 	SetMultimap<OWLClassExpression, OWLClassExpression> complexNSubsumers = HashMultimap.create(); // complex nominal subsumers
 	Map<OWLClassExpression, Set<OWLClassExpression>> binarySubsumers = new HashMap<>();
+	BiMap<OWLClassExpression, OWLClassExpression> qcrAux = HashBiMap.create();
 	SetMultimap<OWLClassExpression, OWLClassExpression> conceptDisjoints = HashMultimap.create();
 	SetMultimap<OWLClassExpression, OWLClassExpression> nominalSubsumers = HashMultimap.create();
 	SetMultimap<OWLClassExpression, OWLClassExpression> nominalDisjoints = HashMultimap.create();
@@ -67,6 +68,8 @@ public class ILPPreprocessor {
 	Set<QCR> qcrs = new HashSet<>();
 	Map<Integer, OWLObjectCardinalityRestriction> crMap = new HashMap<Integer, OWLObjectCardinalityRestriction>();
 	Map<Integer, QCR> qcrMap = new HashMap<Integer, QCR>();
+	Map<Integer, OWLClassExpression> qcrQualifiersMap = new HashMap<>();
+	SetMultimap<OWLClassExpression, OWLObjectPropertyExpression> qcrMultiMap =  HashMultimap.create();
 	Set<OWLObjectOneOf> nominals = new HashSet<>();
 	Set<OWLClassExpression> simpleConcepts = new HashSet<>();
 	Set<OWLClassExpression> complexConcepts = new HashSet<>();
@@ -728,8 +731,16 @@ public class ILPPreprocessor {
 				conceptDs.put(filler, ds);
 			}
 			else if(filler instanceof OWLObjectIntersectionOf) {
-				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-				auxiliaryConcepts.add(qualifier);
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
+				
 				for(OWLClassExpression cj : filler.asConjunctSet()) {
 					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj));
 					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
@@ -743,8 +754,16 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
 			}
 			else if(filler instanceof OWLObjectUnionOf) {
-				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-				auxiliaryConcepts.add(qualifier);
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
+				
 				for(OWLClassExpression dj : filler.asDisjunctSet()) {
 					conceptDs.put(dj, ds);
 				}
@@ -757,8 +776,15 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
 			}
 			else if(filler instanceof OWLObjectAllValuesFrom) {
-				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-				auxiliaryConcepts.add(qualifier);
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
 				conceptDs.put(filler, ds);
 				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
 				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
@@ -769,8 +795,15 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
 			}
 			else if(filler instanceof OWLObjectSomeValuesFrom) {
-				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-				auxiliaryConcepts.add(qualifier);
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
 				conceptDs.put(filler, ds);
 				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
 				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
@@ -832,10 +865,18 @@ public class ILPPreprocessor {
 			}
 			else if(filler instanceof OWLObjectIntersectionOf) {
 				
+				
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
 				//// updated on Sep 12, 2019
 				
-				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-				auxiliaryConcepts.add(qualifier);
 				if(filler.asConjunctSet().stream().allMatch(cj -> (cj instanceof OWLObjectOneOf) || (cj instanceof OWLClass) || (cj instanceof OWLObjectComplementOf))) {
 					
 					this.binaryMaxSubsumers.put(filler, qualifier);
@@ -880,10 +921,17 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
 			}
 			else if(filler instanceof OWLObjectUnionOf) {
-				///////
 				
-				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-				auxiliaryConcepts.add(qualifier);
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
+				///////
 				for(OWLClassExpression dj : filler.asDisjunctSet()) {
 					conceptDs.put(dj, ds);
 					if((dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf)) {
@@ -920,8 +968,15 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
 			}
 			else if(filler instanceof OWLObjectAllValuesFrom) {
-				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-				auxiliaryConcepts.add(qualifier);
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
 				conceptDs.put(filler, ds);
 				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
 				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
@@ -932,8 +987,15 @@ public class ILPPreprocessor {
 				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
 			}
 			else if(filler instanceof OWLObjectSomeValuesFrom) {
-				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-				auxiliaryConcepts.add(qualifier);
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
 				conceptDs.put(filler, ds);
 				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
 				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
@@ -1331,6 +1393,12 @@ public class ILPPreprocessor {
 			if(!isAlreadyExists(q, ds)) {
 				QCR qcr = new QCR(q,ds);
 				qcrMap.put(i, qcr);
+				qcrQualifiersMap.put(i, q.getFiller());
+				qcrMultiMap.put(q.getFiller(), q.getProperty());
+				if(this.qcrAux.containsKey(q.getFiller())) {
+					qcr.setAux(true);
+					qcr.setRealQualifier(qcrAux.get(q.getFiller()));
+				}
 				qcrs.add(qcr);
 				++i;
 			}
@@ -1342,6 +1410,8 @@ public class ILPPreprocessor {
 				ds.add(d);
 			QCR qcr = new QCR(o,ds);
 			qcrMap.put(i, qcr);
+			qcrQualifiersMap.put(i, o);
+			qcrMultiMap.put(o, null);
 			qcrs.add(qcr);
 			++i;
 		}
@@ -1897,7 +1967,13 @@ public class ILPPreprocessor {
 	public Map<Integer, QCR> getQCRMap() {
 		return qcrMap;
 	}
+	public Map<Integer, OWLClassExpression> getQCRQualifiersMap() {
+		return qcrQualifiersMap;
+	}
 	
+	public SetMultimap<OWLClassExpression, OWLObjectPropertyExpression> getQcrMultiMap() {
+		return qcrMultiMap;
+	}
 	public List<OWLObjectCardinalityRestriction> getCardRes() {
 		cardRes.addAll(minCardRes);
 		cardRes.addAll(maxCardRes);

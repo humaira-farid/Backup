@@ -43,12 +43,12 @@ public class TestReasoner{
 	public TestReasoner(String fileName) {
 		File file = null;
 		if (fileName == null || fileName.isEmpty()) {
-	//		 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/HARD-Test-Cases-Humaira/HARD-Test-Cases-Humaira/ALCQ-ALCHQ/C-restr-num-ALCQ/restr-num-1/restr-num-1-13.fowl.owl");
+		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/HARD-Test-Cases-Humaira/HARD-Test-Cases-Humaira/ALCoQ-ALCHoQ/Cycles/C-Sat-cycle-ALCHQ.fowl.owl");
 		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOQ-tests/nom-1-B-not-sub-C-cons.fowl.owl");
 		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/SHOIQ-tests/paper-1b-inc-2.fowl.owl");
 		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/00325.fowl.owl");
 		//	file = new File("/Users/temp/Desktop/test-ontologies/abb/pizza.owl");
-			file = new File("/Users/temp/Desktop/test-ontologies/ab/p_1.fowl.owl");
+			file = new File("/Users/temp/Desktop/test-ontologies/ab/p_3.fowl.owl");
 		} else {
 			file = new File(fileName);
 		}
