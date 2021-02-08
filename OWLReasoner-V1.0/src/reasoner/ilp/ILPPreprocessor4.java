@@ -20,11 +20,14 @@ import reasoner.graph.Node;
 import reasoner.preprocessing.Internalization;
 import reasoner.todolist.ToDoEntry;
 
-public class ILPPreprocessor {
+public class ILPPreprocessor4 {
 	
 	List<OWLObjectCardinalityRestriction> cardRes = new ArrayList<>();
 	List<OWLObjectCardinalityRestriction> minCardRes = new ArrayList<>();
 	List<OWLObjectCardinalityRestriction> maxCardRes = new ArrayList<>();
+	Set<OWLObjectSomeValuesFrom> exists = new HashSet<>();
+	Set<OWLObjectHasValue> hasValue = new HashSet<>();
+	Set<OWLSubClassOfAxiom> auxiliarySubAx = new HashSet<>();
 	Set<OWLSubClassOfAxiom> auxiliaryMaxSubAx = new HashSet<>();
 	Set<OWLClassExpression> auxiliaryConcepts = new HashSet<>();
 	Set<OWLObjectPropertyExpression> auxiliaryRoles = new HashSet<>();
@@ -97,7 +100,44 @@ public class ILPPreprocessor {
 	Node currNode;
 	Set<Edge> outgoingEdges;
 	
-	public ILPPreprocessor(CompletionGraph cg, Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges, Set<OWLSubClassOfAxiom> subsumption, Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap2) {
+	
+	public ILPPreprocessor4(ToDoEntry entry, Internalization intl, OWLDataFactory df, Node n) {
+		counter = 0;
+		this.df = df;
+		this.currNode = n;
+		this.prefixManager = intl.getPrefixManager();
+		this.ontology = intl.getOntology();
+		this.base = this.prefixManager.getDefaultPrefix();
+		//this.superRoles = ontology.getSuperRoles();
+		this.superRolesMap = ontology.getSuperRolesMap();
+		processEntry(entry);
+		generateQCR();
+		processConcepts();
+		createMaps();
+	}
+	public ILPPreprocessor4(CompletionGraph cg, Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges) {
+		counter = 0;
+		this.cg = cg;
+		this.df = df;
+		this.currNode = n;
+		this.outgoingEdges= outgoingEdges;
+		this.prefixManager = intl.getPrefixManager();
+		this.ontology = intl.getOntology();
+		this.base = this.prefixManager.getDefaultPrefix();
+		//this.superRoles = ontology.getSuperRoles();
+		this.superRolesMap = ontology.getSuperRolesMap();
+		for(ToDoEntry entry : entries)
+			processEntry(entry);
+		generateQCR();
+		processQCRs();
+		processExistingOutgoingEdges();
+		createTopMap();
+		createForAllMap();
+		processConcepts();
+		createMaps();
+	}
+
+	public ILPPreprocessor4(CompletionGraph cg, Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges, Set<OWLSubClassOfAxiom> subsumption, Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap2) {
 		counter = 0;
 		this.cg = cg;
 		this.df = df;
@@ -106,6 +146,7 @@ public class ILPPreprocessor {
 		this.prefixManager = intl.getPrefixManager();
 		this.ontology = intl.getOntology();
 		this.base = this.prefixManager.getDefaultPrefix();
+		//this.superRoles = ontology.getSuperRoles();
 		this.superRolesMap = superRolesMap2;
 		this.learnedSubsumption = subsumption;
 		for(ToDoEntry entry : entries)
@@ -113,657 +154,14 @@ public class ILPPreprocessor {
 		generateQCR();
 		processQCRs();
 		processExistingOutgoingEdges();
+		createTopMap();
+		createForAllMap();
 		processConcepts();
 		processLearnedSubsumption();
-		createInternalRoleHierarchy();
 		createMaps();
 	}
 	
 	
-	private void processEntry(ToDoEntry entry) {
-		OWLClassExpression ce = entry.getClassExpression();
-		DependencySet ds = entry.getDs();
-		if(ce instanceof OWLObjectSomeValuesFrom) {
-			existsDs.put((OWLObjectSomeValuesFrom)ce, ds);
-		}
-		else if(ce instanceof OWLObjectMinCardinality) {
-			minDs.put((OWLObjectMinCardinality)ce, ds);
-		}
-		else if(ce instanceof OWLObjectMaxCardinality) {
-			maxDs.put((OWLObjectMaxCardinality)ce, ds);
-		}
-		else if(ce instanceof OWLObjectHasValue) {
-			hasValueDs.put((OWLObjectHasValue)ce, ds);
-		}
-		else if(ce instanceof OWLObjectAllValuesFrom) {
-			processForAll((OWLObjectAllValuesFrom)ce, ds);
-		}
-	
-	}
-	
-	private void processForAll(OWLObjectAllValuesFrom c, DependencySet ds) {
-		OWLObjectPropertyExpression role = c.getProperty();
-		OWLClassExpression filler = c.getFiller();
-		roles.add(role);
-		if(filler instanceof OWLObjectOneOf) {
-			nominals.add((OWLObjectOneOf)filler);
-			nominalDs.put((OWLObjectOneOf)filler, ds);
-			conceptDs.put(filler, ds);
-			this.forAllRes.add(c);
-		}
-		else if(filler instanceof OWLClass) {
-			simpleConcepts.add(c.getFiller());
-			conceptDs.put(filler, ds);
-			this.forAllRes.add(c);
-		}
-		else if(filler instanceof OWLObjectComplementOf) {
-			simpleConcepts.add(c.getFiller());
-			conceptDs.put(filler, ds);
-			this.forAllRes.add(c);
-		}
-		else if(filler instanceof OWLObjectIntersectionOf) {
-			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-			auxiliaryConcepts.add(qualifier);
-			for(OWLClassExpression cj : filler.asConjunctSet()) {
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
-				conceptDs.put(cj, ds);
-			}
-			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
-		}
-		else if(filler instanceof OWLObjectUnionOf) {
-			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-			auxiliaryConcepts.add(qualifier);
-			for(OWLClassExpression dj : filler.asDisjunctSet()) {
-				conceptDs.put(dj, ds);
-			}
-			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
-		}
-		else if(filler instanceof OWLObjectAllValuesFrom) {
-			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-			auxiliaryConcepts.add(qualifier);
-			conceptDs.put(filler, ds);
-			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
-		}
-		else if(filler instanceof OWLObjectSomeValuesFrom) {
-			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-			auxiliaryConcepts.add(qualifier);
-			conceptDs.put(filler, ds);
-			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
-		}
-		else if(filler instanceof OWLObjectMinCardinality) {
-			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-			auxiliaryConcepts.add(qualifier);
-			conceptDs.put(filler, ds);
-			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
-		}
-		else if(filler instanceof OWLObjectMaxCardinality) {
-			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-			auxiliaryConcepts.add(qualifier);
-			conceptDs.put(filler, ds);
-			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
-		}
-		
-	}
-
-	private void generateQCR() {
-		for(OWLObjectSomeValuesFrom ex : this.existsDs.keySet()) {
-			DependencySet ds = DependencySet.create();
-			for(DependencySet d : this.existsDs.get(ex))
-				ds.add(d);
-			OWLClassExpression filler = ex.getFiller();
-			OWLObjectPropertyExpression role = ex.getProperty();
-			roles.add(role);
-			if(filler instanceof OWLObjectOneOf) {
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, filler);
-				this.cardRes.add(cr);
-				cardResDs.put(cr, ds);
-				nominals.add((OWLObjectOneOf)filler);
-				nominalDs.put((OWLObjectOneOf)filler, ds);
-				conceptDs.put(filler, ds);
-			}
-			else if(filler instanceof OWLClass) {
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, filler);
-				this.cardRes.add(cr);
-				cardResDs.put(cr, ds);
-				simpleConcepts.add(filler);
-				conceptDs.put(filler, ds);
-			}
-			else if(filler instanceof OWLObjectComplementOf) {
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, filler);
-				this.cardRes.add(cr);
-				cardResDs.put(cr, ds);
-				simpleConcepts.add(filler);
-				conceptDs.put(filler, ds);
-			}
-			else if(filler instanceof OWLObjectIntersectionOf) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				//boolean isNI = false;
-				for(OWLClassExpression cj : filler.asConjunctSet()) {
-					/*if(cj.toString().contains("#ni_"))
-						isNI = true;*/
-					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
-					conceptDs.put(cj, ds);
-				}
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
-				/*if(isNI)
-					cr = df.getOWLObjectExactCardinality(1, role, qualifier);
-				else
-					cr = df.getOWLObjectMinCardinality(1, role, qualifier);*/
-				this.cardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-			else if(filler instanceof OWLObjectUnionOf) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				for(OWLClassExpression dj : filler.asDisjunctSet()) {
-					conceptDs.put(dj, ds);
-				}
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
-				this.cardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-			else if(filler instanceof OWLObjectAllValuesFrom) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				conceptDs.put(filler, ds);
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
-				this.cardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-			else if(filler instanceof OWLObjectSomeValuesFrom) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				conceptDs.put(filler, ds);
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
-				this.cardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-		}
-		for(OWLObjectHasValue hv : hasValueDs.keySet()) {
-			DependencySet ds = DependencySet.create();
-			for(DependencySet d : this.hasValueDs.get(hv))
-				ds.add(d);
-			OWLObjectPropertyExpression role = hv.getProperty();
-			roles.add(role);
-			OWLIndividual ind = hv.getFiller();
-			OWLObjectOneOf o = df.getOWLObjectOneOf(ind);
-			nominals.add(o);
-			nominalDs.put(o, ds);
-			conceptDs.put(o, ds);
-			OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, o);
-			this.cardRes.add(cr);
-			cardResDs.put(cr, ds);
-		}
-		
-	}
-	
-	private void processQCRs() {
-		for(OWLObjectMinCardinality min : this.minDs.keySet()) {
-			DependencySet ds = DependencySet.create();
-			for(DependencySet d : this.minDs.get(min))
-				ds.add(d);
-			OWLClassExpression filler = min.getFiller();
-			OWLObjectPropertyExpression role = min.getProperty();
-			roles.add(role);
-			if(filler instanceof OWLObjectOneOf) {
-				this.minCardRes.add(min);
-				cardResDs.put(min, ds);
-				nominals.add((OWLObjectOneOf)filler);
-				nominalDs.put((OWLObjectOneOf)filler, ds);
-				conceptDs.put(filler, ds);
-			}
-			else if(filler instanceof OWLClass) {
-				this.minCardRes.add(min);
-				cardResDs.put(min, ds);
-				simpleConcepts.add(filler);
-				conceptDs.put(filler, ds);
-			}
-			else if(filler.isOWLThing()) {
-				this.minCardRes.add(min);
-				cardResDs.put(min, ds);
-				simpleConcepts.add(filler);
-				conceptDs.put(filler, ds);
-				topMinCardinalities.add(min);
-			}
-			else if(filler instanceof OWLObjectComplementOf) {
-				this.minCardRes.add(min);
-				cardResDs.put(min, ds);
-				simpleConcepts.add(filler);
-				conceptDs.put(filler, ds);
-			}
-			else if(filler instanceof OWLObjectIntersectionOf) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				
-				for(OWLClassExpression cj : filler.asConjunctSet()) {
-					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
-					conceptDs.put(cj, ds);
-				}
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(min.getCardinality(), role, qualifier);
-				this.minCardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-			else if(filler instanceof OWLObjectUnionOf) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				
-				for(OWLClassExpression dj : filler.asDisjunctSet()) {
-					conceptDs.put(dj, ds);
-				}
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(min.getCardinality(), role, qualifier);
-				this.minCardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-			else if(filler instanceof OWLObjectAllValuesFrom) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				conceptDs.put(filler, ds);
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(min.getCardinality(), role, qualifier);
-				this.minCardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-			else if(filler instanceof OWLObjectSomeValuesFrom) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				conceptDs.put(filler, ds);
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(min.getCardinality(), role, qualifier);
-				this.minCardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-			else if(filler instanceof OWLObjectMinCardinality) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				conceptDs.put(filler, ds);
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(min.getCardinality(), role, qualifier);
-				this.minCardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-			else if(filler instanceof OWLObjectMaxCardinality) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				conceptDs.put(filler, ds);
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(min.getCardinality(), role, qualifier);
-				this.minCardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-		}
-
-		for(OWLObjectMaxCardinality max : this.maxDs.keySet()) {
-			DependencySet ds = DependencySet.create();
-			for(DependencySet d : this.maxDs.get(max))
-				ds.add(d);
-			OWLClassExpression filler = max.getFiller();
-			OWLObjectPropertyExpression role = max.getProperty();
-			roles.add(role);
-			if(max.getCardinality() == 0) {// <0R.A --> forAllR.notA
-				roles.add(role);
-				OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, filler.getComplementNNF());
-				this.processForAll(forAll, ds);
-			}
-			else if(filler.isOWLThing()) {
-				//System.out.println("top");
-				this.maxCardRes.add(max);
-				cardResDs.put(max, ds);
-				simpleConcepts.add(filler);
-				conceptDs.put(filler, ds);
-				topMaxCardinalities.add(max);
-			}
-			else if(filler instanceof OWLObjectOneOf) {
-				this.maxCardRes.add(max);
-				cardResDs.put(max, ds);
-				nominals.add((OWLObjectOneOf)filler);
-				nominalDs.put((OWLObjectOneOf)filler, ds);
-				conceptDs.put(filler, ds);
-				OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(filler, filler.getComplementNNF()));
-				this.processForAll(forAll, ds);
-			}
-			else if(filler instanceof OWLClass) {
-				this.maxCardRes.add(max);
-				cardResDs.put(max, ds);
-				simpleConcepts.add(filler);
-				conceptDs.put(filler, ds);
-				OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(filler, filler.getComplementNNF()));
-				this.processForAll(forAll, ds);
-			}
-			
-			else if(filler instanceof OWLObjectComplementOf) {
-				this.maxCardRes.add(max);
-				cardResDs.put(max, ds);
-				simpleConcepts.add(filler);
-				conceptDs.put(filler, ds);
-				OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(filler, filler.getComplementNNF()));
-				this.processForAll(forAll, ds);
-			}
-			else if(filler instanceof OWLObjectIntersectionOf) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				//// updated on Sep 12, 2019
-				
-				if(filler.asConjunctSet().stream().allMatch(cj -> (cj instanceof OWLObjectOneOf) 
-						|| (cj instanceof OWLClass) || (cj instanceof OWLObjectComplementOf))) {
-					
-					this.binaryMaxSubsumers.put(filler, qualifier);
-					this.simpleConcepts.addAll(filler.asConjunctSet());
-					//// 21 Oct, 2019
-					this.simpleConcepts.addAll(filler.getComplementNNF().asDisjunctSet());
-					OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(qualifier, qualifier.getComplementNNF()));
-					this.processForAll(forAll, ds);
-					//System.err.println("forall rule "+filler.getComplementNNF());
-					this.auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier.getComplementNNF(), filler.getComplementNNF()),ds);
-					////
-				}
-				for(OWLClassExpression cj : filler.asConjunctSet()) {
-					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
-					conceptDs.put(cj, ds);
-				}
-
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(max.getCardinality(), role, qualifier);
-				this.maxCardRes.add(cr);
-				cardResDs.put(cr, ds);
-				
-				
-				////// commented Sep 12, 2019 - start 
-				/*OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-				auxiliaryConcepts.add(qualifier);
-				for(OWLClassExpression cj : filler.asConjunctSet()) {
-					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj));
-					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
-					conceptDs.put(cj, ds);
-				}
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(ex.getCardinality(), role, qualifier);
-				this.maxCardRes.add(cr);
-				cardResDs.put(cr, ds);
-				roles.add(role);*/
-				
-				/// end
-				
-				//filler.asConjunctSet().stream().forEach(cj -> this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj)));
-			
-			}
-			else if(filler instanceof OWLObjectUnionOf) {
-				
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				///////
-				for(OWLClassExpression dj : filler.asDisjunctSet()) {
-					conceptDs.put(dj, ds);
-					if((dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf)) {
-						this.simpleASubsumers.put(dj, qualifier);
-						this.simpleConcepts.add(dj);
-						/// 21-OCT-2019
-						OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(dj, dj.getComplementNNF()));
-						this.processForAll(forAll, ds);
-						///
-					}
-					
-				}
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(max.getCardinality(), role, qualifier);
-				this.maxCardRes.add(cr);
-				cardResDs.put(cr, ds);
-				
-				
-				////// sep12. 2019 start
-				/*OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-				auxiliaryConcepts.add(qualifier);
-				for(OWLClassExpression dj : filler.asDisjunctSet()) {
-					conceptDs.put(dj, ds);
-				}
-				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(ex.getCardinality(), role, qualifier);
-				this.maxCardRes.add(cr);
-				cardResDs.put(cr, ds);
-				roles.add(role);*/
-				//// end
-			}
-			else if(filler instanceof OWLObjectAllValuesFrom) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				conceptDs.put(filler, ds);
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(max.getCardinality(), role, qualifier);
-				this.maxCardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-			else if(filler instanceof OWLObjectSomeValuesFrom) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				conceptDs.put(filler, ds);
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(max.getCardinality(), role, qualifier);
-				this.maxCardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-			else if(filler instanceof OWLObjectMinCardinality) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				conceptDs.put(filler, ds);
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(max.getCardinality(), role, qualifier);
-				this.maxCardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-			else if(filler instanceof OWLObjectMaxCardinality) {
-				OWLClassExpression qualifier = null;
-				if(qcrAux.containsValue(filler)) {
-					qualifier = qcrAux.inverse().get(filler);
-				}
-				else {
-					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-					auxiliaryConcepts.add(qualifier);
-					this.qcrAux.put(qualifier, filler);
-				}
-				conceptDs.put(filler, ds);
-				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
-				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(max.getCardinality(), role, qualifier);
-				this.maxCardRes.add(cr);
-				cardResDs.put(cr, ds);
-			}
-		}
-		
-	}
-	
-	private void processExistingOutgoingEdges() {
-		for(Edge e : outgoingEdges) {
-			DependencySet ds = e.getDepSet();
-			Set<OWLObjectPropertyExpression> eRoles = e.getLabel();
-			Set<OWLClassExpression> fillers = e.getToNode().getLabel();
-
-			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
-			nodeIdMap.put(qualifier, e.getToNode().getId());
-			OWLObjectPropertyExpression role = df.getOWLObjectProperty("#ilp_auxRole_" + ++counter, prefixManager);
-			auxiliaryConcepts.add(qualifier);
-			auxiliaryRoles.add(role);
-			for(OWLClassExpression c : fillers) {
-				if((c instanceof OWLClass) || (c instanceof OWLObjectOneOf) || (c instanceof OWLObjectComplementOf)) {
-					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, c), ds);
-				}
-				else {
-					this.complexASubsumers.put(qualifier, c);
-				}
-			}
-			for(OWLObjectPropertyExpression r : eRoles) {
-				roles.add(r);
-				this.auxRoleH.put(role, r);
-			}
-			OWLObjectCardinalityRestriction crExact = null;
-			if(this.currNode.isBlockableNode()) {
-				crExact = df.getOWLObjectExactCardinality(1, role, qualifier);
-			
-			}
-			else{
-				crExact = df.getOWLObjectExactCardinality(e.getToNode().getCardinality(), role, qualifier);
-			}
-			
-			this.cardRes.add(crExact);
-			cardResDs.put(crExact, ds);
-			
-			roles.add(role);
-		}
-		this.auxRoleHMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) auxRoleH.asMap();
-	}
-
-	private void createInternalRoleHierarchy() {
-		
-		Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> tempSuperRolesMap = new HashMap<>(superRolesMap);
-		tempSuperRolesMap.putAll(auxRoleHMap);
-		int k=1;
-		for(OWLObjectPropertyExpression role : this.roles) {
-			if(!tempRoleH.containsKey(role)) {
-				OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));// create Helper Role
-				tempRoleH.put(role, rh);
-				if(tempSuperRolesMap.keySet().contains(role)) {
-					sRMap.put(role, tempSuperRolesMap.get(role));
-				}
-				k++;
-			}
-		}
-		/*for(OWLObjectPropertyExpression role : this.roles) {
-			if(!tempRoleH.containsKey(role)) {
-				OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));// create Helper Role
-				tempRoleH.put(role, rh);
-				System.out.println("1) role "+ role +"H role : "+rh);
-				k++;
-				for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
-					if(roles.contains(r)) {
-						if(tempSuperRolesMap.get(r).contains(role)) {
-							if(!tempRoleH.containsKey(r)) {
-								OWLObjectPropertyExpression rh1 = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
-								tempRoleH.put(r, rh1);
-								k++;
-								System.out.println("2) role "+ r +"H role : "+rh1);
-								
-							}
-	
-							sR.put(r, role);
-						}
-					}
-				}
-			}
-		}*/
-				
-	}
-
 	
 	private void processConcepts() {
 		for(OWLSubClassOfAxiom sb : this.auxiliarySubAxDs.keySet()) {
@@ -981,20 +379,822 @@ public class ILPPreprocessor {
 			}
 		}
 	}
+	
+	
+	
+	
+	private void processEntry(ToDoEntry entry) {
+		
+		OWLClassExpression ce = entry.getClassExpression();
+		DependencySet ds = entry.getDs();
+		/*if(ce instanceof OWLObjectIntersectionOf) {
+			processIntersection(ce);
+			
+		}
+		else*/
+		if(ce instanceof OWLObjectSomeValuesFrom) {
+			//exists.add((OWLObjectSomeValuesFrom)ce);
+			existsDs.put((OWLObjectSomeValuesFrom)ce, ds);
+		}
+		else if(ce instanceof OWLObjectMinCardinality) {
+			
+			minDs.put((OWLObjectMinCardinality)ce, ds);
+		}
+		else if(ce instanceof OWLObjectMaxCardinality) {
+			
+			maxDs.put((OWLObjectMaxCardinality)ce, ds);
+		}
+		else if(ce instanceof OWLObjectHasValue) {
+			//hasValue.add((OWLObjectHasValue)ce);
+			hasValueDs.put((OWLObjectHasValue)ce, ds);
+		}
+		else if(ce instanceof OWLObjectAllValuesFrom) {
+			processForAll((OWLObjectAllValuesFrom)ce, ds);
+		}
+	
+	}
 
-	
-	
+
+/*	private void processIntersection(OWLClassExpression ce) {
+		for(OWLClassExpression c : ce.asConjunctSet()) {
+			if(c instanceof OWLObjectUnionOf) {
+				processDisjunction(c);
+			}
+			else if(c instanceof OWLObjectSomeValuesFrom) {
+				exists.add((OWLObjectSomeValuesFrom)c);
+			}
+			else if(c instanceof OWLObjectHasValue) {
+				hasValue.add((OWLObjectHasValue)ce);
+			}
+			else if(c instanceof OWLObjectAllValuesFrom) {
+				processForAll((OWLObjectAllValuesFrom)c);
+			}
+			else if(c instanceof OWLObjectIntersectionOf) {
+				processIntersection(c);
+			}
+		}
+		
+	}*/
+
+
+	private void processForAll(OWLObjectAllValuesFrom c, DependencySet ds) {
+		//this.forAllRes.add((OWLObjectAllValuesFrom)c);
+		//System.out.println("here");
+		OWLClassExpression filler = c.getFiller();
+		if(filler instanceof OWLObjectOneOf) {
+			nominals.add((OWLObjectOneOf)filler);
+			nominalDs.put((OWLObjectOneOf)filler, ds);
+			conceptDs.put(filler, ds);
+			this.forAllRes.add(c);
+		}
+		else if(filler instanceof OWLClass) {
+			simpleConcepts.add(c.getFiller());
+			conceptDs.put(filler, ds);
+			this.forAllRes.add(c);
+		}
+
+		else if(filler instanceof OWLObjectComplementOf) {
+			//System.out.println("here");
+			simpleConcepts.add(c.getFiller());
+			conceptDs.put(filler, ds);
+			this.forAllRes.add(c);
+		}
+		else if(filler instanceof OWLObjectIntersectionOf) {
+			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+			auxiliaryConcepts.add(qualifier);
+			for(OWLClassExpression cj : filler.asConjunctSet()) {
+				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj));
+				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
+				conceptDs.put(cj, ds);
+			}
+			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+		}
+		else if(filler instanceof OWLObjectUnionOf) {
+			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+			auxiliaryConcepts.add(qualifier);
+			for(OWLClassExpression dj : filler.asDisjunctSet()) {
+				conceptDs.put(dj, ds);
+			}
+			this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+		}
+		else if(filler instanceof OWLObjectAllValuesFrom) {
+			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+			auxiliaryConcepts.add(qualifier);
+			conceptDs.put(filler, ds);
+			this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+		}
+		else if(filler instanceof OWLObjectSomeValuesFrom) {
+			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+			auxiliaryConcepts.add(qualifier);
+			conceptDs.put(filler, ds);
+			this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+		}
+		else if(filler instanceof OWLObjectMinCardinality) {
+			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+			auxiliaryConcepts.add(qualifier);
+			conceptDs.put(filler, ds);
+			this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+		}
+		else if(filler instanceof OWLObjectMaxCardinality) {
+			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+			auxiliaryConcepts.add(qualifier);
+			conceptDs.put(filler, ds);
+			this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+		}
+		
+	}
+
+/*	private void processDisjunction(OWLClassExpression c) {
+		// TODO Auto-generated method stub
+		
+	}*/
+
+	private void generateQCR() {
+		for(OWLObjectSomeValuesFrom ex : this.existsDs.keySet()) {
+			DependencySet ds = DependencySet.create();
+			for(DependencySet d : this.existsDs.get(ex))
+				ds.add(d);
+			OWLClassExpression filler = ex.getFiller();
+			OWLObjectPropertyExpression role = ex.getProperty();
+			if(filler instanceof OWLObjectOneOf) {
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, filler);
+				this.cardRes.add(cr);
+				roles.add(role);
+				cardResDs.put(cr, ds);
+				nominals.add((OWLObjectOneOf)filler);
+				nominalDs.put((OWLObjectOneOf)filler, ds);
+				conceptDs.put(filler, ds);
+			}
+			else if(filler instanceof OWLClass) {
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, filler);
+				this.cardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				simpleConcepts.add(filler);
+				conceptDs.put(filler, ds);
+			}
+			else if(filler instanceof OWLObjectComplementOf) {
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, filler);
+				this.cardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				simpleConcepts.add(filler);
+				conceptDs.put(filler, ds);
+			}
+			else if(filler instanceof OWLObjectIntersectionOf) {
+				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+				auxiliaryConcepts.add(qualifier);
+				//boolean isNI = false;
+				for(OWLClassExpression cj : filler.asConjunctSet()) {
+					/*if(cj.toString().contains("#ni_"))
+						isNI = true;*/
+					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj));
+					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
+					conceptDs.put(cj, ds);
+				}
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
+				/*if(isNI)
+					cr = df.getOWLObjectExactCardinality(1, role, qualifier);
+				else
+					cr = df.getOWLObjectMinCardinality(1, role, qualifier);*/
+				this.cardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//filler.asConjunctSet().stream().forEach(cj -> this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj)));
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectUnionOf) {
+				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+				auxiliaryConcepts.add(qualifier);
+				for(OWLClassExpression dj : filler.asDisjunctSet()) {
+					conceptDs.put(dj, ds);
+				}
+				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
+				this.cardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectAllValuesFrom) {
+				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+				auxiliaryConcepts.add(qualifier);
+				conceptDs.put(filler, ds);
+				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
+				this.cardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectSomeValuesFrom) {
+				OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+				auxiliaryConcepts.add(qualifier);
+				conceptDs.put(filler, ds);
+				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
+				this.cardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+		}
+		for(OWLObjectHasValue hv : hasValueDs.keySet()) {
+			DependencySet ds = DependencySet.create();
+			for(DependencySet d : this.hasValueDs.get(hv))
+				ds.add(d);
+			OWLObjectPropertyExpression role = hv.getProperty();
+			OWLIndividual ind = hv.getFiller();
+			OWLObjectOneOf o = df.getOWLObjectOneOf(ind);
+			nominals.add(o);
+			nominalDs.put(o, ds);
+			conceptDs.put(o, ds);
+			OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, o);
+			this.cardRes.add(cr);
+			cardResDs.put(cr, ds);
+			roles.add(role);
+			//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, o));
+		}
+		
+	}
+	private void processExistingOutgoingEdges() {
+		for(Edge e : outgoingEdges) {
+			DependencySet ds = e.getDepSet();
+			Set<OWLObjectPropertyExpression> eRoles = e.getLabel();
+			Set<OWLClassExpression> fillers = e.getToNode().getLabel();
+
+			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+			nodeIdMap.put(qualifier, e.getToNode().getId());
+			OWLObjectPropertyExpression role = df.getOWLObjectProperty("#ilp_auxRole_" + ++counter, prefixManager);
+			auxiliaryConcepts.add(qualifier);
+			auxiliaryRoles.add(role);
+			for(OWLClassExpression c : fillers) {
+				if((c instanceof OWLClass) || (c instanceof OWLObjectOneOf) || (c instanceof OWLObjectComplementOf)) {
+					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, c));
+					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, c), ds);
+				}
+				else {
+					this.complexASubsumers.put(qualifier, c);
+				}
+			}
+			for(OWLObjectPropertyExpression r : eRoles) {
+				roles.add(r);
+				this.auxRoleH.put(role, r);
+			}
+		//	OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
+		//	OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(e.getToNode().getCardinality(), role, qualifier);
+			
+			//OWLObjectCardinalityRestriction crMin = null;
+		//	OWLObjectCardinalityRestriction crMax = null;
+			OWLObjectCardinalityRestriction crExact = null;
+			if(this.currNode.isBlockableNode()) {
+				//crMin = df.getOWLObjectMinCardinality(1, role, qualifier);
+				//crMax = df.getOWLObjectMaxCardinality(1, role, qualifier);
+				crExact = df.getOWLObjectExactCardinality(1, role, qualifier);
+			
+			}
+			else{
+				//crMin = df.getOWLObjectMinCardinality(e.getToNode().getCardinality(), role, qualifier);
+				//crMax = df.getOWLObjectMaxCardinality(e.getToNode().getCardinality(), role, qualifier);
+				crExact = df.getOWLObjectExactCardinality(e.getToNode().getCardinality(), role, qualifier);
+			}
+		//	this.cardRes.add(crMin);
+		//	this.cardRes.add(crMax);
+		//	cardResDs.put(crMin, ds);
+		//	cardResDs.put(crMax, ds);
+			
+			this.cardRes.add(crExact);
+			cardResDs.put(crExact, ds);
+			
+			roles.add(role);
+		}
+		this.auxRoleHMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) auxRoleH.asMap();
+	}
 	
 	public Map<OWLClassExpression, Integer> getNodeIdMap() {
 		return nodeIdMap;
 	}
-	
+	private void processQCRs() {
+		for(OWLObjectMinCardinality ex : this.minDs.keySet()) {
+			DependencySet ds = DependencySet.create();
+			for(DependencySet d : this.minDs.get(ex))
+				ds.add(d);
+			OWLClassExpression filler = ex.getFiller();
+			OWLObjectPropertyExpression role = ex.getProperty();
+			if(filler instanceof OWLObjectOneOf) {
+				this.minCardRes.add(ex);
+				roles.add(role);
+				cardResDs.put(ex, ds);
+				nominals.add((OWLObjectOneOf)filler);
+				nominalDs.put((OWLObjectOneOf)filler, ds);
+				conceptDs.put(filler, ds);
+			}
+			else if(filler instanceof OWLClass) {
+				this.minCardRes.add(ex);
+				roles.add(role);
+				cardResDs.put(ex, ds);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				simpleConcepts.add(filler);
+				conceptDs.put(filler, ds);
+			}
+			else if(filler.isOWLThing()) {
+				
+				this.minCardRes.add(ex);
+				roles.add(role);
+				cardResDs.put(ex, ds);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				simpleConcepts.add(filler);
+				conceptDs.put(filler, ds);
+				topMinCardinalities.add(ex);
+			}
+			else if(filler instanceof OWLObjectComplementOf) {
+				this.minCardRes.add(ex);
+				roles.add(role);
+				cardResDs.put(ex, ds);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				simpleConcepts.add(filler);
+				conceptDs.put(filler, ds);
+			}
+			else if(filler instanceof OWLObjectIntersectionOf) {
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
+				
+				for(OWLClassExpression cj : filler.asConjunctSet()) {
+					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj));
+					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
+					conceptDs.put(cj, ds);
+				}
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(ex.getCardinality(), role, qualifier);
+				this.minCardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//filler.asConjunctSet().stream().forEach(cj -> this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj)));
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectUnionOf) {
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
+				
+				for(OWLClassExpression dj : filler.asDisjunctSet()) {
+					conceptDs.put(dj, ds);
+				}
+				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(ex.getCardinality(), role, qualifier);
+				this.minCardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectAllValuesFrom) {
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
+				conceptDs.put(filler, ds);
+				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(ex.getCardinality(), role, qualifier);
+				this.minCardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectSomeValuesFrom) {
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
+				conceptDs.put(filler, ds);
+				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(ex.getCardinality(), role, qualifier);
+				this.minCardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+		}
 
+		for(OWLObjectMaxCardinality ex : this.maxDs.keySet()) {
+			DependencySet ds = DependencySet.create();
+			for(DependencySet d : this.maxDs.get(ex))
+				ds.add(d);
+			OWLClassExpression filler = ex.getFiller();
+			//System.out.println("filler"+ filler);
+			OWLObjectPropertyExpression role = ex.getProperty();
+			if(filler.isOWLThing()) {
+				//System.out.println("top");
+				this.maxCardRes.add(ex);
+				roles.add(role);
+				cardResDs.put(ex, ds);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				simpleConcepts.add(filler);
+				conceptDs.put(filler, ds);
+				topMaxCardinalities.add(ex);
+			}
+			else if(filler instanceof OWLObjectOneOf) {
+				this.maxCardRes.add(ex);
+				roles.add(role);
+				cardResDs.put(ex, ds);
+				nominals.add((OWLObjectOneOf)filler);
+				nominalDs.put((OWLObjectOneOf)filler, ds);
+				conceptDs.put(filler, ds);
+				OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(filler, filler.getComplementNNF()));
+				this.processForAll(forAll, ds);
+			}
+			else if(filler instanceof OWLClass) {
+				this.maxCardRes.add(ex);
+				roles.add(role);
+				cardResDs.put(ex, ds);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				simpleConcepts.add(filler);
+				conceptDs.put(filler, ds);
+				OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(filler, filler.getComplementNNF()));
+				this.processForAll(forAll, ds);
+			}
+			
+			else if(filler instanceof OWLObjectComplementOf) {
+				this.maxCardRes.add(ex);
+				roles.add(role);
+				cardResDs.put(ex, ds);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, filler));
+				simpleConcepts.add(filler);
+				conceptDs.put(filler, ds);
+				OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(filler, filler.getComplementNNF()));
+				this.processForAll(forAll, ds);
+			}
+			else if(filler instanceof OWLObjectIntersectionOf) {
+				
+				
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
+				//// updated on Sep 12, 2019
+				
+				if(filler.asConjunctSet().stream().allMatch(cj -> (cj instanceof OWLObjectOneOf) || (cj instanceof OWLClass) || (cj instanceof OWLObjectComplementOf))) {
+					
+					this.binaryMaxSubsumers.put(filler, qualifier);
+					this.simpleConcepts.addAll(filler.asConjunctSet());
+					//// 21 Oct, 2019
+					this.simpleConcepts.addAll(filler.getComplementNNF().asDisjunctSet());
+					OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(qualifier, qualifier.getComplementNNF()));
+					this.processForAll(forAll, ds);
+					//System.err.println("forall rule "+filler.getComplementNNF());
+					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier.getComplementNNF(), filler.getComplementNNF()));
+					this.auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier.getComplementNNF(), filler.getComplementNNF()),ds);
+					////
+				}
+				for(OWLClassExpression cj : filler.asConjunctSet()) {
+					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj));
+					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
+					conceptDs.put(cj, ds);
+				}
+
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(ex.getCardinality(), role, qualifier);
+				this.maxCardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				
+				
+				////// commented Sep 12, 2019 - start 
+				/*OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+				auxiliaryConcepts.add(qualifier);
+				for(OWLClassExpression cj : filler.asConjunctSet()) {
+					this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj));
+					auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, cj), ds);
+					conceptDs.put(cj, ds);
+				}
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(ex.getCardinality(), role, qualifier);
+				this.maxCardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);*/
+				
+				/// end
+				
+				//filler.asConjunctSet().stream().forEach(cj -> this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, cj)));
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectUnionOf) {
+				
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
+				///////
+				for(OWLClassExpression dj : filler.asDisjunctSet()) {
+					conceptDs.put(dj, ds);
+					if((dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf)) {
+						this.simpleASubsumers.put(dj, qualifier);
+						this.simpleConcepts.add(dj);
+						/// 21-OCT-2019
+						OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, df.getOWLObjectUnionOf(dj, dj.getComplementNNF()));
+						this.processForAll(forAll, ds);
+						///
+					}
+					
+				}
+				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(ex.getCardinality(), role, qualifier);
+				this.maxCardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				
+				
+				////// sep12. 2019 start
+				/*OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+				auxiliaryConcepts.add(qualifier);
+				for(OWLClassExpression dj : filler.asDisjunctSet()) {
+					conceptDs.put(dj, ds);
+				}
+				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(ex.getCardinality(), role, qualifier);
+				this.maxCardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);*/
+				//// end
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectAllValuesFrom) {
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
+				conceptDs.put(filler, ds);
+				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(ex.getCardinality(), role, qualifier);
+				this.maxCardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+			else if(filler instanceof OWLObjectSomeValuesFrom) {
+				OWLClassExpression qualifier = null;
+				if(qcrAux.containsValue(filler)) {
+					qualifier = qcrAux.inverse().get(filler);
+				}
+				else {
+					qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
+					auxiliaryConcepts.add(qualifier);
+					this.qcrAux.put(qualifier, filler);
+				}
+				conceptDs.put(filler, ds);
+				this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, filler));
+				auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
+				OWLObjectCardinalityRestriction cr = df.getOWLObjectMaxCardinality(ex.getCardinality(), role, qualifier);
+				this.maxCardRes.add(cr);
+				cardResDs.put(cr, ds);
+				roles.add(role);
+				//this.cardRes.add(df.getOWLObjectMinCardinality(1, role, qualifier));
+			}
+		}
+		
+	}
+
+	public void createForAllMap() {
+		// add range restrictions
+				/*for(OWLObjectPropertyExpression obj : roles) {
+					if(!(ontology.getRoleRange(obj).isEmpty()))
+						ontology.getRoleRange(obj).forEach(rr -> processForAll(rr, DependencySet.create()));
+					
+					if(superRolesMap.containsKey(obj)) { 
+						for(OWLObjectPropertyExpression r : superRolesMap.get(obj)) {
+							if(!(ontology.getRoleRange(r).isEmpty()))
+								ontology.getRoleRange(r).forEach(rr -> processForAll(rr, DependencySet.create()));
+						}
+					}
+				}*/
+				
+				// process forAll restrictions 
+				//System.out.println("forAll pre "+getForAllRes().size());
+	//	System.err.println("roles  "+roles);
+		Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> tempSuperRolesMap = new HashMap<>(superRolesMap);
+		tempSuperRolesMap.putAll(auxRoleHMap);
+				int k=1;
+				for(OWLObjectAllValuesFrom forAll : getForAllRes()) {
+					boolean addForAll = false;
+					OWLObjectPropertyExpression role = forAll.getProperty();
+					if(roles.contains(role)){
+						addForAll = true;
+						if(!tempRoleH.containsKey(role)) {
+							OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#H"+k));// create Helper Role
+							tempRoleH.put(role, rh);
+							k++;
+							System.out.println("1) role "+ role +"H role : "+rh);
+							//addForAll = true;
+						//	System.out.println("tempSuperRolesMap.keySet() "+ tempSuperRolesMap.keySet());
+							for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
+								if(roles.contains(r)) {
+									if(tempSuperRolesMap.get(r).contains(role)) {
+										if(!tempRoleH.containsKey(r)) {
+											OWLObjectPropertyExpression rh1 = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
+											tempRoleH.put(r, rh1);
+											k++;
+											System.out.println("2) role "+ r +"H role : "+rh1);
+											
+										}
+				
+										sR.put(r, role);
+										//addForAll = true;
+									}
+								}
+							}
+						}
+					}
+					
+					else{
+						for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
+							if(roles.contains(r)) {
+								if(tempSuperRolesMap.get(r).contains(role)) {
+									if(!tempRoleH.containsKey(r)) {
+										OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
+										tempRoleH.put(r, rh);
+										k++;
+										System.out.println("3) role "+ r +"H role : "+rh);
+										
+									}
+									sR.put(r, role);
+									addForAll = true;
+								}
+							}
+						}
+					}
+					if(addForAll)	
+						this.forAllMap.put(forAll.getProperty(), forAll.getFiller());
+				}
+				
+	}
 	
-	public Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> getSuperRolesMap() {
+	public void createTopMap() {
+		
+		Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> tempSuperRolesMap = new HashMap<>(superRolesMap);
+		tempSuperRolesMap.putAll(auxRoleHMap);
+		int k=1;
+		for(OWLObjectMinCardinality topMin : topMinCardinalities) {
+			boolean addTop = false;
+			OWLObjectPropertyExpression role = topMin.getProperty();
+			if(roles.contains(role)){
+				addTop = true;
+				if(!tempRoleH.containsKey(role)) {
+					OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));// create Helper Role
+					tempRoleH.put(role, rh);
+					k++;
+					//System.out.println("1) role "+ role +"TH role : "+rh);
+					
+					for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
+						if(roles.contains(r)) {
+							if(tempSuperRolesMap.get(r).contains(role)) {
+								if(!tempRoleH.containsKey(r)) {
+									OWLObjectPropertyExpression rh1 = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));
+									tempRoleH.put(r, rh1);
+									k++;
+									//System.out.println("2) role "+ r +"TH role : "+rh1);
+									
+								}
+		
+								sR.put(r, role);
+							}
+						}
+					}
+				}
+			}
+			else{
+				for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
+					if(roles.contains(r)) {
+						if(tempSuperRolesMap.get(r).contains(role)) {
+							if(!tempRoleH.containsKey(r)) {
+								OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));
+								tempRoleH.put(r, rh);
+								k++;
+								//System.out.println("3) role "+ r +"TH role : "+rh);
+								
+							}
+							sR.put(r, role);
+							addTop = true;
+						}
+					}
+				}
+			}
+			if(addTop)	
+				this.topMinMap.put(topMin.getProperty(), topMin.getFiller());
+		
+		}
+		for(OWLObjectMaxCardinality topMax : topMaxCardinalities) {
+			boolean addTop = false;
+			OWLObjectPropertyExpression role = topMax.getProperty();
+			if(roles.contains(role)){
+				addTop = true;
+				if(!tempRoleH.containsKey(role)) {
+					OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));// create Helper Role
+					tempRoleH.put(role, rh);
+					k++;
+					//System.out.println("1) role "+ role +"TH role : "+rh);
+					
+					for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
+						if(roles.contains(r)) {
+							if(tempSuperRolesMap.get(r).contains(role)) {
+								if(!tempRoleH.containsKey(r)) {
+									OWLObjectPropertyExpression rh1 = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));
+									tempRoleH.put(r, rh1);
+									k++;
+									//System.out.println("2) role "+ r +"TH role : "+rh1);
+									
+								}
+		
+								sR.put(r, role);
+							}
+						}
+					}
+				}
+			}
+			else{
+				for(OWLObjectPropertyExpression r : tempSuperRolesMap.keySet()) {
+					if(roles.contains(r)) {
+						if(tempSuperRolesMap.get(r).contains(role)) {
+							if(!tempRoleH.containsKey(r)) {
+								OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#TH"+k));
+								tempRoleH.put(r, rh);
+								k++;
+								//System.out.println("3) role "+ r +"TH role : "+rh);
+								
+							}
+							sR.put(r, role);
+							addTop = true;
+						}
+					}
+				}
+			}
+			if(addTop)	
+				this.topMaxMap.put(topMax.getProperty(), topMax.getFiller());
+		
+		}
+		////
+
+		
+	}
+	
+	private Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> getSuperRolesMap() {
 		return superRolesMap;
 	}
-	public void setSuperRolesMap(Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap) {
+	private void setSuperRolesMap(Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap) {
 		this.superRolesMap = superRolesMap;
 	}
 	public Set<OWLObjectPropertyExpression> getAuxiliaryRoles() {
@@ -1004,42 +1204,175 @@ public class ILPPreprocessor {
 		return auxRoleHMap.get(r);
 	}
 	public void createMaps() {
-		for(OWLObjectMinCardinality topMin : topMinCardinalities) {
-			this.topMinMap.put(topMin.getProperty(), topMin.getFiller());
-		}
-		for(OWLObjectMaxCardinality topMax : topMaxCardinalities) {
-			this.topMaxMap.put(topMax.getProperty(), topMax.getFiller());
-		}
-		for(OWLObjectAllValuesFrom forAll : getForAllRes()) {
-			this.forAllMap.put(forAll.getProperty(), forAll.getFiller());
-		}
-		
 		this.simpleConcepts.add(df.getOWLThing());
 		
+		// add range restrictions
+		/*for(OWLObjectPropertyExpression obj : roles) {
+			if(!(ontology.getRoleRange(obj).isEmpty()))
+				ontology.getRoleRange(obj).forEach(rr -> processForAll(rr, DependencySet.create()));
+			
+			if(superRolesMap.containsKey(obj)) { 
+				for(OWLObjectPropertyExpression r : superRolesMap.get(obj)) {
+					if(!(ontology.getRoleRange(r).isEmpty()))
+						ontology.getRoleRange(r).forEach(rr -> processForAll(rr, DependencySet.create()));
+				}
+			}
+		}*/
+		
+		// process forAll restrictions 
+		//System.out.println("forAll pre "+getForAllRes().size());
+
+		/*int k=1;
+		for(OWLObjectAllValuesFrom forAll : getForAllRes()) {
+			boolean addForAll = false;
+			OWLObjectPropertyExpression role = forAll.getProperty();
+			if(roles.contains(role)){
+				if(!tempRoleH.containsKey(role)) {
+					OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#H"+k));// create Helper Role
+					tempRoleH.put(role, rh);
+					k++;
+					System.out.println("role "+ role +"H role : "+rh);
+					addForAll = true;
+					
+					for(OWLObjectPropertyExpression r : superRolesMap.keySet()) {
+						if(roles.contains(r)) {
+							if(superRolesMap.get(r).contains(role)) {
+								if(!tempRoleH.containsKey(r)) {
+									OWLObjectPropertyExpression rh1 = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
+									tempRoleH.put(r, rh1);
+									k++;
+									//System.out.println("role "+ r +"H role : "+rh1);
+									
+								}
+		
+								sR.put(r, role);
+								addForAll = true;
+							}
+						}
+					}
+				}
+			}
+			
+			else{
+				for(OWLObjectPropertyExpression r : superRolesMap.keySet()) {
+					if(roles.contains(r)) {
+						if(superRolesMap.get(r).contains(role)) {
+							if(!tempRoleH.containsKey(r)) {
+								OWLObjectPropertyExpression rh = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
+								tempRoleH.put(r, rh);
+								k++;
+								//System.out.println("role "+ r +"H role : "+rh);
+								
+							}
+							sR.put(r, role);
+							addForAll = true;
+						}
+					}
+				}
+			}
+			if(addForAll)	
+				this.forAllMap.put(forAll.getProperty(), forAll.getFiller());
+		}
+		this.sRMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) sR.asMap();
+		*/
 		
 		for(OWLClassExpression ce : simpleConcepts) 
 			addSubsumption(ce);
 		for(OWLObjectOneOf o : nominals)
 			addSubsumption(o);
-
-		nominals.addAll(tempNom);
+		
 		// disjointness -concepts
-		for(OWLClassExpression ce : simpleConcepts) {
-			if(!(ce instanceof OWLObjectComplementOf)) {
-				if(!ontology.getDisjointConcepts(ce).isEmpty()) {
-					ontology.getDisjointConcepts(ce).stream().forEach(d -> conceptDisjoints.put(ce, d));
+				for(OWLClassExpression ce : simpleConcepts) {
+					if(!(ce instanceof OWLObjectComplementOf)) {
+						if(!ontology.getDisjointConcepts(ce).isEmpty()) {
+							ontology.getDisjointConcepts(ce).stream().forEach(d -> conceptDisjoints.put(ce, d));
+						}
+					}
 				}
-			}
-		}
-		// disjointness -nominals
-		for(OWLObjectOneOf o : nominals) {
-			if(!ontology.getDisjointConcepts(o).isEmpty()) {
-				ontology.getDisjointConcepts(o).stream().forEach(d -> nominalDisjoints.put(o, d));
+				// disjointness -nominals
+				for(OWLObjectOneOf o : nominals) {
+					if(!ontology.getDisjointConcepts(o).isEmpty()) {
+						//System.out.println("ontology.getDisjointConcepts(o) "+o+" "+ontology.getDisjointConcepts(o));
+						ontology.getDisjointConcepts(o).stream().forEach(d -> nominalDisjoints.put(o, d));
+					}
+				}
+		
+		/*
+		// subsumption- concepts
+		
+		for(OWLClassExpression ce : simpleConcepts) {
+			System.out.println("concept "+ce);
+			if(ontology.getAllSubsumers2(ce) != null) {
+				for(OWLClassExpression sp : ontology.getAllSubsumers2(ce)) {
+					System.out.println("subsumer "+sp);
+					if(sp instanceof OWLObjectOneOf) {
+						subsumptionConcepts.add(sp);
+						nominals.add((OWLObjectOneOf)sp);
+						nominalDs.put((OWLObjectOneOf)sp, DependencySet.create());
+						conceptSubsumers.put(ce, sp);
+					}
+					else if(sp instanceof OWLClass) {
+						subsumptionConcepts.add(sp);
+						conceptSubsumers.put(ce, sp);
+					}
+					else if(sp instanceof OWLObjectUnionOf) {
+						if(sp.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf))) {
+							conceptSubsumers.put(ce, sp);
+							for(OWLClassExpression c : sp.asDisjunctSet()) {
+								subsumptionConcepts.add(c);
+								if(c instanceof OWLObjectOneOf) {
+									System.out.println("nominal added "+c);
+									nominals.add((OWLObjectOneOf)c);
+									nominalDs.put((OWLObjectOneOf)c, DependencySet.create());
+								}
+							}
+						}
+					}
+					else if(sp instanceof OWLObjectIntersectionOf)
+						checkIntersection(ce, sp);
+				} 
 			}
 		}
 		
+		////
+		// subsumption - nominals
+		
+		for(OWLObjectOneOf o : nominals) {
+			System.out.println("concept "+o);
+			if(!ontology.getAllSubsumers2(o).isEmpty()) {
+				for(OWLClassExpression sp : ontology.getAllSubsumers2(o)) {
+					System.out.println("subsumer "+sp);
+					if(sp instanceof OWLObjectOneOf) {
+						tempNom.add((OWLObjectOneOf)sp);
+						nominalDs.put((OWLObjectOneOf)sp, DependencySet.create());
+						subsumptionConcepts.add(sp);
+						nominalSubsumers.put(o, sp);
+					}
+					else if(sp instanceof OWLClass) {
+						subsumptionConcepts.add(sp);
+						nominalSubsumers.put(o, sp);
+					}
+					else if(sp instanceof OWLObjectUnionOf) {
+						if(sp.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf))) {
+							nominalSubsumers.put(o, sp);
+							for(OWLClassExpression c : sp.asDisjunctSet()) {
+								if(c instanceof OWLObjectOneOf) {
+									tempNom.add((OWLObjectOneOf)c);
+									nominalDs.put((OWLObjectOneOf)c, DependencySet.create());
+								}
+							}
+						}
+					}
+					else if(sp instanceof OWLObjectIntersectionOf)
+						checkIntersection(o, sp);
+				} 
+			}
+		}*/
+		nominals.addAll(tempNom);
+		
 		/// --- information about existing nominal nodes 
 		existingNomNodes();
+		
 		///
 		Set<OWLClassExpression> concepts = new  HashSet<>(simpleConcepts);
 		concepts.addAll(nominals);
@@ -1056,6 +1389,7 @@ public class ILPPreprocessor {
 			for(DependencySet d : getCardResDs().get(q))
 				ds.add(d);
 			crMap.put(i, q);
+			//roles.add(q.getProperty());
 			if(!isAlreadyExists(q, ds)) {
 				QCR qcr = new QCR(q,ds);
 				qcrMap.put(i, qcr);
@@ -1099,6 +1433,7 @@ public class ILPPreprocessor {
 				for (OWLClassExpression c : fillers) {
 					if ((c instanceof OWLClass) || (c instanceof OWLObjectOneOf)
 							|| (c instanceof OWLObjectComplementOf)) {
+						this.auxiliarySubAx.add(df.getOWLSubClassOfAxiom(qualifier, c));
 						DependencySet ds = DependencySet.create();
 						for (DependencySet d : getNominalDs().get(o))
 							ds.add(d);
@@ -1509,18 +1844,123 @@ public class ILPPreprocessor {
 	public Set<OWLClassExpression> getComSubNom() {
 		return this.complexNSubsumers.keySet();
 	}
+
 	public SetMultimap<OWLClassExpression, OWLClassExpression> getComplexASubsumers() {
 		return complexASubsumers;
 	}
+
+	public void getSubsumers() {
+		
+	}
+	public void getDisjoints() {
+		
+	}
+	public void getDisjointGroups() {
+		
+	}
+	public void getSuperRoles() {
+		
+	}
+	
+	/*public void createMaps() {
+		int i = 0;
+		for(OWLObjectCardinalityRestriction q : getCardRes()) {
+			crMap.put(i, q);
+			roles.add(q.getProperty());
+			QCR qcr = new QCR(q);
+			qcrMap.put(i, qcr);
+			//System.out.println(i +"  "+ qcr.qualifier);
+			qcrs.add(qcr);
+			++i;
+		}
+		/*int k=1;
+		for(OWLObjectProperty r : roles) {
+			OWLObjectProperty rh = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
+			System.out.println("role "+ r +"H role : "+rh);
+			tempRoleH.put(r, rh);
+			k++;
+		}*
+		for(OWLObjectOneOf o : getNominals()) {
+			QCR qcr = new QCR(o);
+			qcrMap.put(i, qcr);
+			qcrs.add(qcr);
+			++i;
+		}
+		for(OWLSubObjectPropertyOfAxiom srAx : getSubRoleAxioms()) {
+			this.superRoles.put(srAx.getSubProperty().getNamedProperty(), srAx.getSuperProperty().getNamedProperty());
+		
+		}
+		this.superRolesMap = (Map<OWLObjectProperty, Set<OWLObjectProperty>>) (Map<?, ?>) superRoles.asMap();
+		for(OWLSubObjectPropertyOfAxiom srAx : getSubRoleAxioms()) {
+			for(OWLObjectProperty r : superRolesMap.keySet()) {
+				if(superRolesMap.get(r).contains(srAx.getSubProperty().getNamedProperty())) {
+					superRolesMap.get(r).add(srAx.getSuperProperty().getNamedProperty());
+				}
+			}
+		}
+		
+		// process forAll restrictions 
+		
+		int k=1;
+		for(OWLObjectAllValuesFrom forAll : getForAllRes()) {
+			
+			OWLObjectProperty role = forAll.getProperty().getNamedProperty();
+			if(roles.contains(role)){
+				if(!tempRoleH.containsKey(role)) {
+					OWLObjectProperty rh = df.getOWLObjectProperty(IRI.create(base+"#H"+k));// create Helper Role
+					tempRoleH.put(role, rh);
+					k++;
+					System.out.println("role "+ role +"H role : "+rh);
+					
+					for(OWLObjectProperty r : superRolesMap.keySet()) {
+						if(superRolesMap.get(r).contains(role)) {
+							if(!tempRoleH.containsKey(r)) {
+								OWLObjectProperty rh1 = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
+								tempRoleH.put(r, rh1);
+								k++;
+								System.out.println("role "+ r +"H role : "+rh1);
+								
+							}
+
+							sR.put(r, role);
+						}
+					}
+				}
+			}
+			
+			else{
+				for(OWLObjectProperty r : superRolesMap.keySet()) {
+					if(superRolesMap.get(r).contains(role)) {
+						if(!tempRoleH.containsKey(r)) {
+							OWLObjectProperty rh = df.getOWLObjectProperty(IRI.create(base+"#H"+k));
+							tempRoleH.put(r, rh);
+							k++;
+							System.out.println("role "+ r +"H role : "+rh);
+							
+						}
+						sR.put(r, role);
+					}
+				}
+			}
+				
+			this.forAllMap.put(forAll.getProperty().getNamedProperty(), forAll.getFiller());
+		}
+		this.sRMap = (Map<OWLObjectProperty, Set<OWLObjectProperty>>) (Map<?, ?>) sR.asMap();
+		
+	}*/
+	
 	public SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> getForAllMap() {
 		return forAllMap;
 	}
+
 	public Set<OWLObjectAllValuesFrom> getForAllRes() {
 		return forAllRes;
 	}
+
 	public Set<OWLSubObjectPropertyOfAxiom> getSubRoleAxioms() {
 		return subRoleAxioms;
-	}	
+	}
+
 	public Map<Integer, OWLObjectCardinalityRestriction> getCRMap() {
 		return crMap;
 	}
@@ -1530,6 +1970,7 @@ public class ILPPreprocessor {
 	public Map<Integer, OWLClassExpression> getQCRQualifiersMap() {
 		return qcrQualifiersMap;
 	}
+	
 	public SetMultimap<OWLClassExpression, OWLObjectPropertyExpression> getQcrMultiMap() {
 		return qcrMultiMap;
 	}
@@ -1538,18 +1979,22 @@ public class ILPPreprocessor {
 		cardRes.addAll(maxCardRes);
 		return cardRes;
 	}
+
 	private SetMultimap<OWLObjectCardinalityRestriction, DependencySet> getCardResDs() {
 		return cardResDs;
 	}
 	public void setCardRes(List<OWLObjectCardinalityRestriction> cardRes) {
 		this.cardRes = cardRes;
 	}
+
 	public Set<QCR> getQcrs() {
 		return qcrs;
 	}
+
 	public void setQcrs(Set<QCR> qcrs) {
 		this.qcrs = qcrs;
 	}
+
 	public Set<OWLObjectOneOf> getNominals() {
 		return nominals;
 	}
@@ -1580,8 +2025,8 @@ public class ILPPreprocessor {
 		//System.err.println("simpleASubsumers "+ simpleASubsumers);
 		disjoints.putAll(conceptDisjoints);
 		disjoints.putAll(nominalDisjoints);
-		//this.sRMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) sR.asMap();
-		CplexModelGenerator10 cmg = new CplexModelGenerator10(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH, this.topMinMap, this.topMaxMap);
+		this.sRMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) sR.asMap();
+		CplexModelGenerator10 cmg = null;//new CplexModelGenerator10(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH, this.topMinMap, this.topMaxMap);
 		ILPSolution sol = cmg.getILPSolution();
 		System.out.println("Solved: "+sol.isSolved());
 		for(EdgeInformation ei : sol.getEdgeInformation()) {

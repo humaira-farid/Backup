@@ -46,6 +46,7 @@ import reasoner.graph.Node.NodeType;
 import reasoner.graph.NodeTag;
 import reasoner.ilp.EdgeInformation;
 import reasoner.ilp.ILPPreprocessor;
+import reasoner.ilp.ILPPreprocessor4;
 import reasoner.ilp.ILPSolution;
 import reasoner.preprocessing.Internalization;
 import reasoner.todolist.ToDoEntry;

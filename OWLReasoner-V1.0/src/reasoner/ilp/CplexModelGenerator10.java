@@ -429,13 +429,14 @@ public class CplexModelGenerator10 {
 					}
 
 					newCol = ppCplex.getValues(r);
-
+					for (int j = 0; j < newCol.length; j++) {
+						 System.out.println("r["+j+"] : " + newCol[j]);
+					}
 					double[] bVal = ppCplex.getValues(b);
 					int cost = 0;
 					int bPlus = 0;
 					for (int j = 0; j < bVal.length; j++) {
-						// System.out.println("bVal " + bVal[j] +" Qualifier "+
-						// reverseQualifiers.get(j));
+						 System.out.println("bVal " + bVal[j] +" Qualifier "+ reverseQualifiers.get(j));
 						if (this.qcrQualifiers.contains(reverseQualifiers.get(j)))
 							cost += bVal[j];
 						else
@@ -1881,16 +1882,7 @@ public class CplexModelGenerator10 {
 		}
 	}
 	private boolean isInteger(double d) {
-	 
-	 double TOLERANCE = 1E-5;
-	// System.out.println(Math.abs(Math.floor(d) - d) < TOLERANCE);
-	// System.out.println ((d == Math.floor(d)) && !Double.isInfinite(d));
-	    //do not use (int)d, due to weird floating point conversions!
-	  //  return Math.abs(Math.floor(d) - d) < TOLERANCE;
 	 return (d == Math.floor(d)) && !Double.isInfinite(d);
-		/*if(Math.abs(d % 1) <= RC_EPS)
-			return true;
-		return false;*/
 	}
 	
 	public class RMPModel{
@@ -2021,7 +2013,7 @@ public class CplexModelGenerator10 {
 			
 			ppCplex = new IloCplex();
 			ppCplex.setOut(new NullOutputStream());
-			//System.out.println("all qualifiers "+ allQualifiers);
+		//	System.err.println("all qualifiers "+ allQualifiers +" qcrMap.size() "+qcrMap.size());
 			reducedCost = ppCplex.addMinimize();
 			r = ppCplex.numVarArray(totalVar, 0., 1, IloNumVarType.Int);
 			br = ppCplex.numVarArray(qcrMap.size(), 0., 1, IloNumVarType.Int);
@@ -2035,7 +2027,7 @@ public class CplexModelGenerator10 {
 			
 			
 			SetMultimap<OWLObjectPropertyExpression, Integer> axiomRolesMap = HashMultimap.create();
-			/*
+			
 			for (int i = 0; i < totalVar; i++ ) {
 				if(qcrMap.get(i).role!=null) {
 					axiomRolesMap.put(qcrMap.get(i).role, i);
@@ -2046,21 +2038,27 @@ public class CplexModelGenerator10 {
 					
 				}
 				System.out.println("r["+i+"]: role "+qcrMap.get(i).role + "qualifier "+qcrMap.get(i).qualifier);
-				if(qcrMap.get(i).type.equals("MIN"))
+				if(qcrMap.get(i).type.equals("MIN")) {
 					ppCplex.addLe(r[i] , b[qualifiers.get(qcrMap.get(i).qualifier)]);
-				else if (qcrMap.get(i).type.equals("MAX"))
-					ppCplex.addLe(b[qualifiers.get(qcrMap.get(i).qualifier)] , r[i]);
+				}
+				else if (qcrMap.get(i).type.equals("MAX")) {
+					//ppCplex.addLe(b[qualifiers.get(qcrMap.get(i).qualifier)] , r[i]);
+					ppCplex.addLe(ppCplex.sum(hr[tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role))], 
+							b[qualifiers.get(qcrMap.get(i).qualifier)]), ppCplex.sum(1,  r[i]));
+					
+				}
 				else {
 					//System.out.println("r["+i+"]: role "+qcrMap.get(i).role + "qualifier "+qcrMap.get(i).qualifier);
 					ppCplex.addLe(r[i] , b[qualifiers.get(qcrMap.get(i).qualifier)]);
 					ppCplex.addLe(b[qualifiers.get(qcrMap.get(i).qualifier)] , r[i]);
 				}
-			}*/
+			}
 			
 
-			for (int i = 0; i < qcrMap.size(); i++ ) {
+			/*for (int i = 0; i < qcrMap.size(); i++ ) {
 				OWLObjectPropertyExpression role = qcrMap.get(i).role;
 				OWLClassExpression  C = qcrMap.get(i).qualifier;
+				System.out.println("C: "+ C +" role: "+ role);
 				if(role!=null) {
 					axiomRolesMap.put(role, i);
 					if(tempRoleH.containsKey(role))
@@ -2085,22 +2083,6 @@ public class CplexModelGenerator10 {
 							}
 						}
 					}
-					if(conceptSubsumersMap.get(C) != null){
-						for(OWLClassExpression D : conceptSubsumersMap.get(C)){
-						//	System.out.println("D: "+ D);
-							if(/*!D.isOWLThing() &&*/ qcrQualifiers.contains(D)) {
-								for(int q = 0; q < qcrMap.size(); q++ ){
-									if(qcrMap.get(q).role != null) {
-										if(qcrMap.get(q).qualifier.equals(D) && (qcrMap.get(q).role.equals(role) || (superRoles.get(role) !=null && superRoles.get(role).contains(qcrMap.get(q).role))) ) {
-										//	System.out.println("q: "+ q);
-											ppCplex.addLe(br[i], br[q]);
-											ppCplex.addLe(br[q], b[qualifiers.get(D)]);
-										}
-									}
-								}
-							}
-						}
-					}
 				}else if (qcrMap.get(i).type.equals("MAX")) {
 					ppCplex.addLe(br[i] , r[i]);
 					ppCplex.addLe(br[i], b[qualifiers.get(C)]);
@@ -2110,14 +2092,31 @@ public class CplexModelGenerator10 {
 					ppCplex.addLe(b[qualifiers.get(C)] , r[i]);
 					//ppCplex.addLe(br[qualifiers.get(qcrMap.get(i).qualifier)], b[qualifiers.get(qcrMap.get(i).qualifier)]);
 				}
-			}
+
+				if(conceptSubsumersMap.get(C) != null){
+					for(OWLClassExpression D : conceptSubsumersMap.get(C)){
+						System.out.println("C: "+ C +"subsumed by D: "+ D);
+						if(!D.isOWLThing() && qcrQualifiers.contains(D)) {
+							for(int q = 0; q < qcrMap.size(); q++ ){
+								if(qcrMap.get(q).role != null) {
+									if(qcrMap.get(q).qualifier.equals(D) && (qcrMap.get(q).role.equals(role) || (superRoles.get(role) !=null && superRoles.get(role).contains(qcrMap.get(q).role))) ) {
+									//	System.out.println("q: "+ q);
+										ppCplex.addLe(br[i], br[q]);
+										ppCplex.addLe(br[q], b[qualifiers.get(D)]);
+									}
+								}
+							}
+						}
+					}
+				}
+			}*/
 			////
 			
 			
 
 			
 
-		/*	//-----------
+			//-----------
 			for (OWLClassExpression C : qcrQualifiers){
 				OWLObjectPropertyExpression cRole = null;
 				int cIndex = -1;
@@ -2144,7 +2143,7 @@ public class CplexModelGenerator10 {
 						}
 					}
 				}
-			}*/
+			}
 			//-----------
 			
 			
@@ -2191,7 +2190,7 @@ public class CplexModelGenerator10 {
 			//TOP max cardinality Restrictions -- Semantics 
 			//System.out.println("TOP max cardinality Restrictions : "+topMaxMap.keySet().size());
 			
-			/*for (OWLObjectPropertyExpression role : topMaxMap.keySet()){
+			for (OWLObjectPropertyExpression role : topMaxMap.keySet()){
 				//System.out.println("TOP max cardinality Restrictions : "+topMaxMap.keySet().size());
 				if(topMaxMap.get(role) != null){
 					if(axiomRoles.contains(role)) {
@@ -2210,7 +2209,7 @@ public class CplexModelGenerator10 {
 							ppCplex.addLe(sr[srRolesMap.get(role)], br[qualifiers.get(C)]);
 					}
 				}
-			}*/
+			}
 			//TOP min cardinality Restrictions -- Semantics 
 			//System.out.println("TOP min cardinality Restrictions : "+topMinMap.keySet().size());
 			
@@ -2285,8 +2284,10 @@ public class CplexModelGenerator10 {
 						//System.err.println(X);
 						exprBinarySub.addTerm(1, b[qualifiers.get(X)]);
 					}
-					for(OWLClassExpression sp : binarySubsumersMap.get(sb))
+					for(OWLClassExpression sp : binarySubsumersMap.get(sb)) {
 						ppCplex.addLe(ppCplex.diff(exprBinarySub, sb.asConjunctSet().size() - 1), b[qualifiers.get(sp)]);
+						
+					}
 				}
 			}
 			

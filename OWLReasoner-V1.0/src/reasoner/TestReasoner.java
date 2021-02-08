@@ -48,7 +48,8 @@ public class TestReasoner{
 		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/SHOIQ-tests/paper-1b-inc-2.fowl.owl");
 		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/00325.fowl.owl");
 		//	file = new File("/Users/temp/Desktop/test-ontologies/abb/pizza.owl");
-			file = new File("/Users/temp/Desktop/test-ontologies/ab/p_3.fowl.owl");
+		//	file = new File("/Users/temp/Desktop/test-ontologies/ab/p_3.fowl.owl");
+			file = new File("/Users/temp/Desktop/testOnt2.owl");
 		} else {
 			file = new File(fileName);
 		}

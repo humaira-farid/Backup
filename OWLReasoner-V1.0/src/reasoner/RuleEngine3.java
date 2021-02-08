@@ -2096,7 +2096,7 @@ public class RuleEngine3 {
 			//cg.setNodeBlocked(n, blocker);
 			return;
 		}
-		ILPPreprocessor ilpPro = new ILPPreprocessor(cg, entries, this.intl, this.df, n, outgoingEdges);
+		ILPPreprocessor ilpPro = null;// new ILPPreprocessor(cg, entries, this.intl, this.df, n, outgoingEdges);
 		ILPSolution sol = null;
 		try {
 			sol = ilpPro.callILP();
