@@ -11,6 +11,7 @@ public class CGSaveState {
     private int nEdges = 0;
     private int bNodes = 0;
     private Node currNode;
+	private boolean currNodeResetStatus = false;
     /** @return nNodes */
     public int getnNodes() {
         return nNodes;
@@ -69,6 +70,15 @@ public class CGSaveState {
 	}
 	public int getbNodes() {
 		return this.bNodes;
+		
+	}
+
+	public void setCurrNodeResetStatus(boolean reset) {
+		this.currNodeResetStatus  = reset;
+		
+	}
+	public boolean getCurrNodeResetStatus() {
+		return this.currNodeResetStatus;
 		
 	}
 }

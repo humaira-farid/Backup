@@ -28,7 +28,7 @@ public class RegQueue {
 	 public ToDoEntry get() {
 		 int sp = this.getsPointer();
 		 int size = this.getWaitSize();
-		// System.out.println("sp " + sp +" size "+ size);
+	//	 System.out.println("sp " + sp +" size "+ size);
 		//	wait.stream().forEach( c -> System.out.println("before sort "+ c.getNode().getId()+ " type "+c.getType()));
 		 if(sp < size) {
 			// Collections.sort(wait.subList(sp, size), new ToDoEntryIDComparator()
@@ -59,7 +59,7 @@ public class RegQueue {
 		 
 		 for(int i = sPointer; i<wait.size(); i++) {
 			 if(wait.get(sPointer).getNode().equals(n)) {
-				 
+				 entries.add(wait.get(sPointer));
 			 }
 		 }
 		 return entries;

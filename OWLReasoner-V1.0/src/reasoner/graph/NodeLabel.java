@@ -27,8 +27,8 @@ public class NodeLabel {
     }
     
     
-    public void restore(SaveState ss, int level) {
-    		cndList.restore(ss.getCc(), level);
+    public void restore(SaveState ss, int level, boolean ilp, boolean merge, boolean disjunction) {
+    		cndList.restore(ss.getCc(), level, ilp, merge, disjunction);
     }
    
     

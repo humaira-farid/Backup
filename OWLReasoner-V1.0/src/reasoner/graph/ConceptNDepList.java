@@ -29,9 +29,13 @@ public class ConceptNDepList {
 	}
 
 	protected void add(ConceptNDepSet cnd) {
+
+	//	System.err.println(" size"+ size);
 		cdSet.add(cnd);
 		size++;
 		concepts.put(cnd.getCe(), size - 1);
+	//	System.err.println(" size after"+ size);
+		
 	}
 
 	protected Set<OWLClassExpression> getConcepts() {
@@ -41,20 +45,46 @@ public class ConceptNDepList {
 	public int save() {
 		return size;
 	}
-
-	public void restore(int ss, int level) {
+	
+	public void restore(int ss, int level, boolean ilp, boolean merge, boolean disjunction) {
+	//	System.out.println("ss "+ss+" size " + size);
 		for (int i = size - 1; i >= ss && i >= 0; i--) {
 			assert cdSet.get(i) != null;
 		//	System.out.println("restore level "+level+" concept " + cdSet.get(i).getCe() +" ds "+cdSet.get(i).getDs().getbpList());
+			if(merge) {
+				if (cdSet.get(i).getDs().getMax() >= level) {
+					OWLClassExpression concept = cdSet.get(i).getCe();
+				//	System.out.println("remove concept " + concept);
+					concepts.remove(concept);
+					cdSet.remove(i);
+					size--;
+				}
+			}
+			else {
+				if (cdSet.get(i).getDs().getMax() >= level) {
+					OWLClassExpression concept = cdSet.get(i).getCe();
+			//		System.out.println("remove concept " + concept);
+					concepts.remove(concept);
+					cdSet.remove(i);
+					size--;
+				}
+			}
+		}
+	}
+	/*public void restore(int ss, int level, boolean ilp, boolean merge, boolean disjunction) {
+		System.out.println("ss "+ss+" size " + size);
+		for (int i = size - 1; i >= ss && i >= 0; i--) {
+			assert cdSet.get(i) != null;
+			System.out.println("restore level "+level+" concept " + cdSet.get(i).getCe() +" ds "+cdSet.get(i).getDs().getbpList());
 			if (cdSet.get(i).getDs().getMax() >= level) {
 				OWLClassExpression concept = cdSet.get(i).getCe();
-			//	System.out.println("remove concept " + concept);
+				System.out.println("remove concept " + concept);
 				concepts.remove(concept);
 				cdSet.remove(i);
 				size--;
 			}
 		}
-	}
+	}*/
 	
 
 	public void removeLabel() {

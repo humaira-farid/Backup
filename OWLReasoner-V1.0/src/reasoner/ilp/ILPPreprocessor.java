@@ -29,6 +29,7 @@ public class ILPPreprocessor {
 	Set<OWLClassExpression> auxiliaryConcepts = new HashSet<>();
 	Set<OWLObjectPropertyExpression> auxiliaryRoles = new HashSet<>();
 	Set<OWLClassExpression> subsumptionConcepts = new HashSet<>();
+	Set<OWLClassExpression> existingConcepts = new HashSet<>();
 	Set<OWLObjectOneOf> tempNom = new HashSet<>();
 	Set<OWLObjectOneOf> tempSimple = new HashSet<>();
 	Set<OWLObjectMinCardinality> topMinCardinalities = new HashSet<>();
@@ -1044,9 +1045,14 @@ public class ILPPreprocessor {
 		Set<OWLClassExpression> concepts = new  HashSet<>(simpleConcepts);
 		concepts.addAll(nominals);
 		concepts.addAll(subsumptionConcepts);
+		existingConcepts.addAll(concepts);
+		subsumptionConcepts.clear();
+		nominals.clear();
+		tempNom.clear();
 		//concepts.stream().forEach(c -> System.out.println("concept "+c));
-		this.disjointGroups = ontology.getDisjointGroups(concepts);
 		this.binarySubsumers = ontology.getBinarySubsumption(concepts);
+		processBinarySubsumers(binarySubsumers.keySet());
+		this.disjointGroups = ontology.getDisjointGroups(concepts);
 		this.binarySubsumers.putAll((Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>) binaryMaxSubsumers.asMap());
 		
 		int i = 0;
@@ -1083,6 +1089,47 @@ public class ILPPreprocessor {
 		}
 		
 	}
+
+	private void processBinarySubsumers(Set<OWLClassExpression> binarySubsumers2) {
+		for(OWLClassExpression bs :binarySubsumers2){
+			for(OWLClassExpression sup : binarySubsumers.get(bs)) {
+				if(!existingConcepts.contains(sup)) {
+					addSubsumption(sup);
+				}
+			}
+		}
+		nominals.addAll(tempNom);
+		Set<OWLClassExpression> tempSubCon = new HashSet<>();
+		for(OWLClassExpression ex : subsumptionConcepts ) {
+			if(existingConcepts.contains(ex)) {
+				tempSubCon.add(ex);
+			}
+		}
+		subsumptionConcepts.removeAll(tempSubCon);
+		Set<OWLObjectOneOf> tempNomCon = new HashSet<>();
+		for(OWLObjectOneOf ex : nominals ) {
+			if(existingConcepts.contains(ex)) {
+				tempNomCon.add(ex);
+			}
+		}
+		nominals.removeAll(tempNomCon);
+		
+		if(subsumptionConcepts.size() > 0 || nominals.size() > 0 ) {
+			existingConcepts.addAll(nominals);
+			existingConcepts.addAll(subsumptionConcepts);
+			//System.err.println(ontology.getBinarySubsumption(existingConcepts).equals(binarySubsumers));
+			if(!ontology.getBinarySubsumption(existingConcepts).equals(binarySubsumers)) {
+				Set<OWLClassExpression> newBinarySubsumers = new HashSet<>(ontology.getBinarySubsumption(existingConcepts).keySet());
+				newBinarySubsumers.removeAll(binarySubsumers.keySet());
+				binarySubsumers = ontology.getBinarySubsumption(existingConcepts);
+				subsumptionConcepts.clear();
+				nominals.clear();
+				tempNom.clear();
+				processBinarySubsumers(newBinarySubsumers);
+			}
+		}
+	}
+
 
 	private void existingNomNodes() {
 		/// --- information about existing nominal nodes
@@ -1213,14 +1260,14 @@ public class ILPPreprocessor {
 		
 		else if(ce instanceof OWLObjectComplementOf) {
 			
-			//System.err.println("concept "+ce);
+		//	System.err.println("concept "+ce + " : "+ ontology.getAllComplementEq(ce.getComplementNNF()));
 			if(ontology.getAllComplementEq(ce.getComplementNNF()) != null) {
-				for(OWLClassExpression sp : ontology.getAllSubsumers(ce)) {
+				for(OWLClassExpression sp : ontology.getAllComplementEq(ce.getComplementNNF())) {
 				  if(sp.isOWLThing()) {
 					  subsumptionConcepts.add(df.getOWLThing());
 					  conceptSubsumers.put(ce, df.getOWLThing());
 				  }
-					//System.out.println("subsumer "+sp);
+				//	System.out.println("subsumer "+sp);
 					if(sp instanceof OWLObjectOneOf) {
 						//subsumptionConcepts.add(sp);
 						nominals.add((OWLObjectOneOf)sp);
@@ -1266,7 +1313,8 @@ public class ILPPreprocessor {
 						checkIntersection(ce, sp);
 					else
 						complexCSubsumers.put(ce, sp);
-				
+					
+				//	System.err.println("concept "+ce + " : "+ complexCSubsumers);
 			  }
 			}
 		}
@@ -1581,7 +1629,7 @@ public class ILPPreprocessor {
 		disjoints.putAll(conceptDisjoints);
 		disjoints.putAll(nominalDisjoints);
 		//this.sRMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) sR.asMap();
-		CplexModelGenerator10 cmg = new CplexModelGenerator10(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH, this.topMinMap, this.topMaxMap);
+		CplexModelGenerator cmg = new CplexModelGenerator(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH, this.topMinMap, this.topMaxMap);
 		ILPSolution sol = cmg.getILPSolution();
 		System.out.println("Solved: "+sol.isSolved());
 		for(EdgeInformation ei : sol.getEdgeInformation()) {

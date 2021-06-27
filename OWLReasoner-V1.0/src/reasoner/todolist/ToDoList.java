@@ -19,6 +19,7 @@ import reasoner.state.SaveStack;
 public class ToDoList {
 	private final List<RegQueue> waitQueue = new ArrayList<>(NREGULAROPTIONS);
 	private final PriorityMatrix matrix = new PriorityMatrix();
+	private Map<Node, Integer> nodeEntries = new HashMap<>();
 	private final SaveStack<TDLSaveState> saveStack = new SaveStack<>();
 	/** number of un-processed entries */
     private int noe;
@@ -34,7 +35,7 @@ public class ToDoList {
 	    }
 	public void addEntry(Node node, NodeTag type, ConceptNDepSet cnds) {
         int index = matrix.getIndex(type);
-      //  System.err.println("index "+index +" type "+ type);
+      //  System.err.println("addEntry index "+index +" type "+ type +" node: "+ node.getId());
         waitQueue.get(index).add(node, cnds, type);
         /*switch (index) {
             case NREGULAROPTIONS: // unused entry
@@ -49,6 +50,14 @@ public class ToDoList {
                 waitQueue.get(index).add(node, c);
                 break;
         }*/
+        int nodeEntry = 1;
+        if(this.nodeEntries.get(node) != null) {
+        	nodeEntry = this.nodeEntries.get(node) + 1;
+        	this.nodeEntries.put(node, nodeEntry);
+        }
+        else
+        	this.nodeEntries.put(node, nodeEntry);
+       // System.err.println("adding nodeEntries "+ node.getId() +" : "+this.nodeEntries.get(node)) ;
         ++noe; 
     }
 	public ToDoEntry getNextEntry() {
@@ -67,11 +76,18 @@ public class ToDoList {
         // check regular queues
         else {
 	        	 --noe;
+	        	
 	        	// System.out.println("entry remaining : "+noe);
 	        for (int i = 0; i < NREGULAROPTIONS; ++i) {
 	            RegQueue arrayQueue = waitQueue.get(i);
 	            if (!arrayQueue.isEmpty()) {
-	                return arrayQueue.get();
+		             ToDoEntry entry = arrayQueue.get();
+		             Node node = entry.getNode();
+	            	 int nodeEntry =  this.nodeEntries.get(node) - 1;
+	            	 this.nodeEntries.put(node, nodeEntry);
+
+	            //    System.err.println("getting entry "+ node.getId() +" : "+entry.getClassExpression()) ;
+		             return entry;
 	            }
 	        }
 	        // that's impossible, but still...
@@ -106,7 +122,7 @@ public class ToDoList {
 	        return null;
         }
     }*/
-	public Set<ToDoEntry> getAllToDoEntry(Node n, NodeTag type) {
+	/*public Set<ToDoEntry> getAllToDoEntry(Node n, NodeTag type) {
 		if(isEmpty())
     			return new HashSet<>();
 		else {
@@ -122,7 +138,7 @@ public class ToDoList {
 			//System.out.println("entries remaining : "+noe);
 	        return entries;
 		}
-	}
+	}*/
 	/** @return check if Todo table is empty */
     public boolean isEmpty() {
         return noe == 0;
@@ -277,6 +293,10 @@ public class ToDoList {
 	private void removeEntry(int index, ToDoEntry entry) {
 		
 		waitQueue.get(index).remove(entry);
+	}
+	public boolean hasUnprocessedEntries(Node p) {
+		//System.err.println( this.nodeEntries.get(p)) ;
+		return (this.nodeEntries.get(p)!=null && this.nodeEntries.get(p) > 0);
 	}
 	
 }
