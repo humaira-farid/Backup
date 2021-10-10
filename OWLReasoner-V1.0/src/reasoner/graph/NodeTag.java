@@ -2,8 +2,6 @@ package reasoner.graph;
 
 import javax.annotation.Nonnull;
 
-import org.semanticweb.owlapi.model.*;
-
 public enum NodeTag {
 	/** illegal entry */                                    BAD           ("bad-tag"),
     /** operations */                                       TOP           ("*TOP*"),

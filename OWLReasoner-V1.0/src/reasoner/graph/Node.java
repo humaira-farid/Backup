@@ -128,6 +128,10 @@ public class Node implements Cloneable {
 		blockedNodes = new HashSet<>();
 	}
 
+	public Node() {
+		this.id = -1;
+	}
+
 	public int getId() {
 		return id;
 	}

@@ -92,7 +92,6 @@ public class CplexModelGenerator {
 		this.superRoles =  sRMap;
 		this.tempRoleH = tempRoleH2;
 		
-		
 	//	generateCplexModel();
 	//	System.out.println(" solved "+initiallySolved);
 	//	if(initiallySolved) {
@@ -700,7 +699,7 @@ public class CplexModelGenerator {
 
 	private ILPSolution runILPAgain(OWLObjectCardinalityRestriction owlObjectCardinalityRestriction) throws IloException {
 		
-		System.out.println("run ilp againg and remove : "+conceptSubsumersMap.remove(owlObjectCardinalityRestriction.getFiller()));
+		System.out.println("run ilp again and remove : "+conceptSubsumersMap.remove(owlObjectCardinalityRestriction.getFiller()));
 		return this.solve();
 	}
 

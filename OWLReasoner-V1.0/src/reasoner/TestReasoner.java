@@ -46,23 +46,27 @@ public class TestReasoner{
 		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/HARD-Test-Cases-Humaira/HARD-Test-Cases-Humaira/ALCoQ-ALCHoQ/Cycles/C-Sat-cycle-ALCHQ.fowl.owl");
 		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOQ-tests/nom-1-B-not-sub-C-cons.fowl.owl");
 		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/SHOIQ-tests/paper-1b-inc-2.fowl.owl");
-		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/00325.fowl.owl");
-		//	file = new File("/Users/temp/Desktop/test-ontologies/abb/pizza.owl");
+		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/galen.owl");
+		//	file = new File("/Users/temp/Desktop/pizza.owl");
+		//	file = new File("/Users/temp/Desktop/test-ontologies/abb/pizza3.owl");
+		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00021.owl_functional.owl");
 			file = new File("/Users/temp/Desktop/test-ontologies/Canadian_Parliament/canadian-parliament-ALCO-full.fowl.owl");
 		//	file = new File("/Users/temp/Desktop/testOnt3.owl");
 		} else {
 			file = new File(fileName);
 		}
 		
-		Formatter simpleFormatter = null;
+	//	Formatter simpleFormatter = null;
 		 Handler fileHandler = null;
 		 LOG.setLevel(Level.INFO);
 		// LOG.addHandler(new ConsoleHandler());
+		 LOG.setUseParentHandlers(false);
 		 try {
-			 fileHandler = new FileHandler("./Logger.log");
+			fileHandler = new FileHandler("./Logger.log");
+		//	fileHandler = new FileHandler(file.getPath() + ".log");
+			fileHandler.setFormatter(new LogFormatter());
 			LOG.addHandler(fileHandler);
-			simpleFormatter = new SimpleFormatter();
-			fileHandler.setFormatter(simpleFormatter);
+			//simpleFormatter = new SimpleFormatter();
 		} catch (SecurityException | IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -93,7 +97,7 @@ public class TestReasoner{
 		
 	    intr.setSymmetricRoles(getSymmetricRoles());
 	    ontology =  intr.internalize(ont);
-		re = new RuleEngine(intr, todo, df, config);
+		re = new RuleEngine(intr, todo, df, config, LOG);
 	}
 	 public static void getExecutionTime() {
 			long endTime = System.currentTimeMillis();

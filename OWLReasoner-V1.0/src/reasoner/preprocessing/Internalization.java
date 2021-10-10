@@ -218,7 +218,7 @@ public class Internalization {
 	    
 	    for (OWLAxiom ax : (Iterable<OWLAxiom>)ont.axioms()::iterator) {
 		   ax = ax.getNNF();
-	//	  System.err.println("ax"+ax);
+		//  System.err.println("ax"+ax);
 		   if(!this.prefixSet) {
 			   if(this.getPrefixManager().getDefaultPrefix().equals("")) {
 				   try {
@@ -293,6 +293,12 @@ public class Internalization {
 		   			else
 		    			this.Tui.add(sax);
 		   		}
+			/*   
+			// --> (A and (ClassExpression)) SubClassOf C 
+		    	else if((sub instanceof OWLObjectIntersectionOf && 
+		    			((OWLObjectIntersectionOf)sub).conjunctSet().anyMatch(cj -> (cj instanceof OWLObjectOneOf) || (cj instanceof OWLClass)))) {
+		    		
+		    	}*/
 		    	else {
 		    			// --> (ClassExpression) SubClassOf (ClassExpression)
 		   			this.Tg.add(sax);

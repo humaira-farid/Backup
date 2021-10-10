@@ -45,7 +45,7 @@ import reasoner.preprocessing.Internalization;
 import reasoner.todolist.ToDoEntry;
 import reasoner.todolist.ToDoList;
 
-public class RuleEngine {
+public class RuleEngine2_14Sep21 {
 
 	Internalization intl;
 	Ontology ontology;
@@ -84,11 +84,11 @@ public class RuleEngine {
 	Logger LOG;
 	Set<OWLObjectPropertyExpression> symmRoles = new HashSet<>();
 
-	public RuleEngine(Internalization i, ToDoList todo, OWLDataFactory df, Configuration config, Logger LOG) {
+	public RuleEngine2_14Sep21(Internalization i, ToDoList todo, OWLDataFactory df, Configuration config, Logger LOG) {
 		this.intl = i;
 		this.todo = todo;
 		this.df = df;
-		this.cg = new CompletionGraph(this, config, df);
+		this.cg = null;//new CompletionGraph(this, config, df);
 		this.config = config;
 		currentBranchingPoint = INITBRANCHINGLEVELVALUE;
 		this.ontology = this.intl.getOntology();
@@ -972,7 +972,7 @@ public class RuleEngine {
 
 	public boolean callILP(Node n, Set<ToDoEntry> entries, Set<OWLSubClassOfAxiom> subsumption, Set<Edge> outgoingEdges) {
 		System.out.println("Calling ILP module..."/* + entries.size() +" node id: "+n.getId() */);
-		//entries.stream().forEach(en -> System.out.println(en.getDs().getbpList()+" entry: "+ en.getClassExpression()));
+		entries.stream().forEach(en -> System.out.println(en.getDs().getbpList()+" entry: "+ en.getClassExpression()));
 		Node blocker = findBlocker(n);
 		if (blocker != null && !n.equals(blocker)) {
 			blockNode(n, blocker);
@@ -2529,7 +2529,7 @@ public class RuleEngine {
 							isInconsistent(n);
 					} else
 						isInconsistent(n);
-					return true;//return false;//FIXME: check if its correct
+					return false;
 				}
 
 			}
@@ -3489,9 +3489,6 @@ public class RuleEngine {
 			if(n == null) {
 				return false;
 			}
-			else if(n.getId() == -1) {
-				return true;
-			}
 		}
 		// }
 		return true;
@@ -3558,11 +3555,8 @@ public class RuleEngine {
 		// n.getnLabel().getCndList().getCdSet().stream().forEach(lb ->
 		// System.out.print("label "+lb.getCe()));
 		if (ce != null) {
-			Node nn = addConcept(n, ce, ds);
-			if (nn == null)
+			if (addConcept(n, ce, ds) == null)
 				return false;
-			else if (nn.getId() == -1)
-				return true;
 		}
 		return true;
 	}
@@ -3589,7 +3583,7 @@ public class RuleEngine {
 			if (ce instanceof OWLObjectOneOf) {
 				Node mergedNode = processNominal(ce, n, cnds, ds);
 				if (mergedNode == null)
-					return new Node();
+					return null;
 				else
 					n = mergedNode;
 			} else if (ce instanceof OWLObjectCardinalityRestriction) {
@@ -3610,31 +3604,31 @@ public class RuleEngine {
 								isInconsistent(n);
 						} else
 							isInconsistent(n);
-						return new Node();
+						return null;
 					}
 				}
 			} else {
-			//	System.out.println("node label "+ n.getLabel());
+				System.out.println("node label "+ n.getLabel());
 				this.cg.addConceptToNode(n, cnds);
 				if (!checkClash(n, ce)) {
-				//	System.out.println("node label add ");
+					System.out.println("node label add ");
 					if (ce instanceof OWLClass) {
 						n.addSimpleLabel(ce);
 						if (!absorbRule1(ce, n, ds))
-							return new Node();
+							return null;
 						if (!absorbRule2(n))
-							return new Node();
+							return null;
 					} else if (ce instanceof OWLObjectComplementOf) {
 						if (!absorbRule3(ce, n, ds))
-							return new Node();
+							return null;
 					} else {
 						addToDoEntry(n, ce, cnds);
 					}
 				} else {
-					/*StackTraceElement[] el = Thread.currentThread().getStackTrace();
+					StackTraceElement[] el = Thread.currentThread().getStackTrace();
 					for (StackTraceElement e : el) {
 						System.out.println(e.toString());
-					}*/
+					}
 					DependencySet clashSet = getClashSet(n, ce, ce.getComplementNNF());
 					if (!clashSet.isEmpty()) {
 						clashSet.setCe(ce);
@@ -3643,7 +3637,7 @@ public class RuleEngine {
 							isInconsistent(n);
 					} else
 						isInconsistent(n);
-					return new Node();
+					return null;
 				}
 			}
 			/*
@@ -3659,16 +3653,11 @@ public class RuleEngine {
 		// node.getnLabel().getCndList().getCdSet().stream().filter(cds ->
 		// cds.getCe().equals(l)).iterator().next().getDs()));
 
-		/*Set<OWLObjectAllValuesFrom> forAll = node.getLabel().stream().filter(l -> l instanceof OWLObjectAllValuesFrom)
+		Set<OWLObjectAllValuesFrom> forAll = node.getLabel().stream().filter(l -> l instanceof OWLObjectAllValuesFrom)
 				.map(l -> (OWLObjectAllValuesFrom) l).collect(Collectors.toSet());
 		for (OWLObjectAllValuesFrom fa : forAll) {
 			applyForAllRule(node, fa, node.getnLabel().getCndList().getCdSet().stream()
 					.filter(cds -> cds.getCe().equals(fa)).iterator().next().getDs());
-		}*/
-		Set<ConceptNDepSet> forAllCnds = node.getnLabel().getCndList().getCdSet().stream()
-				.filter(cds -> cds.getCe()  instanceof OWLObjectAllValuesFrom).map(l -> (ConceptNDepSet) l).collect(Collectors.toSet());
-		for (ConceptNDepSet fa : forAllCnds) {
-			applyForAllRule(node, (OWLObjectAllValuesFrom) fa.getCe(), fa.getDs());
 		}
 	}
 
@@ -4127,11 +4116,11 @@ public class RuleEngine {
 					incCurLevel();
 					boolean result = applyOr(cg.getCurrNode(), branches.get(level).getNextOption(),
 							DependencySet.plus(newDS, DependencySet.create(branches.get(level).getDs())));
-					/*StackTraceElement[] el = Thread.currentThread().getStackTrace();
+					StackTraceElement[] el = Thread.currentThread().getStackTrace();
 					for (StackTraceElement e : el) {
 						System.out.println(e.toString());
 					}
-					System.out.println("\n\nresult "+result);*/
+					System.out.println("\n\nresult "+result);
 					return result;
 					// this.incCurLevel();
 					// applyOr(cg.getCurrNode(), branches.get(level).getNextOption(), newDS);
@@ -4378,7 +4367,7 @@ public class RuleEngine {
 				return false;
 			}
 			n = addConcept(n, c, ds);
-			if (n == null || n.getId() == -1)
+			if (n == null)
 				return false;
 		}
 		return true;
@@ -4413,7 +4402,7 @@ public class RuleEngine {
 					return false;
 				}
 				n = addConcept(n, c, dep);
-				if (n == null || n.getId() == -1)
+				if (n == null)
 					return false;
 			}
 		}
@@ -4439,7 +4428,7 @@ public class RuleEngine {
 				return false;
 			}
 			n = addConcept(n, c, ds);
-			if (n == null || n.getId() == -1)
+			if (n == null)
 				return false;
 		}
 		return true;
@@ -4458,7 +4447,7 @@ public class RuleEngine {
 			for (OWLClassExpression c : sup) {
 				// System.out.println("super "+ c);
 				n = addConcept(n, c, ds);
-				if (n == null || n.getId() == -1)
+				if (n == null)
 					return false;
 			}
 		}

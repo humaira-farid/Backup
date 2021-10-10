@@ -22,7 +22,6 @@ public class Main {
         input.setRequired(false);
         options.addOption(input);
         
-
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd;
