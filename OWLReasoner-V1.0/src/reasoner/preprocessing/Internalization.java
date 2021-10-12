@@ -293,12 +293,27 @@ public class Internalization {
 		   			else
 		    			this.Tui.add(sax);
 		   		}
-			/*   
-			// --> (A and (ClassExpression)) SubClassOf C 
+			   
+			// --> (A and (ClassExpression)) SubClassOf C ----- GCI Absorption 
 		    	else if((sub instanceof OWLObjectIntersectionOf && 
 		    			((OWLObjectIntersectionOf)sub).conjunctSet().anyMatch(cj -> (cj instanceof OWLObjectOneOf) || (cj instanceof OWLClass)))) {
-		    		
-		    	}*/
+		    		OWLClass subC = null;
+		    		Set<OWLClassExpression> supC = new HashSet<OWLClassExpression>();
+		    		supC.add(sup);
+		    		for(OWLClassExpression ce : ((OWLObjectIntersectionOf)sub).conjunctSet().collect(Collectors.toSet())) {
+		    			if(ce instanceof OWLClass) {
+		    				subC = (OWLClass)ce;
+		    				break;
+		    			}
+		    		}
+		    		for(OWLClassExpression ce : ((OWLObjectIntersectionOf)sub).conjunctSet().collect(Collectors.toSet())) {
+		    			if(!ce.equals(subC)) {
+		    				supC.add(ce.getComplementNNF());
+		    			}
+		    		}
+		    		OWLSubClassOfAxiom newSubAx = df.getOWLSubClassOfAxiom(subC, df.getOWLObjectUnionOf(supC));
+		    		this.Tu.add(newSubAx);
+		    	}
 		    	else {
 		    			// --> (ClassExpression) SubClassOf (ClassExpression)
 		   			this.Tg.add(sax);

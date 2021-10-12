@@ -511,7 +511,7 @@ public class RuleEngine {
 					this.axiomRoles.put(node, role);
 				}
 			}
-			// no need to make them disjoint
+			// no need to make them disjoint...
 			/*
 			 * for(int i = 0; i < ni.size(); i++) { for(int j = 0; j < ni.size(); j++) {
 			 * if(!ni.get(i).equals(ni.get(j))) { ontology.addDiffIndividuals(ni.get(i),
