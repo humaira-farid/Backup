@@ -49,8 +49,8 @@ public class TestReasoner{
 		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/galen.owl");
 		//	file = new File("/Users/temp/Desktop/pizza.owl");
 		//	file = new File("/Users/temp/Desktop/test-ontologies/abb/pizza3.owl");
-		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00021.owl_functional.owl");
-			file = new File("/Users/temp/Desktop/test-ontologies/Canadian_Parliament/canadian-parliament-ALCO-full.fowl.owl");
+			file = new File("/Users/temp/Documents/PhD/dataset/files/00003.owl_functional.owl");
+		//	file = new File("/Users/temp/Desktop/test-ontologies/Canadian_Parliament/canadian-parliament-ALCO-full.fowl.owl");
 		//	file = new File("/Users/temp/Desktop/testOnt3.owl");
 		} else {
 			file = new File(fileName);

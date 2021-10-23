@@ -1058,6 +1058,8 @@ public class RuleEngine {
 							if (nomNodes.size() == 1) {
 								to = nomNodes.iterator().next();
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+										return false;
 							} else {
 
 								System.out.println("Needs Merging!");
@@ -1128,6 +1130,8 @@ public class RuleEngine {
 								}
 
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+									return false;
 								//// new code 27-oct-2019
 								// reset(to); //commented April 26, 2020
 								this.addToDoEntries(to);
@@ -1146,6 +1150,8 @@ public class RuleEngine {
 							 * if(!this.absorbRule1(df.getOWLThing(), to, ds)) return; addTGAxiom(to, ds);
 							 */
 							e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+							if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+								return false;
 							// e = this.cg.addEdge(n, to, roles, ds);
 						}
 						if (niNode) {
@@ -1159,6 +1165,8 @@ public class RuleEngine {
 						 * if(!this.absorbRule1(df.getOWLThing(), to, ds)) return; addTGAxiom(to, ds);
 						 */
 						e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+						if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+							return false;
 						// e = this.cg.addEdge(n, to, roles, ds);
 					}
 					// if(!checkAtLeastRestrictions(n))
@@ -1249,6 +1257,8 @@ public class RuleEngine {
 								}
 								// System.err.println("node label" + to.getLabel());
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+									return false;
 
 								// e = this.cg.addEdge(n, to, roles, ds);
 							} else {
@@ -1350,6 +1360,8 @@ public class RuleEngine {
 								}
 
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+									return false;
 								//// new code 27-oct-2019
 								// reset(to); //commented April 26, 2020
 								this.addToDoEntries(to);
@@ -1486,6 +1498,8 @@ public class RuleEngine {
 					e = cg.findEdge(n, node.getNodeId());
 					if (e == null) {
 						e = this.cg.addEdge(n, node, getAllRoles(roles), ds);
+						if(!this.absorbRoleBasicRule(getAllRoles(roles), n, node, ds))
+							return false;
 					}
 					//
 
@@ -1567,6 +1581,8 @@ public class RuleEngine {
 
 								// System.err.println("node label" + to.getLabel());
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+									return false;
 								//// new code 27-oct-2019
 								// reset(to); //commented April 26, 2020
 								this.addToDoEntries(to);
@@ -1670,6 +1686,8 @@ public class RuleEngine {
 								}
 
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+									return false;
 								//// new code 27-oct-2019
 								// reset(to); //commented April 26, 2020
 								this.addToDoEntries(to);
@@ -2716,6 +2734,8 @@ public class RuleEngine {
 					Node nom = findNominalNode(ci);
 					if (nom != null) {
 						e = this.cg.addEdge(from, nom, getAllRoles(role), ds);
+						if(!this.absorbRoleBasicRule(getAllRoles(role), from, nom, ds))
+							return false;
 						// e = this.cg.addEdge(from, nom, role, ds);
 						updateConceptDepSet(nom, ds, ci);
 						processForAll(from);
@@ -2732,6 +2752,8 @@ public class RuleEngine {
 						to.setConceptsDependencies(ci, ds);
 						ConceptNDepSet cnds = new ConceptNDepSet(ci, ds);
 						e = this.cg.addEdge(from, to, getAllRoles(role), ds);
+						if(!this.absorbRoleBasicRule(getAllRoles(role), from, to, ds))
+							return false;
 						// e = this.cg.addEdge(from, to, role, ds);
 						this.cg.addConceptToNode(to, cnds);
 						processForAll(from);
@@ -2751,6 +2773,8 @@ public class RuleEngine {
 					to.setConceptsDependencies(filler, ds);
 					ConceptNDepSet cnds = new ConceptNDepSet(filler, ds);
 					e = this.cg.addEdge(from, to, getAllRoles(role), ds);
+					if(!this.absorbRoleBasicRule(getAllRoles(role), from, to, ds))
+						return false;
 					// e = this.cg.addEdge(from, to, role, ds);
 					this.cg.addConceptToNode(to, cnds);
 					processForAll(from);
@@ -2805,6 +2829,8 @@ public class RuleEngine {
 				Node nom = findNominalNode(ci);
 				if (nom != null) {
 					e = this.cg.addEdge(from, nom, getAllRoles(role), ds);
+					if(!this.absorbRoleBasicRule(getAllRoles(role), from, nom, ds))
+						return false;
 					// e = this.cg.addEdge(from, nom, role, ds);
 
 					updateConceptDepSet(nom, ds, ci);
@@ -2821,6 +2847,8 @@ public class RuleEngine {
 					to.setConceptsDependencies(ci, ds);
 					ConceptNDepSet cnds = new ConceptNDepSet(ci, ds);
 					e = this.cg.addEdge(from, to, getAllRoles(role), ds);
+					if(!this.absorbRoleBasicRule(getAllRoles(role), from, to, ds))
+						return false;
 					// e = this.cg.addEdge(from, to, role, ds);
 					this.cg.addConceptToNode(to, cnds);
 
@@ -2970,6 +2998,9 @@ public class RuleEngine {
 							for (Edge outE : x.getOutgoingEdges()) {
 								cg.addEdge(newNode, outE.getToNode(), outE.getLabel(), outE.getDepSet(),
 										outE.isSuccEdge());
+								if(!this.absorbRoleBasicRule(outE.getLabel(), newNode, outE.getToNode(), outE.getDepSet()))
+									return false;
+								
 							}
 						}
 						for (int i = 0; i < newNodes.size(); i++) {
@@ -4464,7 +4495,26 @@ public class RuleEngine {
 		}
 		return true;
 	}
-
+	// --- L(<x,y>) = {R} 
+	private boolean absorbRoleBasicRule(Set<OWLObjectPropertyExpression> roles, Node x, Node y, DependencySet ds) {
+		Set<OWLClassExpression> domain = new HashSet<OWLClassExpression>();
+		Set<OWLClassExpression> range = new HashSet<OWLClassExpression>();
+		for(OWLObjectPropertyExpression r : roles) {
+			domain.addAll(intl.getDomainRestriction(r));
+			range.addAll(intl.getRangeRestriction(r));
+		}
+		for(OWLClassExpression ce : domain) {
+			Node nn = addConcept(x, ce, ds);
+			if( nn.getId() == -1)
+				return false;
+		}
+		for(OWLClassExpression ce : range) {
+			Node nn = addConcept(x, ce, ds);
+			if( nn.getId() == -1)
+				return false;
+		}
+		return true;
+	}
 	private int getCurLevel() {
 		return currentBranchingPoint;
 	}

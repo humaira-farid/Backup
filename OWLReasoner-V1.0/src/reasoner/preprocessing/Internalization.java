@@ -2,13 +2,18 @@ package reasoner.preprocessing;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.semanticweb.owlapi.model.*;
 import org.semanticweb.owlapi.util.DefaultPrefixManager;
+
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.SetMultimap;
 
 import reasoner.Configuration;
 import reasoner.Ontology;
@@ -31,6 +36,8 @@ public class Internalization {
 	private Set<OWLDisjointClassesAxiom> djAx;
 	private Set<OWLDisjointUnionAxiom> djuAx;
     Set<OWLObjectPropertyRangeAxiom> objrAx = new HashSet<>();
+    SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> rangeRestrictions = HashMultimap.create();
+    SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> domainRestrictions = HashMultimap.create();
     DefaultPrefixManager prefixManager = new DefaultPrefixManager();
     Configuration config;
 	 
@@ -338,6 +345,26 @@ public class Internalization {
 		    					
 		    					this.Tui.add(eqsb);
 		    				}
+		    				// --> (A and (ClassExpression)) SubClassOf C ----- GCI Absorption 
+		    		    	else if((eqsb.getSubClass() instanceof OWLObjectIntersectionOf && 
+		    		    			eqsb.getSubClass().conjunctSet().anyMatch(cj -> (cj instanceof OWLObjectOneOf) || (cj instanceof OWLClass)))) {
+		    		    		OWLClass subC = null;
+		    		    		Set<OWLClassExpression> supC = new HashSet<OWLClassExpression>();
+		    		    		supC.add(eqsb.getSuperClass());
+		    		    		for(OWLClassExpression ce : eqsb.getSubClass().conjunctSet().collect(Collectors.toSet())) {
+		    		    			if(ce instanceof OWLClass) {
+		    		    				subC = (OWLClass)ce;
+		    		    				break;
+		    		    			}
+		    		    		}
+		    		    		for(OWLClassExpression ce : eqsb.getSubClass().conjunctSet().collect(Collectors.toSet())) {
+		    		    			if(!ce.equals(subC)) {
+		    		    				supC.add(ce.getComplementNNF());
+		    		    			}
+		    		    		}
+		    		    		OWLSubClassOfAxiom newSubAx = df.getOWLSubClassOfAxiom(subC, df.getOWLObjectUnionOf(supC));
+		    		    		this.Tu.add(newSubAx);
+		    		    	}
 		    				else if(eqsb.getSubClass() instanceof OWLObjectUnionOf) {
 		    					processDisjunction(eqsb.getSubClass(), eqsb.getSuperClass());
 		    				}
@@ -381,7 +408,7 @@ public class Internalization {
 				    		this.Tg.add(djusb);
 		    		}
 		    	}
-		   // --> Domain Axiom
+		  /* // --> Domain Axiom
 		    	else if(ax instanceof OWLObjectPropertyDomainAxiom) {
 		    		objdAx.add((OWLObjectPropertyDomainAxiom) ax);
 			    	this.Tg.add(((OWLObjectPropertyDomainAxiom) ax).asOWLSubClassOfAxiom());
@@ -390,7 +417,22 @@ public class Internalization {
 		    	else if(ax instanceof OWLObjectPropertyRangeAxiom) {
 		    		objrAx.add((OWLObjectPropertyRangeAxiom) ax);
 		    		this.Tg.add(((OWLObjectPropertyRangeAxiom) ax).asOWLSubClassOfAxiom());
+		    	}*/
+		   
+		   // --> Domain Axiom
+		    	else if(ax instanceof OWLObjectPropertyDomainAxiom) {
+		    		objdAx.add((OWLObjectPropertyDomainAxiom) ax);
+			    	this.domainRestrictions.put(((OWLObjectPropertyDomainAxiom) ax).getProperty(), ((OWLObjectPropertyDomainAxiom) ax).asOWLSubClassOfAxiom().getSuperClass());
+			    	//System.out.println("domain Role "+ ((OWLObjectPropertyDomainAxiom) ax).getProperty() + " domain: "+ ((OWLObjectPropertyDomainAxiom) ax).asOWLSubClassOfAxiom().getSuperClass());
 		    	}
+		   // --> Range Axiom
+		    	else if(ax instanceof OWLObjectPropertyRangeAxiom) {
+		    		objrAx.add((OWLObjectPropertyRangeAxiom) ax);
+		    		//OWLClassExpression ce = ((OWLObjectPropertyRangeAxiom) ax).asOWLSubClassOfAxiom().getSuperClass();
+		    		this.rangeRestrictions.put(((OWLObjectPropertyRangeAxiom) ax).getProperty(), ((OWLObjectAllValuesFrom)((OWLObjectPropertyRangeAxiom) ax).asOWLSubClassOfAxiom().getSuperClass()).getFiller());
+			    	//System.out.println("Range Role "+ ((OWLObjectPropertyRangeAxiom) ax).getProperty() + " range: "+ ((OWLObjectAllValuesFrom)((OWLObjectPropertyRangeAxiom) ax).asOWLSubClassOfAxiom().getSuperClass()).getFiller());
+		    	}
+		   
 		   // --> DifferentIndividuals Axiom
 		    	else if(ax instanceof OWLDifferentIndividualsAxiom) {
 			 	((OWLDifferentIndividualsAxiom)ax).asOWLSubClassOfAxioms().forEach(s -> diffInd.add(s));
@@ -465,6 +507,26 @@ public class Internalization {
 	    		    				else
 	    		    					this.Tui.add(eqsb);
 	    					}
+	    					// --> (A and (ClassExpression)) SubClassOf C ----- GCI Absorption 
+		    		    	else if((eqsb.getSubClass() instanceof OWLObjectIntersectionOf && 
+		    		    			eqsb.getSubClass().conjunctSet().anyMatch(cj -> (cj instanceof OWLObjectOneOf) || (cj instanceof OWLClass)))) {
+		    		    		OWLClass subC = null;
+		    		    		Set<OWLClassExpression> supC = new HashSet<OWLClassExpression>();
+		    		    		supC.add(eqsb.getSuperClass());
+		    		    		for(OWLClassExpression ce : eqsb.getSubClass().conjunctSet().collect(Collectors.toSet())) {
+		    		    			if(ce instanceof OWLClass) {
+		    		    				subC = (OWLClass)ce;
+		    		    				break;
+		    		    			}
+		    		    		}
+		    		    		for(OWLClassExpression ce : eqsb.getSubClass().conjunctSet().collect(Collectors.toSet())) {
+		    		    			if(!ce.equals(subC)) {
+		    		    				supC.add(ce.getComplementNNF());
+		    		    			}
+		    		    		}
+		    		    		OWLSubClassOfAxiom newSubAx = df.getOWLSubClassOfAxiom(subC, df.getOWLObjectUnionOf(supC));
+		    		    		this.Tu.add(newSubAx);
+		    		    	}
 	    					else
 	    						this.Tg.add(eqsb);
 	    				}
@@ -643,6 +705,12 @@ public class Internalization {
 		}
 		return ranges;
 		
+	}
+	public Set<OWLClassExpression> getDomainRestriction(OWLObjectPropertyExpression r) {
+		return this.domainRestrictions.get(r);
+	}
+	public Set<OWLClassExpression> getRangeRestriction(OWLObjectPropertyExpression r) {
+		return this.rangeRestrictions.get(r);
 	}
 	public void addInTu(OWLSubClassOfAxiom eqsb) {
 		this.Tu.add(eqsb);
