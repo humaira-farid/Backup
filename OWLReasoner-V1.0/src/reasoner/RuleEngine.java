@@ -1058,7 +1058,11 @@ public class RuleEngine {
 							if (nomNodes.size() == 1) {
 								to = nomNodes.iterator().next();
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+<<<<<<< HEAD
 								if(!this.absorbRoleRule(getAllRoles(roles), n, to, ds))
+=======
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 										return false;
 							} else {
 
@@ -1130,7 +1134,11 @@ public class RuleEngine {
 								}
 
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+<<<<<<< HEAD
 								if(!this.absorbRoleRule(getAllRoles(roles), n, to, ds))
+=======
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 									return false;
 								//// new code 27-oct-2019
 								// reset(to); //commented April 26, 2020
@@ -1150,7 +1158,11 @@ public class RuleEngine {
 							 * if(!this.absorbRule1(df.getOWLThing(), to, ds)) return; addTGAxiom(to, ds);
 							 */
 							e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+<<<<<<< HEAD
 							if(!this.absorbRoleRule(getAllRoles(roles), n, to, ds))
+=======
+							if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 								return false;
 							// e = this.cg.addEdge(n, to, roles, ds);
 						}
@@ -1165,7 +1177,11 @@ public class RuleEngine {
 						 * if(!this.absorbRule1(df.getOWLThing(), to, ds)) return; addTGAxiom(to, ds);
 						 */
 						e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+<<<<<<< HEAD
 						if(!this.absorbRoleRule(getAllRoles(roles), n, to, ds))
+=======
+						if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 							return false;
 						// e = this.cg.addEdge(n, to, roles, ds);
 					}
@@ -1257,8 +1273,14 @@ public class RuleEngine {
 								}
 								// System.err.println("node label" + to.getLabel());
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+<<<<<<< HEAD
 								if(!this.absorbRoleRule(getAllRoles(roles), n, to, ds))
 									return false;
+=======
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+									return false;
+
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 								// e = this.cg.addEdge(n, to, roles, ds);
 							} else {
 								if (node.getCardinality() > 1) {
@@ -1359,7 +1381,11 @@ public class RuleEngine {
 								}
 
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+<<<<<<< HEAD
 								if(!this.absorbRoleRule(getAllRoles(roles), n, to, ds))
+=======
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 									return false;
 								//// new code 27-oct-2019
 								// reset(to); //commented April 26, 2020
@@ -1497,7 +1523,11 @@ public class RuleEngine {
 					e = cg.findEdge(n, node.getNodeId());
 					if (e == null) {
 						e = this.cg.addEdge(n, node, getAllRoles(roles), ds);
+<<<<<<< HEAD
 						if(!this.absorbRoleRule(getAllRoles(roles), n, node, ds))
+=======
+						if(!this.absorbRoleBasicRule(getAllRoles(roles), n, node, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 							return false;
 					}
 					//
@@ -1580,7 +1610,11 @@ public class RuleEngine {
 
 								// System.err.println("node label" + to.getLabel());
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+<<<<<<< HEAD
 								if(!this.absorbRoleRule(getAllRoles(roles), n, to, ds))
+=======
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 									return false;
 								//// new code 27-oct-2019
 								// reset(to); //commented April 26, 2020
@@ -1685,7 +1719,11 @@ public class RuleEngine {
 								}
 
 								e = this.cg.addEdge(n, to, getAllRoles(roles), ds);
+<<<<<<< HEAD
 								if(!this.absorbRoleRule(getAllRoles(roles), n, to, ds))
+=======
+								if(!this.absorbRoleBasicRule(getAllRoles(roles), n, to, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 									return false;
 								//// new code 27-oct-2019
 								// reset(to); //commented April 26, 2020
@@ -2733,7 +2771,11 @@ public class RuleEngine {
 					Node nom = findNominalNode(ci);
 					if (nom != null) {
 						e = this.cg.addEdge(from, nom, getAllRoles(role), ds);
+<<<<<<< HEAD
 						if(!this.absorbRoleRule(getAllRoles(role), from, nom, ds))
+=======
+						if(!this.absorbRoleBasicRule(getAllRoles(role), from, nom, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 							return false;
 						// e = this.cg.addEdge(from, nom, role, ds);
 						updateConceptDepSet(nom, ds, ci);
@@ -2751,7 +2793,11 @@ public class RuleEngine {
 						to.setConceptsDependencies(ci, ds);
 						ConceptNDepSet cnds = new ConceptNDepSet(ci, ds);
 						e = this.cg.addEdge(from, to, getAllRoles(role), ds);
+<<<<<<< HEAD
 						if(!this.absorbRoleRule(getAllRoles(role), from, to, ds))
+=======
+						if(!this.absorbRoleBasicRule(getAllRoles(role), from, to, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 							return false;
 						// e = this.cg.addEdge(from, to, role, ds);
 						this.cg.addConceptToNode(to, cnds);
@@ -2772,7 +2818,11 @@ public class RuleEngine {
 					to.setConceptsDependencies(filler, ds);
 					ConceptNDepSet cnds = new ConceptNDepSet(filler, ds);
 					e = this.cg.addEdge(from, to, getAllRoles(role), ds);
+<<<<<<< HEAD
 					if(!this.absorbRoleRule(getAllRoles(role), from, to, ds))
+=======
+					if(!this.absorbRoleBasicRule(getAllRoles(role), from, to, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 						return false;
 					// e = this.cg.addEdge(from, to, role, ds);
 					this.cg.addConceptToNode(to, cnds);
@@ -2828,7 +2878,11 @@ public class RuleEngine {
 				Node nom = findNominalNode(ci);
 				if (nom != null) {
 					e = this.cg.addEdge(from, nom, getAllRoles(role), ds);
+<<<<<<< HEAD
 					if(!this.absorbRoleRule(getAllRoles(role), from, nom, ds))
+=======
+					if(!this.absorbRoleBasicRule(getAllRoles(role), from, nom, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 						return false;
 					// e = this.cg.addEdge(from, nom, role, ds);
 
@@ -2846,7 +2900,11 @@ public class RuleEngine {
 					to.setConceptsDependencies(ci, ds);
 					ConceptNDepSet cnds = new ConceptNDepSet(ci, ds);
 					e = this.cg.addEdge(from, to, getAllRoles(role), ds);
+<<<<<<< HEAD
 					if(!this.absorbRoleRule(getAllRoles(role), from, to, ds))
+=======
+					if(!this.absorbRoleBasicRule(getAllRoles(role), from, to, ds))
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 						return false;
 					// e = this.cg.addEdge(from, to, role, ds);
 					this.cg.addConceptToNode(to, cnds);
@@ -2997,8 +3055,14 @@ public class RuleEngine {
 							for (Edge outE : x.getOutgoingEdges()) {
 								cg.addEdge(newNode, outE.getToNode(), outE.getLabel(), outE.getDepSet(),
 										outE.isSuccEdge());
+<<<<<<< HEAD
 								if(!this.absorbRoleRule(outE.getLabel(), newNode, outE.getToNode(), outE.getDepSet()))
 									return false;
+=======
+								if(!this.absorbRoleBasicRule(outE.getLabel(), newNode, outE.getToNode(), outE.getDepSet()))
+									return false;
+								
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 							}
 						}
 						for (int i = 0; i < newNodes.size(); i++) {
@@ -4493,6 +4557,7 @@ public class RuleEngine {
 		}
 		return true;
 	}
+<<<<<<< HEAD
 	/** Both Basic and Extended Role Absorption 
 	 *  --- L(<x,y>) = {R} , exist_R.Top -> C
 	 * 	--- L(<x,y>) = {R} , exist_R.D -> C ~~>> exist_R.Top -> (C or forAll_R.neg_D)
@@ -4552,6 +4617,28 @@ public class RuleEngine {
 		}
 		return true;
 	}*/
+=======
+	// --- L(<x,y>) = {R} 
+	private boolean absorbRoleBasicRule(Set<OWLObjectPropertyExpression> roles, Node x, Node y, DependencySet ds) {
+		Set<OWLClassExpression> domain = new HashSet<OWLClassExpression>();
+		Set<OWLClassExpression> range = new HashSet<OWLClassExpression>();
+		for(OWLObjectPropertyExpression r : roles) {
+			domain.addAll(intl.getDomainRestriction(r));
+			range.addAll(intl.getRangeRestriction(r));
+		}
+		for(OWLClassExpression ce : domain) {
+			Node nn = addConcept(x, ce, ds);
+			if( nn.getId() == -1)
+				return false;
+		}
+		for(OWLClassExpression ce : range) {
+			Node nn = addConcept(x, ce, ds);
+			if( nn.getId() == -1)
+				return false;
+		}
+		return true;
+	}
+>>>>>>> branch 'Cicada' of https://github.com/humaira-farid/Backup
 	private int getCurLevel() {
 		return currentBranchingPoint;
 	}
