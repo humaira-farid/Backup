@@ -87,6 +87,7 @@ public class CompletionGraph implements Cloneable {
 	//	System.out.println(cnd.getDs().getMax() + " level "+ cnd.getCe() + " addConceptToNode " + n.getId() + " branchingLevel " + branchingLevel);
 		saveNode(n, branchingLevel);
 	//	saveNode(n, cnd.getDs().getMax(), branchingLevel);
+	//	System.out.println("addConceptToNode "+n.getId());
 		n.addLabel(cnd.getCe());
 		n.addConcept(cnd);
 		checkBlockedStatus(n);
@@ -109,11 +110,21 @@ public class CompletionGraph implements Cloneable {
 	}
 
 	public void checkBlockedStatus(Node n) {
-	//	System.out.println("checkBlockedStatus " + n.getId() + " label " + n.getLabel());
-		if (config.isUsePairwiseBlocking())
-			updatePairwiseBlockingStatus(n);
-		else
-			updateBlockingStatus(n);
+	//	System.out.println("checkBlockedStatus " + n.getId() + " blocked? " + n.isBlocked());
+		if(n.isiBlocked()) {
+			Node blocker = n.getBlocker(); // if indirectly blocked then used the directly blocked node to update blocking status
+			unblockNode(n);
+			if (config.isUsePairwiseBlocking())
+				updatePairwiseBlockingStatus(blocker);
+			else
+				updateBlockingStatus(blocker);
+		}
+		else {
+			if (config.isUsePairwiseBlocking())
+				updatePairwiseBlockingStatus(n);
+			else
+				updateBlockingStatus(n);
+		}
 	}
 
 	private void updateBlockingStatus(Node n) {
@@ -171,6 +182,8 @@ public class CompletionGraph implements Cloneable {
 				}
 			}
 		} else {
+			//System.out.println("checkBlockedStatus " + n.getId() + " find blocker " );
+			
 			Node blocker = findBlocker(n);
 			if (blocker != null && !n.equals(blocker)) {
 				setNodeBlocked(n, blocker);
@@ -445,9 +458,10 @@ public class CompletionGraph implements Cloneable {
 		Node blocker = null;
 		if (config.isUsePairwiseBlocking())
 			blocker = findPairwiseBlocker(n);
-		else
+		else if(config.isUseEqualityBlocking())
 			blocker = findEqualityBlocker(n);
-
+		else if(config.isUseSubsetBlocking())
+			blocker = findSubsetBlocker(n);
 		/*
 		 * if (config.isSHO() || config.isSHOI() || config.isSHOIQ() || config.isSHOQ())
 		 * { if (blocker != null) {
@@ -465,7 +479,29 @@ public class CompletionGraph implements Cloneable {
 
 	}
 
+	private Node findSubsetBlocker(Node n) {
+		if (n.isBlockableNode() && !n.isReset()) {
+			// System.out.println("nodeBase.size() "+nodeBase.size());
+			for (int i = 0; i < nodeBase.size() /* && i < n.getId() */; i++) {
+				Node p = nodeBase.get(i);
+				if (p != null && p.getOutgoingEdges().size() > 0 && !p.equals(n) && p.isBlockableNode()
+						&& !p.isBlocked() && !p.isReset()) {
+					if (p.getLabel().containsAll(n.getLabel())) {
+						if (config.isSHO() || config.isSHOI() || config.isSHOIQ() || config.isSHOQ()) {
+							if (!hasNominalInPath(p, n)) {
+								return p;
+							}
+						} else
+							return p;
+					}
+				}
+			}
+		}
+		return null;
+	}
+
 	public Node findPairwiseBlocker(Node n) {
+		//System.err.println("find blocker node for "+n.getId());
 		if (n.isBlockableNode()) {
 			// List<Edge> xEdges = n.getIncomingEdges();
 			List<Edge> xEdges = n.getIncomingEdges();
@@ -514,8 +550,17 @@ public class CompletionGraph implements Cloneable {
 													p.setPairingNode(y1);
 													return p;
 												}
-											} else
+											} else {
+												System.err.println("blocker node " + p.getId() + " pair with: "
+														+ y1.getId() + y.isBlockableNode() +"blocked node " + n.getId() + " pair with: "
+																+ x1.getId());
+
+												y1.addPairBlockerNode(p);
+												x1.addPairBlockedNode(n);
+												n.setPairingNode(x1);
+												p.setPairingNode(y1);
 												return p;
+											}
 										}
 									}
 								}
@@ -573,7 +618,9 @@ public class CompletionGraph implements Cloneable {
 
 	private void setNodeDBlocked(Node node, Node blocker) {
 		node.setdBlocked(blocker);
-		propagateIBlockedStatus(node, blocker);
+	//	propagateIBlockedStatus(node, blocker);
+		propagateIBlockedStatus(node, node);
+		
 		// removeTree(node);
 	}
 
