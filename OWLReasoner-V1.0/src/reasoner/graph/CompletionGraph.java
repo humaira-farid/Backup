@@ -452,8 +452,7 @@ public class CompletionGraph implements Cloneable {
 	}
 
 	public Node findBlocker(Node n) {
-		// System.out.println("n node "+ n.getId() +"pair-wise blocking
-		// "+config.isUsePairwiseBlocking());
+		// System.out.println("n node "+ n.getId() +"sunsetblocking "+config.isUsePairwiseBlocking());
 		saveNode(n, branchingLevel);
 		Node blocker = null;
 		if (config.isUsePairwiseBlocking())
@@ -952,8 +951,13 @@ public class CompletionGraph implements Cloneable {
 	}
 
 	public Node getNode(Integer id) {
-		if (nodeBase.stream().filter(n -> n.getId() == id).iterator().hasNext())
-			return nodeBase.stream().filter(n -> n.getId() == id).iterator().next();
+		for(Node n : nodeBase) {
+			if(n!=null && n.getId() == id) {
+				return n;
+			}
+		}
+	//	if (nodeBase.stream().filter(n -> n.getId() == id).iterator().hasNext())
+	//		return nodeBase.stream().filter(n -> n.getId() == id).iterator().next();
 		return null;
 
 	}

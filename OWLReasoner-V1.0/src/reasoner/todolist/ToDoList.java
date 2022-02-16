@@ -213,8 +213,7 @@ public class ToDoList {
     		restoreState(saveMap.get(level));
     		//restoreState(saveStack.pop1(level));
     }
-
-	public void updateToDoEntry(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
+    public void updateToDoEntry(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
 		int index = matrix.getIndex(type);
       //  waitQueue.get(index).wait.stream().
         //		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).
@@ -227,6 +226,25 @@ public class ToDoList {
 			if(entry.getNode() != null && entry.getClassExpression() != null) {
 				if(entry.getNode().equals(n) && entry.getClassExpression().equals(c)) {
 					entry.setDs(DependencySet.update(DependencySet.create(entry.getDs()), DependencySet.create(ds)));
+				}
+			}
+		}
+		}
+	}
+	public void updateToDoEntry(Node n, NodeTag type, OWLClassExpression c) {
+		int index = matrix.getIndex(type);
+      //  waitQueue.get(index).wait.stream().
+        //		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).
+        	//		forEach(entry -> entry.setDs(DependencySet.update(DependencySet.create(entry.getDs()), DependencySet.create(ds))));
+		
+		
+		List<ToDoEntry> entries = waitQueue.get(index).wait;
+		for(ToDoEntry entry : entries) {
+			if( entry != null) {
+			if(entry.getNode() != null && entry.getClassExpression() != null) {
+				if(entry.getNode().equals(n) && entry.getClassExpression().equals(c)) {
+					entry.setDs(DependencySet.create());
+					//entry.setDs(DependencySet.update(DependencySet.create(entry.getDs()), DependencySet.create(ds)));
 				}
 			}
 		}
@@ -256,7 +274,7 @@ public class ToDoList {
         		
 		
 	}
-	public boolean hasToDoEntry3(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
+	public boolean hasToDoEntry(Node n, NodeTag type, OWLClassExpression c) {
 		int index = matrix.getIndex(type);
 		return waitQueue.get(index).hasEntry(n, c);
         /*return waitQueue.get(index).wait.stream().

@@ -2175,8 +2175,11 @@ public class CplexModelGenerator {
 						}
 					}
 					else {
-						for(OWLClassExpression C : forAllMaps.get(role))
-							ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
+						for(OWLClassExpression C : forAllMaps.get(role)) {
+							if(C != null && srRolesMap.get(role) != null){
+								ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
+							}
+						}
 					}
 				}
 			}
@@ -2199,6 +2202,7 @@ public class CplexModelGenerator {
 					}
 					else {
 						OWLClassExpression C = topMaxMap.get(role);
+						if(srRolesMap.get(role)!=null)
 							ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
 					}
 				}
@@ -2225,7 +2229,8 @@ public class CplexModelGenerator {
 						
 					}
 					else {
-						ppCplex.addLe(sr[srRolesMap.get(role)],  r[ri]);
+						if(srRolesMap.get(role)!=null)
+							ppCplex.addLe(sr[srRolesMap.get(role)],  r[ri]);
 					}
 				}
 			}

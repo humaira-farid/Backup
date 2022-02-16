@@ -4571,17 +4571,17 @@ public class RuleEngine2_14Sep21 {
 
 	private void updateToDoEntryDepSet(Node n, OWLClassExpression c, DependencySet ds) {
 		if (c instanceof OWLObjectIntersectionOf)
-			todo.updateToDoEntry(n, NodeTag.AND, c, ds);
+			todo.updateToDoEntry(n, NodeTag.AND, c);
 		else if (c instanceof OWLObjectUnionOf)
-			todo.updateToDoEntry(n, NodeTag.OR, c, ds);
+			todo.updateToDoEntry(n, NodeTag.OR, c);
 		else if (c instanceof OWLObjectSomeValuesFrom || c instanceof OWLObjectHasValue)
-			todo.updateToDoEntry(n, NodeTag.EXISTS, c, ds);
+			todo.updateToDoEntry(n, NodeTag.EXISTS, c);
 		else if (c instanceof OWLObjectAllValuesFrom)
-			todo.updateToDoEntry(n, NodeTag.FORALL, c, ds);
+			todo.updateToDoEntry(n, NodeTag.FORALL, c);
 		else if (c instanceof OWLObjectMinCardinality)
-			todo.updateToDoEntry(n, NodeTag.LE, c, ds);
+			todo.updateToDoEntry(n, NodeTag.LE, c);
 		else if (c instanceof OWLObjectMaxCardinality)
-			todo.updateToDoEntry(n, NodeTag.GE, c, ds);
+			todo.updateToDoEntry(n, NodeTag.GE, c);
 	}
 
 	private boolean isToDoEntryDepSet(Node n, OWLClassExpression c, DependencySet ds) {
