@@ -18,7 +18,7 @@ public class Node implements Cloneable {
 	private Set<OWLClassExpression> simpleILPLabel = new HashSet<OWLClassExpression>();
 	private Set<OWLClassExpression> backPropagatedLabel = new HashSet<OWLClassExpression>();
 	private Multimap<OWLObjectCardinalityRestriction, DependencySet> qLE = HashMultimap.create();
-	private final int id;
+	private int id;
 	private int cardinality = 1;
 	private List<Edge> neighbour;
 	private List<Edge> incomingEdge;
@@ -37,7 +37,7 @@ public class Node implements Cloneable {
 	private DependencySet ds;
 	protected int curLevel;
 	/** pointer to last saved node */
-	private final SaveList saves = new SaveList();
+	private SaveList saves = new SaveList();
 	private Map<Integer, NodeSaveState> saveMap = new HashMap<>();
 	private boolean nomIntro;
 	private Set<Node> pairBlockerNodes;
@@ -131,6 +131,40 @@ public class Node implements Cloneable {
 	public Node() {
 		this.id = -1;
 	}
+// copy constructor
+	public Node(Node mergeTo) {
+		this.setId(mergeTo.getId());
+		this.setNodeType(mergeTo.getNodeType());
+		this.setNodeLabel(mergeTo.getNodeLabel()); 
+		this.setSimpleLabel(mergeTo.getSimpleLabel());
+		this.setSimpleILPLabel(mergeTo.getSimpleILPLabel());
+		this.setBackPropagatedLabel(mergeTo.getBackPropagatedLabel()); 
+		this.setqLE(mergeTo.getqLE());
+		this.setCardinality(mergeTo.getCardinality());
+		this.setNeighbour(mergeTo.getNeighbour());
+		this.setIncomingEdge(mergeTo.getIncomingEdge());
+		this.setOutgoingEdge(mergeTo.getOutgoingEdge());
+		this.setSuccEdge(mergeTo.getSuccEdge());
+		this.setPredEdge(mergeTo.getPredEdge());
+		this.setConceptsDependencies(mergeTo.getConceptsDependencies());
+		this.setnLabel(new NodeLabel(mergeTo.getnLabel()));
+		this.setBlocker(mergeTo.getBlocker());
+		this.setPairingNode(mergeTo.getPairingNode());
+		this.setdBlocked(mergeTo.isdBlocked());
+		merged = false;
+		this.setDisjointNodes(mergeTo.getDisjointNodes());
+		reset = false;
+		this.setDs(mergeTo.getDs());
+		this.setCurLevel(mergeTo.getCurLevel());
+		/** pointer to last saved node */
+		this.setSaves(mergeTo.getSaves());
+		this.setSaveMap(mergeTo.getSaveMap());
+		this.setNomIntro(mergeTo.isNomIntro());
+		this.setPairBlockerNodes(mergeTo.getPairBlockerNodes());
+		this.setPairBlockedNodes(mergeTo.getPairBlockedNodes());
+		this.setBlockedNodes(mergeTo.getBlockedNodes());
+		
+	}
 
 	public int getId() {
 		return id;
@@ -194,6 +228,130 @@ public class Node implements Cloneable {
 
 	public void addConcept(ConceptNDepSet cnd) {
 		nLabel.add(cnd);
+	}
+
+	public Set<OWLClassExpression> getNodeLabel() {
+		return nodeLabel;
+	}
+
+	public void setNodeLabel(Set<OWLClassExpression> nodeLabel) {
+		this.nodeLabel = nodeLabel;
+	}
+
+	public List<Edge> getIncomingEdge() {
+		return incomingEdge;
+	}
+
+	public void setIncomingEdge(List<Edge> incomingEdge) {
+		this.incomingEdge = incomingEdge;
+	}
+
+	public List<Edge> getOutgoingEdge() {
+		return outgoingEdge;
+	}
+
+	public void setOutgoingEdge(List<Edge> outgoingEdge) {
+		this.outgoingEdge = outgoingEdge;
+	}
+
+	public List<Edge> getSuccEdge() {
+		return succEdge;
+	}
+
+	public void setSuccEdge(List<Edge> succEdge) {
+		this.succEdge = succEdge;
+	}
+
+	public List<Edge> getPredEdge() {
+		return predEdge;
+	}
+
+	public void setPredEdge(List<Edge> predEdge) {
+		this.predEdge = predEdge;
+	}
+
+	public boolean isMerged() {
+		return merged;
+	}
+
+	public void setMerged(boolean merged) {
+		this.merged = merged;
+	}
+
+	public int getCurLevel() {
+		return curLevel;
+	}
+
+	public void setCurLevel(int curLevel) {
+		this.curLevel = curLevel;
+	}
+
+	public SaveList getSaves() {
+		return saves;
+	}
+
+	public void setSaves(SaveList saves) {
+		this.saves = saves;
+	}
+
+	public Map<Integer, NodeSaveState> getSaveMap() {
+		return saveMap;
+	}
+
+	public void setSaveMap(Map<Integer, NodeSaveState> saveMap) {
+		this.saveMap = saveMap;
+	}
+
+	public boolean isNomIntro() {
+		return nomIntro;
+	}
+
+	public void setNomIntro(boolean nomIntro) {
+		this.nomIntro = nomIntro;
+	}
+
+	public void setSimpleILPLabel(Set<OWLClassExpression> simpleILPLabel) {
+		this.simpleILPLabel = simpleILPLabel;
+	}
+
+	public void setBackPropagatedLabel(Set<OWLClassExpression> backPropagatedLabel) {
+		this.backPropagatedLabel = backPropagatedLabel;
+	}
+
+	public void setId(int id) {
+		this.id = id;
+	}
+
+	public void setNeighbour(List<Edge> neighbour) {
+		this.neighbour = neighbour;
+	}
+
+	public void setConceptsDependencies(Multimap<OWLClassExpression, DependencySet> conceptsDependencies) {
+		this.conceptsDependencies = conceptsDependencies;
+	}
+
+	public void setdBlocked(boolean dBlocked) {
+		this.dBlocked = dBlocked;
+	}
+
+	public void setDisjointNodes(List<Node> disjointNodes) {
+		this.disjointNodes = disjointNodes;
+	}
+
+	public void setDs(DependencySet ds) {
+		this.ds = ds;
+	}
+
+	public void setPairBlockerNodes(Set<Node> pairBlockerNodes) {
+		this.pairBlockerNodes = pairBlockerNodes;
+	}
+
+	public void setPairBlockedNodes(Set<Node> pairBlockedNodes) {
+		this.pairBlockedNodes = pairBlockedNodes;
+	}
+
+	public void setBlockedNodes(Set<Node> blockedNodes) {
+		this.blockedNodes = blockedNodes;
 	}
 
 	public List<Edge> getIncomingEdges() {
@@ -406,7 +564,7 @@ public class Node implements Cloneable {
 	}
 
 	private void restore(@Nullable NodeSaveState nss, boolean ilp, boolean merge, boolean disjunction) {
-	//	System.err.println("nss is null " + (nss == null));
+		//System.err.println("nss is null " + (nss == null));
 		if (nss == null) {
 			return;
 		}

@@ -35,6 +35,7 @@ public class Internalization {
 	SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> rangeRestrictions = HashMultimap.create();
 	SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> domainRestrictions = HashMultimap.create();
 	SetMultimap<OWLObjectPropertyExpression, OWLObjectUnionOf> extendedDomainRestrictions = HashMultimap.create();
+	SetMultimap<OWLClassExpression, OWLClassExpression> atomicSupClassGCIs = HashMultimap.create();
 	DefaultPrefixManager prefixManager = new DefaultPrefixManager();
 	Configuration config;
 
@@ -521,6 +522,9 @@ public class Internalization {
 		//System.out.println("tg before:" + Tg);
 		Set<OWLSubClassOfAxiom> remove = new HashSet<>();
 		for (OWLSubClassOfAxiom sbAx : this.Tg) {
+			if(sbAx.getSuperClass() instanceof OWLClass) {
+				this.atomicSupClassGCIs.put(sbAx.getSuperClass(), sbAx.getSubClass());
+			}
 			if (sbAx.getSubClass() instanceof OWLObjectSomeValuesFrom) {
 				OWLObjectUnionOf newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),
 						sbAx.getSubClass().getComplementNNF());
@@ -601,7 +605,12 @@ public class Internalization {
 		//System.out.println("tg after:" + Tg);
 		//System.out.println("extendedDomainRestrictions " + extendedDomainRestrictions.size());
 	}
-	
+	public Set<OWLClassExpression> getApplicableGCIs(OWLClassExpression ce){
+		return this.atomicSupClassGCIs.get(ce);
+	}
+	public Set<OWLObjectUnionOf> getApplicableGCIs(OWLObjectPropertyExpression role){
+		return extendedDomainRestrictions.get(role);
+	}
 	private void proccessIntersection(OWLSubClassOfAxiom sbAx) {
 		OWLClassExpression sub = sbAx.getSubClass();
 		OWLClassExpression sup = sbAx.getSuperClass();

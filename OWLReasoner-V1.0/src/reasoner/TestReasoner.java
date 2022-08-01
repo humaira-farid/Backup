@@ -43,7 +43,7 @@ public class TestReasoner{
 	public TestReasoner(String fileName) {
 		File file = null;
 		if (fileName == null || fileName.isEmpty()) {
-		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/HARD-Test-Cases-Humaira/HARD-Test-Cases-Humaira/ALCoQ-ALCHoQ/Cycles/C-Sat-cycle-ALCHQ.fowl.owl");
+		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/HARD-Test-Cases-Humaira/HARD-Test-Cases-Humaira/ALCoQ-ALCHoQ/Cycles/C-Sat-cycle-ALCHOQ.fowl.owl");
 		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOQ-tests/nom-1-B-not-sub-C-cons.fowl.owl");
 		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/SHOIQ-tests/paper-1b-inc-2.fowl.owl");
 		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/QCR-Ontologies_SHQ-no-abox_files/genomic-cds_rules-2.fowl.owl");
@@ -52,7 +52,7 @@ public class TestReasoner{
 		//	file = new File("/Users/temp/Desktop/test-ontologies/abb/Pizza.owl");
 		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00351.owl_functional.owl");
 
-		//	file = new File("/Users/temp/Desktop/test-ontologies/ab7/TestExRoleAb.owl");
+			file = new File("/Users/temp/Desktop/test-ontologies/ab3/p_80.fowl.owl");
 		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00003.owl_functional.owl");
 
 		//	file = new File("/Users/temp/Desktop/test-ontologies/Canadian_Parliament/canadian-parliament-ALCO-full.fowl.owl");
@@ -126,7 +126,7 @@ public class TestReasoner{
 //	 	  for (OWLSubClassOfAxiom sbg : intr.getTu()) 
 //	 	   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	    
-	    System.out.println( tgAxiom);
+	 //   System.out.println( tgAxiom);
 	 	   re.setTransitiveRoles(getTransitiveRoles());
 	 	   if(!getFunctionalRoles().isEmpty()) {
 	 		   intr.addFunctionalRoleAxiom(getFunctionalRoles());

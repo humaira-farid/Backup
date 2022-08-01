@@ -5,15 +5,29 @@ import reasoner.state.SaveState;
 public class NodeLabel {
 
 	private static int idcounter = 0;
-	private final int id;
-	private final ConceptNDepList cndList ;
+	private int id;
+	private ConceptNDepList cndList ;
 	
 	public NodeLabel() {
 		cndList = new ConceptNDepList();
 	    id = getnewId();
 	    
 	}
+	public NodeLabel(NodeLabel nl) {
+		this.setCndList(new ConceptNDepList(nl.getCndList()));
+	    this.setId(nl.getId());
+	    
+	}
 	
+	public int getId() {
+		return id;
+	}
+	public void setId(int id) {
+		this.id = id;
+	}
+	public void setCndList(ConceptNDepList cndList) {
+		this.cndList = cndList;
+	}
 	private static int getnewId() {
         return idcounter++;
     }

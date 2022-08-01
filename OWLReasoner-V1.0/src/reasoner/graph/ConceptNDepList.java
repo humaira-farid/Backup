@@ -10,14 +10,30 @@ import static reasoner.Helper.*;
 
 public class ConceptNDepList {
 	/** List of concepts along with dependency sets */
-	private final List<ConceptNDepSet> cdSet;
+	private List<ConceptNDepSet> cdSet;
 	private int size = 0;
 	Map<OWLClassExpression, Integer> concepts = new HashMap<>();
 
+	public int getSize() {
+		return size;
+	}
+	public void setSize(int size) {
+		this.size = size;
+	}
+	public void setCdSet(List<ConceptNDepSet> cdSet) {
+		this.cdSet = cdSet;
+	}
+	public void setConcepts(Map<OWLClassExpression, Integer> concepts) {
+		this.concepts = concepts;
+	}
 	public ConceptNDepList() {
 		cdSet = new ArrayList<>();
 	}
-	
+	public ConceptNDepList(ConceptNDepList cndList) {
+		this.setConcepts(cndList.concepts);
+		this.setSize(cndList.getSize());
+		this.setCdSet(cndList.getCdSetCopy());
+	}
 	public void init() {
 		size = 0;
 		concepts.clear();
@@ -26,6 +42,13 @@ public class ConceptNDepList {
 
 	public List<ConceptNDepSet> getCdSet() {
 		return cdSet;
+	}
+	public List<ConceptNDepSet> getCdSetCopy() {
+		 List<ConceptNDepSet> copyList = new ArrayList<>();
+		 for(ConceptNDepSet cds : this.getCdSet()) {
+			 copyList.add(new ConceptNDepSet(cds.getCe(), cds.getDs()));
+		 }
+		 return copyList;
 	}
 
 	protected void add(ConceptNDepSet cnd) {
@@ -63,7 +86,7 @@ public class ConceptNDepList {
 			else {
 				if (cdSet.get(i).getDs().getMax() >= level) {
 					OWLClassExpression concept = cdSet.get(i).getCe();
-			//		System.out.println("remove concept " + concept);
+				//	System.out.println("remove concept " + concept);
 					concepts.remove(concept);
 					cdSet.remove(i);
 					size--;

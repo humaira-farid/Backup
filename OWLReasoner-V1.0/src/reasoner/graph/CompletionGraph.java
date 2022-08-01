@@ -84,8 +84,9 @@ public class CompletionGraph implements Cloneable {
 	}
 
 	public void addConceptToNode(Node n, ConceptNDepSet cnd) {
-	//	System.out.println(cnd.getDs().getMax() + " level "+ cnd.getCe() + " addConceptToNode " + n.getId() + " branchingLevel " + branchingLevel);
+	//	System.out.println(cnd.getDs().getMax() + " level "+ cnd.getCe() + " addConceptToNode " + n.getId() + " bpList" + cnd.getDs().getbpList()+ " branchingLevel " + branchingLevel);
 		saveNode(n, branchingLevel);
+	//	saveNode(n, cnd.getDs().getMax());
 	//	saveNode(n, cnd.getDs().getMax(), branchingLevel);
 	//	System.out.println("addConceptToNode "+n.getId());
 		n.addLabel(cnd.getCe());
@@ -500,7 +501,7 @@ public class CompletionGraph implements Cloneable {
 	}
 
 	public Node findPairwiseBlocker(Node n) {
-		//System.err.println("find blocker node for "+n.getId());
+	//	System.err.println("find blocker node for "+n.getId());
 		if (n.isBlockableNode()) {
 			// List<Edge> xEdges = n.getIncomingEdges();
 			List<Edge> xEdges = n.getIncomingEdges();
@@ -540,6 +541,9 @@ public class CompletionGraph implements Cloneable {
 											if (config.isSHO() || config.isSHOI() || config.isSHOIQ()
 													|| config.isSHOQ()) {
 												if (!hasNominalInPath(p, n)) {
+												//	System.err.println("hasNominalInPath node for "+n.getId());
+												//	System.out.println(p.getLabel());
+												//	System.out.println(y1.getLabel());
 													System.err.println("blocker node " + p.getId() + " pair with: "
 															+ y1.getId() + y.isBlockableNode());
 
@@ -550,6 +554,8 @@ public class CompletionGraph implements Cloneable {
 													return p;
 												}
 											} else {
+												System.out.println(p.getLabel());
+												System.out.println(x1.getLabel());
 												System.err.println("blocker node " + p.getId() + " pair with: "
 														+ y1.getId() + y.isBlockableNode() +"blocked node " + n.getId() + " pair with: "
 																+ x1.getId());
@@ -772,7 +778,7 @@ public class CompletionGraph implements Cloneable {
 		} else {
 			for (int i = nSaved; i < savedNodes.size(); i++) {
 				if (savedNodes.get(i) != null) {
-					// System.err.println("Node id: "+ savedNodes.get(i).getId());
+				//	 System.err.println("Node id: "+ savedNodes.get(i).getId());
 					// commented on 22-oct-2019
 					// if (savedNodes.get(i).getId() < totalNodes) {
 					// don't restore nodes that are dead anyway
@@ -840,21 +846,50 @@ public class CompletionGraph implements Cloneable {
 	}
 
 	public boolean hasNominalInPath(Node y, Node x) {
-		// System.out.println("node : "+ y.getId() + " n "+
-		// y.getOutgoingEdges().iterator().next().getToNode().getId());
+		// System.out.println("node : "+ y.getId() + " n "+ y.getOutgoingEdges().iterator().next().getToNode().getId());
 		Set<Node> proccessedNodes = new HashSet<>();
 		proccessedNodes.add(y);
 		return checkAllPaths(x, y, y.getOutgoingEdges(), proccessedNodes);
 		// return checkAllPaths(x, y.getSuccEdges());
 	}
-
 	private boolean checkAllPaths(Node x, Node y, List<Edge> outgoingEdges, Set<Node> proccessedNodes) {
-		// System.out.println("out going edges : "+ outgoingEdges.size() + "node : "+
-		// y.getId());
+		for (Edge e : outgoingEdges) {
+			if(!checkPath(x, y, e, proccessedNodes))
+				return false;
+		}
+		return true;
+	}
+	private boolean checkPath(Node x, Node y, Edge e, Set<Node> proccessedNodes) {
+		// System.out.println("out going edges : "+ outgoingEdges.size() + "node : "+ y.getId());
+		
+			Node to = e.getToNode();
+			//System.out.println("out going node : "+ to.getId());
+			
+			if (!to.isReset()) {
+				if (!proccessedNodes.contains(to)) {
+					proccessedNodes.add(to);
+					if (to.isNominalNode()) {
+						return true;
+					}
+					if (to.equals(x)) {
+						return false;
+					} else {
+						return checkAllPaths(x, to, to.getOutgoingEdges(), proccessedNodes);
+						// checkAllPaths(x, y.getSuccEdges());
+					}
+				}
+			}
+			return true;
+	}
+
+	/*private boolean checkAllPaths(Node x, Node y, List<Edge> outgoingEdges, Set<Node> proccessedNodes) {
+		// System.out.println("out going edges : "+ outgoingEdges.size() + "node : "+ y.getId());
 		boolean hasNominal = false;
 		for (Edge e : outgoingEdges) {
-			hasNominal = false;
+			 hasNominal = false;
 			Node to = e.getToNode();
+			System.out.println("out going node : "+ to.getId());
+			
 			if (!to.isReset()) {
 				if (!proccessedNodes.contains(to)) {
 					proccessedNodes.add(to);
@@ -872,7 +907,7 @@ public class CompletionGraph implements Cloneable {
 			}
 		}
 		return hasNominal;
-	}
+	}*/
 
 	public Edge addEdge(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel, DependencySet ds) {
 		if (config.isSHI() || config.isSHOI() || config.isSHOIQ() || config.isSHIQ())
