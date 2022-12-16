@@ -284,7 +284,7 @@ public class ILPPreprocessor {
 				this.cardRes.add(cr);
 				cardResDs.put(cr, ds);
 			}
-			else if(filler instanceof OWLObjectAllValuesFrom) {
+			else if(filler instanceof OWLObjectAllValuesFrom || filler instanceof OWLObjectSomeValuesFrom || filler instanceof OWLObjectCardinalityRestriction) {
 				OWLClassExpression qualifier = null;
 				if(qcrAux.containsValue(filler)) {
 					qualifier = qcrAux.inverse().get(filler);
@@ -300,7 +300,7 @@ public class ILPPreprocessor {
 				this.cardRes.add(cr);
 				cardResDs.put(cr, ds);
 			}
-			else if(filler instanceof OWLObjectSomeValuesFrom) {
+			/*else if(filler instanceof OWLObjectSomeValuesFrom) {
 				OWLClassExpression qualifier = null;
 				if(qcrAux.containsValue(filler)) {
 					qualifier = qcrAux.inverse().get(filler);
@@ -315,7 +315,7 @@ public class ILPPreprocessor {
 				OWLObjectCardinalityRestriction cr = df.getOWLObjectMinCardinality(1, role, qualifier);
 				this.cardRes.add(cr);
 				cardResDs.put(cr, ds);
-			}
+			}*/
 		}
 		for(OWLObjectHasValue hv : hasValueDs.keySet()) {
 			DependencySet ds = DependencySet.create();
@@ -1632,6 +1632,7 @@ public class ILPPreprocessor {
 		CplexModelGenerator cmg = new CplexModelGenerator(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH, this.topMinMap, this.topMaxMap);
 		ILPSolution sol = cmg.getILPSolution();
 		System.out.println("Solved: "+sol.isSolved());
+		System.out.println("edges: "+sol.getEdgeInformation().size());
 		for(EdgeInformation ei : sol.getEdgeInformation()) {
 			/*Set<OWLClassExpression> temp = new HashSet<>();
 			temp.addAll(ei.getFillers());

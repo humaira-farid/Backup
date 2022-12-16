@@ -7,6 +7,8 @@ import org.semanticweb.owlapi.model.OWLObjectCardinalityRestriction;
 
 public class ILPSolution {
 	boolean solved = false;
+	boolean feasible = false;
+	boolean integer = false;
 	Set<EdgeInformation> edgeInformation = null;
 	Set<OWLObjectCardinalityRestriction> infeasible_set = null;
 	boolean isUnique =true;
@@ -14,9 +16,10 @@ public class ILPSolution {
 	public ILPSolution(){
 		this.edgeInformation = new HashSet<EdgeInformation>();
 		this.infeasible_set = new HashSet<>();
+		solved = false;
 	}
 	
-	public ILPSolution(boolean solved , Set<EdgeInformation> edgeInformation, 
+	public ILPSolution(boolean solved, Set<EdgeInformation> edgeInformation, 
 					Set<OWLObjectCardinalityRestriction> infeasible_set){
 		this.solved = solved;
 		this.edgeInformation = edgeInformation;
@@ -31,6 +34,22 @@ public class ILPSolution {
 		this.solved = solved;
 	}
 	
+	public boolean isFeasible() {
+		return feasible;
+	}
+
+	public void setFeasible(boolean feasible) {
+		this.feasible = feasible;
+	}
+
+	public boolean isInteger() {
+		return integer;
+	}
+
+	public void setInteger(boolean integer) {
+		this.integer = integer;
+	}
+
 	public Set<EdgeInformation> getEdgeInformation() {
 		return edgeInformation;
 	}

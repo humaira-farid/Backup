@@ -519,39 +519,60 @@ public class Internalization {
 		return ontology;
 	}
 	private void processExtendedRoleAbsorption() {
-		//System.out.println("tg before:" + Tg);
+		System.out.println("tg before:" + Tg);
 		Set<OWLSubClassOfAxiom> remove = new HashSet<>();
 		for (OWLSubClassOfAxiom sbAx : this.Tg) {
+			
 			if(sbAx.getSuperClass() instanceof OWLClass) {
 				this.atomicSupClassGCIs.put(sbAx.getSuperClass(), sbAx.getSubClass());
 			}
 			if (sbAx.getSubClass() instanceof OWLObjectSomeValuesFrom) {
-				OWLObjectUnionOf newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),
-						sbAx.getSubClass().getComplementNNF());
+				OWLObjectUnionOf newEntry;
+				if(sbAx.getSuperClass().isOWLNothing()) 
+					 newEntry =df.getOWLObjectUnionOf(sbAx.getSubClass().getComplementNNF());
+				else
+					newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),sbAx.getSubClass().getComplementNNF());
+				
 				extendedDomainRestrictions.put(((OWLObjectSomeValuesFrom) sbAx.getSubClass()).getProperty(), newEntry);
 				remove.add(sbAx);
 			}
 			else if (sbAx.getSubClass() instanceof OWLObjectMinCardinality) {
-				OWLObjectUnionOf newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),
-						sbAx.getSubClass().getComplementNNF());
+				OWLObjectUnionOf newEntry;
+				if(sbAx.getSuperClass().isOWLNothing()) 
+					 newEntry =df.getOWLObjectUnionOf(sbAx.getSubClass().getComplementNNF());
+				else
+					newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),sbAx.getSubClass().getComplementNNF());
+			
 				extendedDomainRestrictions.put(((OWLObjectMinCardinality) sbAx.getSubClass()).getProperty(), newEntry);
 				remove.add(sbAx);
 			}
 			else if (sbAx.getSubClass() instanceof OWLObjectMaxCardinality) {
-				OWLObjectUnionOf newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),
-						sbAx.getSubClass().getComplementNNF());
+				OWLObjectUnionOf newEntry;
+				if(sbAx.getSuperClass().isOWLNothing()) 
+					 newEntry =df.getOWLObjectUnionOf(sbAx.getSubClass().getComplementNNF());
+				else
+					newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),sbAx.getSubClass().getComplementNNF());
+			
 				extendedDomainRestrictions.put(((OWLObjectMaxCardinality) sbAx.getSubClass()).getProperty(), newEntry);
 				remove.add(sbAx);
 			}
 			else if (sbAx.getSubClass() instanceof OWLObjectAllValuesFrom) {
-				OWLObjectUnionOf newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),
-						sbAx.getSubClass().getComplementNNF());
+				OWLObjectUnionOf newEntry;
+				if(sbAx.getSuperClass().isOWLNothing()) 
+					 newEntry =df.getOWLObjectUnionOf(sbAx.getSubClass().getComplementNNF());
+				else
+					newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),sbAx.getSubClass().getComplementNNF());
+			
 				extendedDomainRestrictions.put(((OWLObjectAllValuesFrom) sbAx.getSubClass()).getProperty(), newEntry);
 				remove.add(sbAx);
 			}
 			else if (sbAx.getSubClass() instanceof OWLObjectHasValue) {
-				OWLObjectUnionOf newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),
-						sbAx.getSubClass().getComplementNNF());
+				OWLObjectUnionOf newEntry;
+				if(sbAx.getSuperClass().isOWLNothing()) 
+					 newEntry =df.getOWLObjectUnionOf(sbAx.getSubClass().getComplementNNF());
+				else
+					newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),sbAx.getSubClass().getComplementNNF());
+			
 				extendedDomainRestrictions.put(((OWLObjectHasValue) sbAx.getSubClass()).getProperty(), newEntry);
 				remove.add(sbAx);
 			}
@@ -562,36 +583,56 @@ public class Internalization {
 						cj instanceof OWLObjectAllValuesFrom || cj instanceof OWLObjectHasValue)) {
 					for(OWLClassExpression ce : sbAx.getSubClass().asConjunctSet()) {
 						if (ce instanceof OWLObjectSomeValuesFrom) {
-							OWLObjectUnionOf newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),
-									sbAx.getSubClass().getComplementNNF());
+							OWLObjectUnionOf newEntry;
+							if(sbAx.getSuperClass().isOWLNothing()) 
+								 newEntry =df.getOWLObjectUnionOf(sbAx.getSubClass().getComplementNNF());
+							else
+								newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),sbAx.getSubClass().getComplementNNF());
+						
 							extendedDomainRestrictions.put(((OWLObjectSomeValuesFrom) ce).getProperty(), newEntry);
 							remove.add(sbAx);
 							break;
 						}
 						else if (ce instanceof OWLObjectMinCardinality) {
-							OWLObjectUnionOf newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),
-									sbAx.getSubClass().getComplementNNF());
+							OWLObjectUnionOf newEntry;
+							if(sbAx.getSuperClass().isOWLNothing()) 
+								 newEntry =df.getOWLObjectUnionOf(sbAx.getSubClass().getComplementNNF());
+							else
+								newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),sbAx.getSubClass().getComplementNNF());
+						
 							extendedDomainRestrictions.put(((OWLObjectMinCardinality) ce).getProperty(), newEntry);
 							remove.add(sbAx);
 							break;
 						}
 						else if (ce instanceof OWLObjectMaxCardinality) {
-							OWLObjectUnionOf newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),
-									sbAx.getSubClass().getComplementNNF());
+							OWLObjectUnionOf newEntry;
+							if(sbAx.getSuperClass().isOWLNothing()) 
+								 newEntry =df.getOWLObjectUnionOf(sbAx.getSubClass().getComplementNNF());
+							else
+								newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),sbAx.getSubClass().getComplementNNF());
+						
 							extendedDomainRestrictions.put(((OWLObjectMaxCardinality) ce).getProperty(), newEntry);
 							remove.add(sbAx);
 							break;
 						}
 						else if (ce instanceof OWLObjectAllValuesFrom) {
-							OWLObjectUnionOf newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),
-									sbAx.getSubClass().getComplementNNF());
+							OWLObjectUnionOf newEntry;
+							if(sbAx.getSuperClass().isOWLNothing()) 
+								 newEntry =df.getOWLObjectUnionOf(sbAx.getSubClass().getComplementNNF());
+							else
+								newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),sbAx.getSubClass().getComplementNNF());
+						
 							extendedDomainRestrictions.put(((OWLObjectAllValuesFrom) ce).getProperty(), newEntry);
 							remove.add(sbAx);
 							break;
 						}
 						else if (ce instanceof OWLObjectHasValue) {
-							OWLObjectUnionOf newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),
-									sbAx.getSubClass().getComplementNNF());
+							OWLObjectUnionOf newEntry;
+							if(sbAx.getSuperClass().isOWLNothing()) 
+								 newEntry =df.getOWLObjectUnionOf(sbAx.getSubClass().getComplementNNF());
+							else
+								newEntry = df.getOWLObjectUnionOf(sbAx.getSuperClass(),sbAx.getSubClass().getComplementNNF());
+						
 							extendedDomainRestrictions.put(((OWLObjectHasValue) ce).getProperty(), newEntry);
 							remove.add(sbAx);
 							break;
@@ -604,10 +645,21 @@ public class Internalization {
 		this.Tg.removeAll(remove);
 		//System.out.println("tg after:" + Tg);
 		//System.out.println("extendedDomainRestrictions " + extendedDomainRestrictions.size());
+		for (OWLSubClassOfAxiom sbAx : this.Tu) {
+			if(sbAx.getSuperClass() instanceof OWLClass) {
+				this.atomicSupClassGCIs.put(sbAx.getSuperClass(), sbAx.getSubClass());
+			}
+		}
+		for (OWLSubClassOfAxiom sbAx : this.Tui) {
+			if(sbAx.getSuperClass() instanceof OWLClass) {
+				this.atomicSupClassGCIs.put(sbAx.getSuperClass(), sbAx.getSubClass());
+			}
+		}
 	}
 	public Set<OWLClassExpression> getApplicableGCIs(OWLClassExpression ce){
 		return this.atomicSupClassGCIs.get(ce);
 	}
+	
 	public Set<OWLObjectUnionOf> getApplicableGCIs(OWLObjectPropertyExpression role){
 		return extendedDomainRestrictions.get(role);
 	}
@@ -870,7 +922,8 @@ public class Internalization {
 			if (this.getTg().size() == 1) {
 				for (OWLSubClassOfAxiom sb : this.getTg()) {
 					if (sb.getSubClass().isOWLThing()) {
-						union = df.getOWLObjectUnionOf(df.getOWLNothing(), sb.getSuperClass());
+						//union = df.getOWLObjectUnionOf(df.getOWLNothing(), sb.getSuperClass());
+						union = df.getOWLObjectUnionOf(sb.getSuperClass());
 					} else {
 						union = df.getOWLObjectUnionOf(sb.getSubClass().getComplementNNF(), sb.getSuperClass());
 					}
@@ -882,7 +935,8 @@ public class Internalization {
 			}
 			for (OWLSubClassOfAxiom sb : this.getTg()) {
 				if (sb.getSubClass().isOWLThing()) {
-					union = df.getOWLObjectUnionOf(df.getOWLNothing(), sb.getSuperClass());
+					//union = df.getOWLObjectUnionOf(df.getOWLNothing(), sb.getSuperClass());
+					union = df.getOWLObjectUnionOf(sb.getSuperClass());
 				} else {
 					union = df.getOWLObjectUnionOf(sb.getSubClass().getComplementNNF(), sb.getSuperClass());
 				}

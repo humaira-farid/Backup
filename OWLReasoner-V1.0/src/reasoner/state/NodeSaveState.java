@@ -11,7 +11,7 @@ public class NodeSaveState {
     private int nNeighbours;
 	private int nOutgoingEdges;
 	private int nIncomingEdges;
-
+	private int nAbsorbedRoles;
     /** @return level of a saved node */
     public int level() {
         return curLevel;
@@ -66,6 +66,14 @@ public class NodeSaveState {
 	}
 	public int getCardinality() {
 		return this.cardinality;
+		
+	}
+	public int getnAbsorbedRoles() {
+		return this.nAbsorbedRoles;
+		
+	}
+	public void setnAbsorbedRoles(int nAbsorbedRoles) {
+		this.nAbsorbedRoles = nAbsorbedRoles;
 		
 	}
 }

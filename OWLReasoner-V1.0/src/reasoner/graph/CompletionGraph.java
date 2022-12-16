@@ -629,7 +629,7 @@ public class CompletionGraph implements Cloneable {
 		// removeTree(node);
 	}
 
-	private void removeTree(Node n) {
+	/*private void removeTree(Node n) {
 		// n.getNeighbour().stream().filter(q ->
 		// q.getToNode().isBlockableNode()).forEach(q -> removeNode(n, q.getToNode(),
 		// q));
@@ -649,7 +649,7 @@ public class CompletionGraph implements Cloneable {
 			from.getNeighbour().remove(q);
 			removeTree(p);
 		}
-	}
+	}*/
 
 	private void propagateIBlockedStatus(Node node, Node blocker) {
 

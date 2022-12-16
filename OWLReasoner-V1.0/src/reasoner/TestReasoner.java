@@ -52,7 +52,9 @@ public class TestReasoner{
 		//	file = new File("/Users/temp/Desktop/test-ontologies/abb/Pizza.owl");
 		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00351.owl_functional.owl");
 
-			file = new File("/Users/temp/Desktop/test-ontologies/ab3/p_80.fowl.owl");
+		//	file = new File("/Users/temp/Desktop/test-ontologies/jocelyne/sat/restr-num-1-6-OR-atmost.owl");
+			file = new File("/Users/temp/Desktop/test-ontologies/incomplete-unsat/integer-only-1-sub-D-1a.fowl.owl");
+			
 		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00003.owl_functional.owl");
 
 		//	file = new File("/Users/temp/Desktop/test-ontologies/Canadian_Parliament/canadian-parliament-ALCO-full.fowl.owl");
@@ -126,7 +128,7 @@ public class TestReasoner{
 //	 	  for (OWLSubClassOfAxiom sbg : intr.getTu()) 
 //	 	   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	    
-	 //   System.out.println( tgAxiom);
+//	    System.out.println( tgAxiom);
 	 	   re.setTransitiveRoles(getTransitiveRoles());
 	 	   if(!getFunctionalRoles().isEmpty()) {
 	 		   intr.addFunctionalRoleAxiom(getFunctionalRoles());
@@ -216,7 +218,7 @@ public class TestReasoner{
 			hasNominal = true;
 		}
 			
-		if(ont.axioms().anyMatch(ax -> ax.nestedClassExpressions().anyMatch(c -> c instanceof OWLObjectMaxCardinality || c instanceof OWLObjectMinCardinality))) {
+		if(ont.axioms().anyMatch(ax -> ax.nestedClassExpressions().anyMatch(c -> c instanceof OWLObjectMaxCardinality || c instanceof OWLObjectMinCardinality || c instanceof OWLObjectExactCardinality))) {
 			hasQCRs = true;
 		}
 				
@@ -272,7 +274,7 @@ public class TestReasoner{
 		}
 		
 		if(hasNominal && hasQCRs && hasInverseRoles) {
-			//System.err.println("SHOIQ");
+		//	System.err.println("SHOIQ");
 			config.setSHOIQ(true);
 			config.setUsePairwiseBlocking(true);
 		}
@@ -287,7 +289,7 @@ public class TestReasoner{
 			config.setUseEqualityBlocking(true);
 		}
 		else if(!hasNominal && hasQCRs && hasInverseRoles) {
-			System.err.println("SHIQ");
+		//	System.err.println("SHIQ");
 			config.setSHIQ(true);
 			config.setUsePairwiseBlocking(true);
 		}
@@ -302,7 +304,7 @@ public class TestReasoner{
 			config.setUseSubsetBlocking(true);
 		}
 		else if(!hasNominal && hasQCRs && !hasInverseRoles) {
-			//System.err.println("SHQ");
+			System.err.println("SHQ");
 			config.setSHQ(true);
 			config.setUseSubsetBlocking(true);
 		}

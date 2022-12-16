@@ -14,6 +14,7 @@ public class Node implements Cloneable {
 
 	private NodeType nodeType;
 	private Set<OWLClassExpression> nodeLabel = new HashSet<OWLClassExpression>();
+	private List<OWLObjectPropertyExpression> absorbedRoles = new ArrayList<OWLObjectPropertyExpression>();
 	private Set<OWLClassExpression> simpleLabel = new HashSet<OWLClassExpression>();
 	private Set<OWLClassExpression> simpleILPLabel = new HashSet<OWLClassExpression>();
 	private Set<OWLClassExpression> backPropagatedLabel = new HashSet<OWLClassExpression>();
@@ -49,6 +50,14 @@ public class Node implements Cloneable {
 			return true;
 		else
 			return false;
+	}
+
+	public List<OWLObjectPropertyExpression> getAbsorbedRoles() {
+		return absorbedRoles;
+	}
+
+	public void setAbsorbedRoles(List<OWLObjectPropertyExpression> absorbedRoles) {
+		this.absorbedRoles = absorbedRoles;
 	}
 
 	public int getCardinality() {
@@ -163,7 +172,7 @@ public class Node implements Cloneable {
 		this.setPairBlockerNodes(mergeTo.getPairBlockerNodes());
 		this.setPairBlockedNodes(mergeTo.getPairBlockedNodes());
 		this.setBlockedNodes(mergeTo.getBlockedNodes());
-		
+		this.setAbsorbedRoles(mergeTo.getAbsorbedRoles());
 	}
 
 	public int getId() {
@@ -533,10 +542,10 @@ public class Node implements Cloneable {
 	 *            resetLevel
 	 * @return check if node needs to be restored
 	 */
-	public boolean needRestore(int restLevel) {
+	public boolean needRestore(int resetLevel) {
 		// System.out.println("n id "+ this.getId()+" need restore? curr level: "+
 		// curLevel + " restore level "+ restLevel);
-		return curLevel > restLevel;
+		return curLevel > resetLevel;
 	}
 
 	/**
@@ -560,27 +569,28 @@ public class Node implements Cloneable {
 		nss.setnNeighbours(neighbour.size());
 		nss.setnOutgoingEdges(outgoingEdge.size());
 		nss.setnIncommingEdges(incomingEdge.size());
+		nss.setnAbsorbedRoles(absorbedRoles.size());
 		nLabel.save(nss.getLab());
 	}
 
 	private void restore(@Nullable NodeSaveState nss, boolean ilp, boolean merge, boolean disjunction) {
-		//System.err.println("nss is null " + (nss == null));
+		//System.err.println("nss is null " + this.getId() + " " +(nss == null));
 		if (nss == null) {
 			return;
 		}
 		// level restore
 		curLevel = nss.getCurLevel();
-
 		cardinality = nss.getCardinality();
 		nLabel.restore(nss.getLab(), nss.getCurLevel(), ilp, merge, disjunction);
-
+		
 		resize(neighbour, nss.getnNeighbours(), null);
 		resize(outgoingEdge, nss.getnOutgoingEdges(), null);
 		resize(incomingEdge, nss.getnIncomingEdges(), null);
-
+		resize(absorbedRoles, nss.getnAbsorbedRoles(), null);
+		
 	}
 
-	public void removeLabel() {
+	/*public void removeLabel() {
 		nLabel.removeLabel();
 	}
 
@@ -589,7 +599,7 @@ public class Node implements Cloneable {
 		this.incomingEdge.clear();
 		this.outgoingEdge.clear();
 	}
-
+*/
 	public boolean isBlocked() {
 		return blocker != null;
 	}
