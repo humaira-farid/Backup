@@ -76,6 +76,14 @@ public class RegQueue {
 		}
 		return false;
 	}
+	public ToDoEntry getEntry(Node n, OWLClassExpression c) {
+		for(int i = sPointer; i< wait.size(); i++) {
+			ToDoEntry en = wait.get(i);
+			if(en.getNode().equals(n) && en.getClassExpression().equals(c))
+				return en;
+		}
+		return null;
+	}
 	public ToDoEntry hasEntry2(Node n, OWLClassExpression c) {
 		for(int i = sPointer; i< wait.size(); i++) {
 			ToDoEntry en = wait.get(i);
@@ -106,5 +114,21 @@ public class RegQueue {
 	        setsPointer(sp);
 	        this.wait = new ArrayList<>(wait);
 	      // Helper.resize(wait, ep, null);
+	    }
+	    public void restoreWait(int sp, int level) {
+	        setsPointer(sp);
+	        for(int i = sp; i < wait.size(); i++) {
+	        	if(wait.get(i).getDs().getMax() >= level) {
+	        		//System.out.println("remove entry Ds " + wait.get(i).getDs().getMax()  + "level "+ level);
+	        		//System.out.println("remove entry " + wait.get(i).getClassExpression());
+	        		wait.remove(i);
+	        		
+	        	}
+	        }
+	    }
+	    
+	    // number of enteries
+	    public int getNOE() {
+	    	return (wait.size() - getsPointer());
 	    }
 }

@@ -63,7 +63,7 @@ public class CplexModelGenerator {
 	IloNumVar[] orgR = null;
 	
 	boolean initiallySolved;
-	int M;
+	long M;
 	int totalQCR = 0;
 	int totalNominals = 0;
 	int totalVar = 0;
@@ -188,8 +188,12 @@ public class CplexModelGenerator {
 				totalCardinality = totalCardinality+qcr.cardinality;
 			}
 		//	M = 100*totalCardinality*totalVar;
-			M = totalCardinality*totalCardinality*totalVar;
-			//System.out.println("M value "+M);
+		//	M = totalCardinality*totalVar*totalVar;
+			M = totalCardinality*totalVar;
+			M = M*totalCardinality;
+			M = M*100;
+		//	M = Math.abs(totalCardinality*totalCardinality*totalVar);
+		//	System.out.println("totalCardinality "+ totalCardinality +" M value "+M);
 	//	}
 		/*try {
 			cplexModel= new IloCplex();
@@ -438,12 +442,12 @@ public class CplexModelGenerator {
 				} else
 					break;
 			} else {
-
+				//System.out.println("final relaxed_opt " + rmpCplex.getObjValue() +" M "+ M);
 				returnSolution.setSolved(isRMPFeasible);
 				return returnSolution;
 			}
 		}
-		System.out.println("final relaxed_opt " + relaxed_opt);
+		System.out.println("final relaxed_opt " + relaxed_opt +" M "+ M);
 		if (relaxed_opt < M) {
 
 			// System.out.println("x.getSize() " + x.getSize());

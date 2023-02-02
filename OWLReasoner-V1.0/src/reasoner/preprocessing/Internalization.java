@@ -519,7 +519,7 @@ public class Internalization {
 		return ontology;
 	}
 	private void processExtendedRoleAbsorption() {
-		System.out.println("tg before:" + Tg);
+	//	System.out.println("tg before:" + Tg);
 		Set<OWLSubClassOfAxiom> remove = new HashSet<>();
 		for (OWLSubClassOfAxiom sbAx : this.Tg) {
 			

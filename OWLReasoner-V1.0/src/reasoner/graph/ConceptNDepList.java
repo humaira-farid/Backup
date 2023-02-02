@@ -86,7 +86,7 @@ public class ConceptNDepList {
 			else {
 				if (cdSet.get(i).getDs().getMax() >= level) {
 					OWLClassExpression concept = cdSet.get(i).getCe();
-				//	System.out.println("remove concept " + concept);
+					//System.out.println("remove concept " + concept);
 					concepts.remove(concept);
 					cdSet.remove(i);
 					size--;

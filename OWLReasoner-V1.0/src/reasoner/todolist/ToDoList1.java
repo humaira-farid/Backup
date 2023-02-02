@@ -16,28 +16,40 @@ import reasoner.graph.*;
 import reasoner.state.SaveStack;
 
 
-public class ToDoList {
+public class ToDoList1 {
 	private final List<RegQueue> waitQueue = new ArrayList<>(NREGULAROPTIONS);
 	private final PriorityMatrix matrix = new PriorityMatrix();
 	private Map<Node, Integer> nodeEntries = new HashMap<>();
+//	private final SaveStack<TDLSaveState> saveStack = new SaveStack<>();
 	/** number of un-processed entries */
     private int noe;
     private Map<Integer, TDLSaveState> saveMap = new HashMap<>();
-	
-    public ToDoList() {
+	public ToDoList1() {
 		noe = 0;
 		for (int i = 0; i < NREGULAROPTIONS; i++) {
             waitQueue.add(new RegQueue());
         }
 	}
-    
-	public void initPriorities(String options) {
+	 public void initPriorities(String options) {
 	        matrix.initPriorities(options);
-	 }
+	    }
 	public void addEntry(Node node, NodeTag type, ConceptNDepSet cnds) {
         int index = matrix.getIndex(type);
-     //   System.err.println(cnds.getDs().getMax()  +" node: "+ node.getId() + " addEntry  "+ cnds.getCe());
+      //  System.err.println("addEntry index "+index +" type "+ type +" node: "+ node.getId());
         waitQueue.get(index).add(node, cnds, type);
+        /*switch (index) {
+            case NREGULAROPTIONS: // unused entry
+                return;
+            case PRIORITYINDEXID: // ID
+                queueID.add(node, c);
+                break;
+            case PRIORITYINDEXNOMINALNODE: // NN
+                queueNN.add(node, c);
+                break;
+            default: // regular queue
+                waitQueue.get(index).add(node, c);
+                break;
+        }*/
         int nodeEntry = 1;
         if(this.nodeEntries.get(node) != null) {
         	nodeEntry = this.nodeEntries.get(node) + 1;
@@ -51,26 +63,65 @@ public class ToDoList {
 	public ToDoEntry getNextEntry() {
         if(isEmpty())
         		return null;
+        // decrease amount of elements-to-process
+       
+        // check ID queue
+     /*   if (!queueID.isEmpty()) {
+            return queueID.get();
+        }
+        // check NN queue
+        if (!queueNN.isEmpty()) {
+            return queueNN.get();
+        }*/
+        // check regular queues
         else {
-	        	--noe;
+	        	 --noe;
 	        	
 	        	// System.out.println("entry remaining : "+noe);
-	    for (int i = 0; i < NREGULAROPTIONS; ++i) {
-	    	RegQueue arrayQueue = waitQueue.get(i);
-	        if (!arrayQueue.isEmpty()) {
-	        	ToDoEntry entry = arrayQueue.get();
-		        Node node = entry.getNode();
-	            int nodeEntry =  this.nodeEntries.get(node) - 1;
-	            this.nodeEntries.put(node, nodeEntry);
+	        for (int i = 0; i < NREGULAROPTIONS; ++i) {
+	            RegQueue arrayQueue = waitQueue.get(i);
+	            if (!arrayQueue.isEmpty()) {
+		             ToDoEntry entry = arrayQueue.get();
+		             Node node = entry.getNode();
+	            	 int nodeEntry =  this.nodeEntries.get(node) - 1;
+	            	 this.nodeEntries.put(node, nodeEntry);
 
 	            //    System.err.println("getting entry "+ node.getId() +" : "+entry.getClassExpression()) ;
-		        return entry;
-	         }
-	    }
+		             return entry;
+	            }
+	        }
 	        // that's impossible, but still...
 	        return null;
         }
     }
+	/*
+	public ToDoEntry getNextEntry() {
+        if(isEmpty())
+        		return null;
+        // decrease amount of elements-to-process
+       
+        // check ID queue
+        if (!queueID.isEmpty()) {
+            return queueID.get();
+        }
+        // check NN queue
+        if (!queueNN.isEmpty()) {
+            return queueNN.get();
+        }
+        // check regular queues
+        else {
+	        	 --noe;
+	        	// System.out.println("entry remaining : "+noe);
+	        for (int i = 0; i < NREGULAROPTIONS; ++i) {
+	            RegQueue arrayQueue = waitQueue.get(i);
+	            if (!arrayQueue.isEmpty()) {
+	                return arrayQueue.get();
+	            }
+	        }
+	        // that's impossible, but still...
+	        return null;
+        }
+    }*/
 	/*public Set<ToDoEntry> getAllToDoEntry(Node n, NodeTag type) {
 		if(isEmpty())
     			return new HashSet<>();
@@ -97,7 +148,19 @@ public class ToDoList {
     }
     
     public void saveState(TDLSaveState tss) {
-     
+      //  tss.backupIDsp = queueID.getsPointer();
+       // tss.backupIDep = queueID.getWaitSize();
+     /*//   queueNN.save(tss);
+        tss.backup6key = waitQueue.get(6).getsPointer();
+        tss.backup6value = waitQueue.get(6).getWaitSize();
+        tss.backup5key = waitQueue.get(5).getsPointer();
+        tss.backup5value = waitQueue.get(5).getWaitSize();
+        tss.backup4key = waitQueue.get(4).getsPointer();
+        tss.backup4value = waitQueue.get(4).getWaitSize();
+        tss.backup3key = waitQueue.get(3).getsPointer();
+        tss.backup3value = waitQueue.get(3).getWaitSize();
+        tss.backup2key = waitQueue.get(2).getsPointer();
+        tss.backup2value = waitQueue.get(2).getWaitSize();*/
         tss.backup1key = waitQueue.get(1).getsPointer();
         tss.backup1value = waitQueue.get(1).getWaitSize();
         tss.backup0key = waitQueue.get(0).getsPointer();
@@ -107,37 +170,51 @@ public class ToDoList {
     }
     
     public void restoreState(TDLSaveState tss) {
+       // queueID.restore(tss.backupIDsp, tss.backupIDep);
+       // queueNN.restore(tss);
     //	System.err.println("before noe "+ noe);
         waitQueue.get(0).restore(tss.backup0key, tss.backup0value);
-    //    waitQueue.get(1).restore(tss.backup1key, tss.backup1value);
         waitQueue.get(1).restoreWait(tss.backup1key, tss.waitingQueue);
+     //   waitQueue.get(1).restore(tss.backup1key, tss.backup1value);
+        /* waitQueue.get(2).restore(tss.backup2key, tss.backup2value);
+        waitQueue.get(3).restore(tss.backup3key, tss.backup3value);
+        waitQueue.get(4).restore(tss.backup4key, tss.backup4value);
+        waitQueue.get(5).restore(tss.backup5key, tss.backup5value);
+        waitQueue.get(6).restore(tss.backup6key, tss.backup6value);*/
         noe = tss.noe;
-        
      //  System.err.println("after noe "+ noe);
     }
-    /** save current state 
+    /** save current state using internal stack 
      * @param level */
     public void save(int level) {
     	TDLSaveState state = new TDLSaveState();
         saveState(state);
+       // saveStack.push(state);
        saveMap.put(level, state);
+       // saveStack.push(state, level);
     }
+   /* public void save(int level) {
+    	TDLSaveState state = new TDLSaveState();
+        saveState(state);
+        saveStack.push(state);
+    //   saveMap.put(level, state);
+       // saveStack.push(state, level);
+    }*/
     
+    /**
+     * restore state to the given level using internal stack
+     */
+    /*public void restore(int level) {
+        restoreState(saveStack.pop(level));
+    }*/
     
     public void restore(int level) {
    // 	System.out.println("todo restore level "+level);
-    //	restoreState(saveMap.get(level));
-    	restoreState(saveMap.get(level), level);
+    		//restoreState(saveStack.pop(level));
+    		restoreState(saveMap.get(level));
+    		//restoreState(saveStack.pop1(level));
     }
-    private void restoreState(TDLSaveState tss, int level) {
-    	waitQueue.get(0).restore(tss.backup0key, tss.backup0value);
-        //    waitQueue.get(1).restore(tss.backup1key, tss.backup1value);
-            waitQueue.get(1).restoreWait(tss.backup1key, level);
-            noe = waitQueue.get(1).getNOE();
-		
-	}
-
-	public void updateToDoEntry(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
+    public void updateToDoEntry(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
 		int index = matrix.getIndex(type);
       //  waitQueue.get(index).wait.stream().
         //		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).
@@ -206,20 +283,6 @@ public class ToDoList {
         		
 		
 	}
-	public boolean hasToDoEntry(Node n, OWLClassExpression c) {
-		return waitQueue.get(1).hasEntry(n, c);
-        /*return waitQueue.get(index).wait.stream().
-        		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).findAny().isPresent();*/
-        		
-		
-	}
-	public ToDoEntry getEntry(Node n, OWLClassExpression c) {
-		return waitQueue.get(1).getEntry(n, c);
-        /*return waitQueue.get(index).wait.stream().
-        		filter(entry -> entry.getNode().equals(n) && entry.getClassExpression().equals(c)).findAny().isPresent();*/
-        		
-		
-	}
 	public boolean hasToDoEntry(Node n, NodeTag type, OWLClassExpression c, DependencySet ds) {
 		int index = matrix.getIndex(type);
 		ToDoEntry en = waitQueue.get(index).hasEntry2(n, c);
@@ -246,7 +309,7 @@ public class ToDoList {
 		
 	}*/
 
-	public void removeEntry(int index, ToDoEntry entry) {
+	private void removeEntry(int index, ToDoEntry entry) {
 		
 		waitQueue.get(index).remove(entry);
 	}
