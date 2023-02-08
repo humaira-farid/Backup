@@ -43,7 +43,7 @@ public class TestReasoner{
 	public TestReasoner(String fileName) {
 		File file = null;
 		if (fileName == null || fileName.isEmpty()) {
-			 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/HARD-Test-Cases-Humaira/HARD-Test-Cases-Humaira/ALCoQ-ALCHoQ/Cycles/C-Sat-cycle-ALCHOQ.fowl.owl");
+		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/HARD-Test-Cases-Humaira/HARD-Test-Cases-Humaira/ALCoQ-ALCHoQ/Cycles/C-Sat-cycle-ALCHOQ.fowl.owl");
 		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOQ-tests/nom-1-B-not-sub-C-cons.fowl.owl");
 		//	file = new File("/Users/temp/Documents/PhD/PhD Research/OWL-API/SHOIQ-tests/SHOIQ-tests/paper-1b-inc-2.fowl.owl");
 		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/QCR-Ontologies_SHQ-no-abox_files/genomic-cds_rules-2.fowl.owl");
@@ -52,7 +52,7 @@ public class TestReasoner{
 		//	file = new File("/Users/temp/Desktop/test-ontologies/ab4/paper-1b-inc-2.fowl.owl");
 		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00351.owl_functional.owl");
 
-		//	file = new File("/Users/temp/Desktop/test-ontologies/jocelyne/sat/restr-num-1-6-OR-atmost.owl");
+			file = new File("/Users/temp/Desktop/test-ontologies/check/archive/HARD-wine.fowl.owl");
 		//	file = new File("/Users/temp/Desktop/sat-SHQ-noabox/C-SAT-exp-ALCQ-5.fowl.owl");
 			
 		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00003.owl_functional.owl");

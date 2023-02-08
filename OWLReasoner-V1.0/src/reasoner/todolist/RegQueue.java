@@ -117,14 +117,17 @@ public class RegQueue {
 	    }
 	    public void restoreWait(int sp, int level) {
 	        setsPointer(sp);
-	        for(int i = sp; i < wait.size(); i++) {
+	        List<ToDoEntry> removeEntry = new ArrayList<>();
+	        //for(int i = sp; i < wait.size(); i++) {
+	        for(int i = wait.size()-1; i >= sp; i--) {
 	        	if(wait.get(i).getDs().getMax() >= level) {
-	        		//System.out.println("remove entry Ds " + wait.get(i).getDs().getMax()  + "level "+ level);
-	        		//System.out.println("remove entry " + wait.get(i).getClassExpression());
+	        	//	System.out.println("remove entry Ds " + wait.get(i).getDs().getMax()  + "level "+ level);
+	        	//	System.out.println("remove entry " + wait.get(i).getClassExpression());
 	        		wait.remove(i);
 	        		
 	        	}
 	        }
+	        
 	    }
 	    
 	    // number of enteries

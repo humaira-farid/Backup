@@ -218,7 +218,7 @@ public class Internalization {
 
 		for (OWLAxiom ax : (Iterable<OWLAxiom>) ont.axioms()::iterator) {
 			ax = ax.getNNF();
-			// System.err.println("ax"+ax);
+		//	 System.err.println("ax"+ax);
 			if (!this.prefixSet) {
 				if (this.getPrefixManager().getDefaultPrefix().equals("")) {
 					try {

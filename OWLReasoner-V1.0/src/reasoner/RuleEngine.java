@@ -2441,14 +2441,15 @@ public class RuleEngine {
 		for (OWLObjectCardinalityRestriction cr : to.getLabel().stream()
 				.filter(ce -> ce instanceof OWLObjectCardinalityRestriction)
 				.map(ce -> (OWLObjectCardinalityRestriction) ce).collect(Collectors.toSet())) {
+			//System.err.println("clash "+c);
 			if (cr instanceof OWLObjectMinCardinality && c instanceof OWLObjectMaxCardinality) {
 				if (cr.getProperty().equals(c.getProperty()) && cr.getFiller().equals(c.getFiller())) {
-					if (cr.getCardinality() >= c.getCardinality())
+					if (cr.getCardinality() > c.getCardinality())
 						return true;
 				}
 			} else if (cr instanceof OWLObjectMaxCardinality && c instanceof OWLObjectMinCardinality) {
 				if (cr.getProperty().equals(c.getProperty()) && cr.getFiller().equals(c.getFiller())) {
-					if (cr.getCardinality() <= c.getCardinality())
+					if (cr.getCardinality() < c.getCardinality())
 						return true;;
 				}
 			}
@@ -3623,7 +3624,7 @@ public class RuleEngine {
 	}
 
 	public boolean applyOr(Node n, OWLClassExpression ce, DependencySet ds) {
-		System.out.println("node  " + n.getId() + " or expression selected : " + ce);
+	//	System.out.println("node  " + n.getId() + " or expression selected : " + ce);
 		// System.out.println(" ds "+ds.getbpList());
 		// System.out.print("label "+n.getLabel());
 		// n.getnLabel().getCndList().getCdSet().stream().forEach(lb ->
@@ -3642,6 +3643,7 @@ public class RuleEngine {
 		if(!cg.getNodeBase().contains(n)) {
 			return new Node();
 		}
+	//	System.err.println("addConcept : " + ce);
 		if (isConceptExist(n, ce)) {
 		//	System.err.println("exists : " + ce);
 			// cg.saveN(n);
@@ -4523,7 +4525,7 @@ public class RuleEngine {
 			return true;
 		}
 		if (n.getLabel().contains(c.getComplementNNF())) {
-			// System.err.println("clash "+c);
+			 System.err.println("clash "+c);
 			return true;
 		}
 		// System.err.println("check clash here ");
