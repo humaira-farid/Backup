@@ -52,7 +52,7 @@ public class TestReasoner{
 		//	file = new File("/Users/temp/Desktop/test-ontologies/ab4/paper-1b-inc-2.fowl.owl");
 		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00351.owl_functional.owl");
 
-			file = new File("/Users/temp/Desktop/test-ontologies/check/archive/HARD-wine.fowl.owl");
+			file = new File("/Users/temp/Desktop/test-ontologies/incorrect/p_56ad.fowl.owl");
 		//	file = new File("/Users/temp/Desktop/sat-SHQ-noabox/C-SAT-exp-ALCQ-5.fowl.owl");
 			
 		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00003.owl_functional.owl");
@@ -116,7 +116,7 @@ public class TestReasoner{
 	     checkExpressivity();
 	     
 	     
-	   //  System.out.println( intr.getTg().size());
+	     System.out.println("tg size reasoner method "+ intr.getTg().size());
 	     OWLClassExpression tgAxiom = intr.getTgAxiom();
 	 //    for (OWLSubClassOfAxiom sbg : intr.getTg()) 
 	   //  	 	System.out.println("TG: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
@@ -128,7 +128,7 @@ public class TestReasoner{
 //	 	  for (OWLSubClassOfAxiom sbg : intr.getTu()) 
 //	 	   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	    
-//	    System.out.println( tgAxiom);
+	    System.out.println("tgAxiom : "+  tgAxiom);
 	 	   re.setTransitiveRoles(getTransitiveRoles());
 	 	   if(!getFunctionalRoles().isEmpty()) {
 	 		   intr.addFunctionalRoleAxiom(getFunctionalRoles());

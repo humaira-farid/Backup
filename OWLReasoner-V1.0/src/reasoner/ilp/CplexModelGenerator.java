@@ -191,7 +191,7 @@ public class CplexModelGenerator {
 		//	M = totalCardinality*totalVar*totalVar;
 			M = totalCardinality*totalVar;
 			M = M*totalCardinality;
-			M = M*100;
+			M = M*10;
 		//	M = Math.abs(totalCardinality*totalCardinality*totalVar);
 		//	System.out.println("totalCardinality "+ totalCardinality +" M value "+M);
 	//	}
@@ -569,7 +569,7 @@ public class CplexModelGenerator {
 									DependencySet ds = DependencySet.create();
 									for (int j = 0; j < tempSubSet.getRolesIndexSet().length; j++) {
 										if (tempSubSet.getRolesIndexSet()[j] > 0) { // if r value is 1
-											// System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier);
+											 System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier + " ds "+ qcrMap.get(j).ds.getbpList());
 											if (qcrMap.get(j).role != null) {
 												tempRoleSet.add(qcrMap.get(j).role);
 												ds.add(qcrMap.get(j).ds);
@@ -594,8 +594,15 @@ public class CplexModelGenerator {
 											tempRoleSet.addAll(ilpPro.getAuxRoleHMap(rr));
 									}
 									tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
-
-									if (!tempRoleSet.isEmpty()) {
+									for(OWLObjectPropertyExpression role :  tempRoleSet) {
+										for(DependencySet rds : ilpPro.getRoleDS(role)) {
+											ds.add(DependencySet.create(rds));
+										}
+									}
+									 System.out.println("  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
+									
+									 
+									 if (!tempRoleSet.isEmpty()) {
 										EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet,
 												tempClassSet, cardinality, ds, nodeSet);
 										edgeInformationSet.add(tempEdgeInformation);
@@ -1040,7 +1047,11 @@ public class CplexModelGenerator {
 													tempRoleSet.addAll(ilpPro.getAuxRoleHMap(rr));
 											}
 											tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
-
+											for(OWLObjectPropertyExpression role :  tempRoleSet) {
+												for(DependencySet rds : ilpPro.getRoleDS(role)) {
+													ds.add(DependencySet.create(rds));
+												}
+											}
 											if (!tempRoleSet.isEmpty()) {
 												EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet,
 														tempClassSet, cardinality2, ds, nodeSet);
@@ -1981,7 +1992,7 @@ public class CplexModelGenerator {
 													DependencySet ds = DependencySet.create();
 													for (int j = 0; j < tempSubSet1.getRolesIndexSet().length; j++) {
 														if (tempSubSet1.getRolesIndexSet()[j] > 0) { // if r value is 1
-															// System.out.println(" role "+qcrMap.get(j).role);
+															 System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier + " ds "+ qcrMap.get(j).ds.getbpList());
 															if (qcrMap.get(j) != null) {
 																if (qcrMap.get(j).role != null) {
 																	tempRoleSet.add(qcrMap.get(j).role);
@@ -2008,7 +2019,12 @@ public class CplexModelGenerator {
 															tempRoleSet.addAll(ilpPro.getAuxRoleHMap(rr));
 													}
 													tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
-
+													for(OWLObjectPropertyExpression role :  tempRoleSet) {
+														for(DependencySet rds : ilpPro.getRoleDS(role)) {
+															ds.add(DependencySet.create(rds));
+														}
+													}
+													 System.out.println("  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
 													if (!tempRoleSet.isEmpty()) {
 														EdgeInformation tempEdgeInformation = new EdgeInformation(
 																tempRoleSet, tempClassSet, cardinality2, ds, nodeSet);
@@ -2507,9 +2523,14 @@ public class CplexModelGenerator {
 													}
 												}
 												// System.out.println("tempClassSet "+tempClassSet.size());
+												DependencySet ds = DependencySet.create();
 												Set<OWLClassExpression> temp = new HashSet<>();
 												temp.addAll(tempClassSet);
 												for (OWLClassExpression ce : temp) {
+													if(ilpPro.conceptDs.containsKey(ce)) {
+														for(DependencySet d : ilpPro.conceptDs.get(ce))
+															ds.add(d);
+													}
 													if (ilpPro.getAuxiliaryConcepts().contains(ce))
 														tempClassSet.addAll(ilpPro.getComplexASubsumers(ce));
 													if (ilpPro.getComSubConcepts().contains(ce))
@@ -2521,11 +2542,12 @@ public class CplexModelGenerator {
 												}
 												tempClassSet.removeAll(ilpPro.getAuxiliaryConcepts());
 												if (addIt) {
-													DependencySet ds = DependencySet.create();
+													
 													for (int j = 0; j < tempSubSet1.getRolesIndexSet().length; j++) {
 														if (tempSubSet1.getRolesIndexSet()[j] > 0) { // if r value is 1
-															// System.out.println(" role "+qcrMap.get(j).role);
+															 System.out.println(" role "+qcrMap.get(j));
 															if (qcrMap.get(j) != null) {
+																 System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier + " ds "+ qcrMap.get(j).ds.getbpList());
 																if (qcrMap.get(j).role != null) {
 																	tempRoleSet.add(qcrMap.get(j).role);
 																	ds.add(qcrMap.get(j).ds);
@@ -2551,7 +2573,12 @@ public class CplexModelGenerator {
 															tempRoleSet.addAll(ilpPro.getAuxRoleHMap(rr));
 													}
 													tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
-
+													for(OWLObjectPropertyExpression role :  tempRoleSet) {
+														for(DependencySet rds : ilpPro.getRoleDS(role)) {
+															ds.add(DependencySet.create(rds));
+														}
+													}
+													 System.out.println("  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
 													if (!tempRoleSet.isEmpty()) {
 														EdgeInformation tempEdgeInformation = new EdgeInformation(
 																tempRoleSet, tempClassSet, cardinality2, ds, nodeSet);

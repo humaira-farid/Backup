@@ -56,6 +56,7 @@ public class ILPPreprocessor {
 	SetMultimap<OWLSubClassOfAxiom, DependencySet> auxiliaryMaxSubAxDs = HashMultimap.create();
 	SetMultimap<OWLObjectCardinalityRestriction, DependencySet> cardResDs = HashMultimap.create();
 	SetMultimap<OWLObjectSomeValuesFrom, DependencySet> existsDs = HashMultimap.create();
+	SetMultimap<OWLObjectPropertyExpression, DependencySet> forAllDs = HashMultimap.create();
 	SetMultimap<OWLObjectMinCardinality, DependencySet> minDs = HashMultimap.create();
 	SetMultimap<OWLObjectMaxCardinality, DependencySet> maxDs = HashMultimap.create();
 	SetMultimap<OWLObjectHasValue, DependencySet> hasValueDs = HashMultimap.create();
@@ -151,16 +152,19 @@ public class ILPPreprocessor {
 			nominalDs.put((OWLObjectOneOf)filler, ds);
 			conceptDs.put(filler, ds);
 			this.forAllRes.add(c);
+			this.forAllDs.put(role, ds);
 		}
 		else if(filler instanceof OWLClass) {
 			simpleConcepts.add(c.getFiller());
 			conceptDs.put(filler, ds);
 			this.forAllRes.add(c);
+			this.forAllDs.put(role, ds);
 		}
 		else if(filler instanceof OWLObjectComplementOf) {
 			simpleConcepts.add(c.getFiller());
 			conceptDs.put(filler, ds);
 			this.forAllRes.add(c);
+			this.forAllDs.put(role, ds);
 		}
 		else if(filler instanceof OWLObjectIntersectionOf) {
 			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
@@ -170,6 +174,7 @@ public class ILPPreprocessor {
 				conceptDs.put(cj, ds);
 			}
 			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+			this.forAllDs.put(role, ds);
 		}
 		else if(filler instanceof OWLObjectUnionOf) {
 			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
@@ -179,6 +184,7 @@ public class ILPPreprocessor {
 			}
 			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
 			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+			this.forAllDs.put(role, ds);
 		}
 		else if(filler instanceof OWLObjectAllValuesFrom) {
 			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
@@ -186,6 +192,7 @@ public class ILPPreprocessor {
 			conceptDs.put(filler, ds);
 			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
 			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+			this.forAllDs.put(role, ds);
 		}
 		else if(filler instanceof OWLObjectSomeValuesFrom) {
 			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
@@ -193,6 +200,7 @@ public class ILPPreprocessor {
 			conceptDs.put(filler, ds);
 			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
 			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+			this.forAllDs.put(role, ds);
 		}
 		else if(filler instanceof OWLObjectMinCardinality) {
 			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
@@ -200,6 +208,7 @@ public class ILPPreprocessor {
 			conceptDs.put(filler, ds);
 			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
 			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+			this.forAllDs.put(role, ds);
 		}
 		else if(filler instanceof OWLObjectMaxCardinality) {
 			OWLClassExpression qualifier = df.getOWLClass("#ilp_aux_" + ++counter, prefixManager);
@@ -207,10 +216,13 @@ public class ILPPreprocessor {
 			conceptDs.put(filler, ds);
 			auxiliarySubAxDs.put(df.getOWLSubClassOfAxiom(qualifier, filler), ds);
 			this.forAllRes.add(df.getOWLObjectAllValuesFrom(c.getProperty(), qualifier));
+			this.forAllDs.put(role, ds);
 		}
 		
 	}
-
+	public Set<DependencySet> getRoleDS(OWLObjectPropertyExpression role) {
+		return this.forAllDs.get(role);
+	}
 	private void generateQCR() {
 		for(OWLObjectSomeValuesFrom ex : this.existsDs.keySet()) {
 			DependencySet ds = DependencySet.create();
@@ -481,7 +493,8 @@ public class ILPPreprocessor {
 			OWLObjectPropertyExpression role = max.getProperty();
 			roles.add(role);
 			if(max.getCardinality() == 0) {// <0R.A --> forAllR.notA
-				roles.add(role);
+				//roles.add(role);
+				
 				OWLObjectAllValuesFrom forAll = df.getOWLObjectAllValuesFrom(role, filler.getComplementNNF());
 				this.processForAll(forAll, ds);
 			}
@@ -1616,7 +1629,21 @@ public class ILPPreprocessor {
 		return this.complexNSubsumers.get(ce);
 	}
 
-	
+	public Set<OWLClassExpression> getAllDisjunctions() {
+		SetMultimap<OWLClassExpression, OWLClassExpression> subsumers = HashMultimap.create();
+		subsumers.putAll(conceptSubsumers);
+		subsumers.putAll(nominalSubsumers);
+		subsumers.putAll(simpleASubsumers);
+		Set<OWLClassExpression> disjunctions = new HashSet<>();
+		for(OWLClassExpression C : subsumers.asMap().keySet()) {
+			for(OWLClassExpression D : subsumers.asMap().get(C)) {
+				if(D instanceof OWLObjectUnionOf) {
+					disjunctions.add(D);
+				}
+			}
+		}
+		return disjunctions;
+	}
 	public ILPSolution callILP() throws IloException {
 
 		SetMultimap<OWLClassExpression, OWLClassExpression> subsumers = HashMultimap.create();
