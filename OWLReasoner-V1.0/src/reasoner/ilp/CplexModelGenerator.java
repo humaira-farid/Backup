@@ -27,6 +27,7 @@ import com.google.common.collect.SetMultimap;
 import ilog.concert.*;
 import ilog.cplex.*;
 import reasoner.Dependencies.DependencySet;
+import reasoner.graph.ConceptNDepSet;
 
 
 public class CplexModelGenerator {
@@ -117,11 +118,13 @@ public class CplexModelGenerator {
 			if(conceptSubsumersMap.keySet() != null){
 				this.allQualifiers.addAll(conceptSubsumersMap.keySet());
 				for(OWLClassExpression C : conceptSubsumersMap.keySet()){
+					
 					Set<OWLClassExpression> temp = new HashSet<>();
 					conceptSubsumersMap.get(C).stream().filter(ce -> (ce instanceof OWLClass) || (ce instanceof OWLObjectOneOf) || (ce instanceof OWLObjectComplementOf)).forEach(ce -> temp.add(ce));
 					conceptSubsumersMap.get(C).stream().filter(ce -> (ce instanceof OWLObjectUnionOf)).forEach(ce -> temp.addAll(ce.asDisjunctSet()));
 				//	System.out.println("temp size "+temp.size()); 
 					this.allQualifiers.addAll(temp);
+					//System.err.println(C +" sub class of  "+ temp);
 					
 				}
 			}
@@ -570,7 +573,7 @@ public class CplexModelGenerator {
 									for (int j = 0; j < tempSubSet.getRolesIndexSet().length; j++) {
 										if (tempSubSet.getRolesIndexSet()[j] > 0) { // if r value is 1
 											 System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier + " ds "+ qcrMap.get(j).ds.getbpList());
-											if (qcrMap.get(j).role != null) {
+											if (qcrMap.get(j).role != null && qcrMap.get(j).getType()!="MAX") {
 												tempRoleSet.add(qcrMap.get(j).role);
 												ds.add(qcrMap.get(j).ds);
 											}
@@ -594,16 +597,21 @@ public class CplexModelGenerator {
 											tempRoleSet.addAll(ilpPro.getAuxRoleHMap(rr));
 									}
 									tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
-									for(OWLObjectPropertyExpression role :  tempRoleSet) {
+									/*for(OWLObjectPropertyExpression role :  tempRoleSet) {
 										for(DependencySet rds : ilpPro.getRoleDS(role)) {
 											ds.add(DependencySet.create(rds));
 										}
+									}*/
+									
+									Set<ConceptNDepSet> cnds = new HashSet<>();
+									for(OWLClassExpression ce : tempClassSet) {
+										cnds.add(new ConceptNDepSet(ce, ilpPro.getConceptDS(ce)));
 									}
-									 System.out.println("  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
+									 System.out.println(" cnds.size "+ cnds.size() + "  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
 									
 									 
 									 if (!tempRoleSet.isEmpty()) {
-										EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet,
+										EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet, cnds,
 												tempClassSet, cardinality, ds, nodeSet);
 										edgeInformationSet.add(tempEdgeInformation);
 									}
@@ -625,7 +633,8 @@ public class CplexModelGenerator {
 					Set<EdgeInformation> finalEdgeInformations = new HashSet<EdgeInformation>();
 					for (EdgeInformation e : edge_map.keySet()) {
 						Set<OWLClassExpression> fillers = e.getFillers();
-						EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), fillers,
+						Set<ConceptNDepSet> cnds = e.getCnds();
+						EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), cnds , fillers,
 								edge_map.get(e), e.getDs(), e.getNodeSet());
 						finalEdgeInformations.add(tempEdgeInformation);
 					}
@@ -1022,7 +1031,7 @@ public class CplexModelGenerator {
 												if (tempSubSet1.getRolesIndexSet()[j] > 0) { // if r value is 1
 													// System.out.println(" role "+qcrMap.get(j).role);
 													if (qcrMap.get(j) != null) {
-														if (qcrMap.get(j).role != null) {
+														if (qcrMap.get(j).role != null && qcrMap.get(j).getType()!="MAX") {
 															tempRoleSet.add(qcrMap.get(j).role);
 															ds.add(qcrMap.get(j).ds);
 														}
@@ -1047,14 +1056,21 @@ public class CplexModelGenerator {
 													tempRoleSet.addAll(ilpPro.getAuxRoleHMap(rr));
 											}
 											tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
-											for(OWLObjectPropertyExpression role :  tempRoleSet) {
+											/*for(OWLObjectPropertyExpression role :  tempRoleSet) {
 												for(DependencySet rds : ilpPro.getRoleDS(role)) {
 													ds.add(DependencySet.create(rds));
 												}
+											}*/
+											Set<ConceptNDepSet> cnds = new HashSet<>();
+											for(OWLClassExpression ce : tempClassSet) {
+												cnds.add(new ConceptNDepSet(ce, ilpPro.getConceptDS(ce)));
 											}
-											if (!tempRoleSet.isEmpty()) {
-												EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet,
-														tempClassSet, cardinality2, ds, nodeSet);
+											 System.out.println(" cnds.size "+ cnds.size() + "  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
+											
+											 
+											 if (!tempRoleSet.isEmpty()) {
+												EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet, cnds,
+														tempClassSet, cardinality, ds, nodeSet);
 												edgeInformationSet.add(tempEdgeInformation);
 											}
 										}
@@ -1075,7 +1091,8 @@ public class CplexModelGenerator {
 								Set<EdgeInformation> finalEdgeInformations = new HashSet<EdgeInformation>();
 								for (EdgeInformation e : edge_map.keySet()) {
 									Set<OWLClassExpression> fillers = e.getFillers();
-									EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), fillers,
+									Set<ConceptNDepSet> cnds = e.getCnds();
+									EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), cnds, fillers,
 											edge_map.get(e), e.getDs(), e.getNodeSet());
 									finalEdgeInformations.add(tempEdgeInformation);
 								}
@@ -1847,7 +1864,7 @@ public class CplexModelGenerator {
 							boolean nonInteger = false;
 							for (int l = 0; l < x.getSize(); l++) {
 								double card = rmpCplex.getValue(x.getElement(l));
-							//	System.err.println("cardinality! "+ card);
+								System.err.println("cardinality! "+ card);
 								card =   Math.round(card * 100000D) / 100000D;
 							//	System.out.println("cardinality! "+ card);
 								// if(!isInteger(Math.round(card * 100000D) / 100000D)) {
@@ -1951,9 +1968,9 @@ public class CplexModelGenerator {
 										}
 										for (int l = 0; l < x.getSize(); l++) {
 											double cardinality2 = rmpCplex.getValue(x.getElement(l));
-
+											//System.err.println("cardinality! "+ cardinality2);
 											cardinality2 =   Math.round(cardinality2 * 100000D) / 100000D;
-										//	System.err.println("cardinality! "+ cardinality2);
+										
 											// System.out.println("x cardinality2 " + cardinality2);
 											if (cardinality2 > 0.0) {
 												// System.out.println("l value " + l);
@@ -1992,9 +2009,9 @@ public class CplexModelGenerator {
 													DependencySet ds = DependencySet.create();
 													for (int j = 0; j < tempSubSet1.getRolesIndexSet().length; j++) {
 														if (tempSubSet1.getRolesIndexSet()[j] > 0) { // if r value is 1
-															 System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier + " ds "+ qcrMap.get(j).ds.getbpList());
+															// System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier + " ds "+ qcrMap.get(j).ds.getbpList());
 															if (qcrMap.get(j) != null) {
-																if (qcrMap.get(j).role != null) {
+																if (qcrMap.get(j).role != null && qcrMap.get(j).getType()!="MAX") {
 																	tempRoleSet.add(qcrMap.get(j).role);
 																	ds.add(qcrMap.get(j).ds);
 																}
@@ -2019,15 +2036,21 @@ public class CplexModelGenerator {
 															tempRoleSet.addAll(ilpPro.getAuxRoleHMap(rr));
 													}
 													tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
-													for(OWLObjectPropertyExpression role :  tempRoleSet) {
+													/*for(OWLObjectPropertyExpression role :  tempRoleSet) {
 														for(DependencySet rds : ilpPro.getRoleDS(role)) {
 															ds.add(DependencySet.create(rds));
 														}
+													}*/
+													Set<ConceptNDepSet> cnds = new HashSet<>();
+													for(OWLClassExpression ce : tempClassSet) {
+														cnds.add(new ConceptNDepSet(ce, ilpPro.getConceptDS(ce)));
 													}
-													 System.out.println("  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
-													if (!tempRoleSet.isEmpty()) {
-														EdgeInformation tempEdgeInformation = new EdgeInformation(
-																tempRoleSet, tempClassSet, cardinality2, ds, nodeSet);
+													// System.out.println(" cnds.size "+ cnds.size() + "  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
+													
+													 
+													 if (!tempRoleSet.isEmpty()) {
+														EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet, cnds,
+																tempClassSet, cardinality2, ds, nodeSet);
 														edgeInformationSet.add(tempEdgeInformation);
 													}
 												}
@@ -2050,7 +2073,8 @@ public class CplexModelGenerator {
 										Set<EdgeInformation> finalEdgeInformations = new HashSet<EdgeInformation>();
 										for (EdgeInformation e : edge_map.keySet()) {
 											Set<OWLClassExpression> fillers = e.getFillers();
-											EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(),
+											Set<ConceptNDepSet> cnds = e.getCnds();
+											EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), cnds,
 													fillers, edge_map.get(e), e.getDs(), e.getNodeSet());
 											finalEdgeInformations.add(tempEdgeInformation);
 										}
@@ -2545,10 +2569,10 @@ public class CplexModelGenerator {
 													
 													for (int j = 0; j < tempSubSet1.getRolesIndexSet().length; j++) {
 														if (tempSubSet1.getRolesIndexSet()[j] > 0) { // if r value is 1
-															 System.out.println(" role "+qcrMap.get(j));
+														//	 System.out.println(" role "+qcrMap.get(j));
 															if (qcrMap.get(j) != null) {
-																 System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier + " ds "+ qcrMap.get(j).ds.getbpList());
-																if (qcrMap.get(j).role != null) {
+															//	 System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier + " ds "+ qcrMap.get(j).ds.getbpList());
+																if (qcrMap.get(j).role != null && qcrMap.get(j).getType()!="MAX") {
 																	tempRoleSet.add(qcrMap.get(j).role);
 																	ds.add(qcrMap.get(j).ds);
 																}
@@ -2573,15 +2597,21 @@ public class CplexModelGenerator {
 															tempRoleSet.addAll(ilpPro.getAuxRoleHMap(rr));
 													}
 													tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
-													for(OWLObjectPropertyExpression role :  tempRoleSet) {
+													/*for(OWLObjectPropertyExpression role :  tempRoleSet) {
 														for(DependencySet rds : ilpPro.getRoleDS(role)) {
 															ds.add(DependencySet.create(rds));
 														}
+													}*/
+													Set<ConceptNDepSet> cnds = new HashSet<>();
+													for(OWLClassExpression ce : tempClassSet) {
+														cnds.add(new ConceptNDepSet(ce, ilpPro.getConceptDS(ce)));
 													}
-													 System.out.println("  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
-													if (!tempRoleSet.isEmpty()) {
-														EdgeInformation tempEdgeInformation = new EdgeInformation(
-																tempRoleSet, tempClassSet, cardinality2, ds, nodeSet);
+												//	 System.out.println(" cnds.size "+ cnds.size() + "  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
+													
+													 
+													 if (!tempRoleSet.isEmpty()) {
+														EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet, cnds,
+																tempClassSet, cardinality2, ds, nodeSet);
 														edgeInformationSet.add(tempEdgeInformation);
 													}
 												}
@@ -2604,7 +2634,8 @@ public class CplexModelGenerator {
 										Set<EdgeInformation> finalEdgeInformations = new HashSet<EdgeInformation>();
 										for (EdgeInformation e : edge_map.keySet()) {
 											Set<OWLClassExpression> fillers = e.getFillers();
-											EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(),
+											Set<ConceptNDepSet> cnds = e.getCnds();
+											EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), cnds,
 													fillers, edge_map.get(e), e.getDs(), e.getNodeSet());
 											finalEdgeInformations.add(tempEdgeInformation);
 										}
@@ -3176,7 +3207,7 @@ public class CplexModelGenerator {
 			for (OWLClassExpression C : allQualifiers){
 				if(conceptSubsumersMap.get(C) != null){
 					for(OWLClassExpression D : conceptSubsumersMap.get(C)){
-						//System.out.println(""+C+" subsume by "+D);
+						System.out.println(""+C+" subsume by "+D);
 						if(D instanceof OWLObjectUnionOf) {
 							IloLinearNumExpr exprSub = ppCplex.linearNumExpr();
 							D.asDisjunctSet().stream().forEach(dj -> {

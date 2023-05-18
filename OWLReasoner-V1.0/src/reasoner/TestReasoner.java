@@ -21,6 +21,8 @@ import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.*;
 import org.semanticweb.owlapi.util.DefaultPrefixManager;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.SetMultimap;
 
 import reasoner.preprocessing.Internalization;
 import reasoner.todolist.ToDoList;
@@ -79,7 +81,7 @@ public class TestReasoner{
 			e.printStackTrace();
 		}
 		 
-		
+		 
 		man = OWLManager.createOWLOntologyManager();
 
 		 try {
@@ -116,7 +118,7 @@ public class TestReasoner{
 	     checkExpressivity();
 	     
 	     
-	     System.out.println("tg size reasoner method "+ intr.getTg().size());
+	     System.out.println("tg size reasoner method "+ intr.getTgAx().size());
 	     OWLClassExpression tgAxiom = intr.getTgAxiom();
 	 //    for (OWLSubClassOfAxiom sbg : intr.getTg()) 
 	   //  	 	System.out.println("TG: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());

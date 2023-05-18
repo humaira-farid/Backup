@@ -50,5 +50,8 @@ public class QCR {
 	public void setRealQualifier(OWLClassExpression realQualifier) {
 		this.realQualifier = realQualifier;
 	}
+	public String getType() {
+		return type;
+	}
 	
 }

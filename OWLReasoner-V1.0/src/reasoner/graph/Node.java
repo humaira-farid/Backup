@@ -18,6 +18,7 @@ public class Node implements Cloneable {
 	private Set<OWLClassExpression> simpleLabel = new HashSet<OWLClassExpression>();
 	private Set<OWLClassExpression> simpleILPLabel = new HashSet<OWLClassExpression>();
 	private Set<OWLClassExpression> backPropagatedLabel = new HashSet<OWLClassExpression>();
+	Set<Integer> ILPBranchingLevels = new HashSet<Integer>();
 	private Multimap<OWLObjectCardinalityRestriction, DependencySet> qLE = HashMultimap.create();
 	private int id;
 	private int cardinality = 1;
@@ -44,7 +45,31 @@ public class Node implements Cloneable {
 	private Set<Node> pairBlockerNodes;
 	private Set<Node> pairBlockedNodes;
 	private Set<Node> blockedNodes;
+	Map<Integer, OWLClassExpression> insideILPDisjunct = new HashMap<>();
 
+	public void addILPBranchingLevels(int bp) {
+		this.ILPBranchingLevels.add(bp);
+	}
+	public Set<Integer> getILPBranchingLevels() {
+		return this.ILPBranchingLevels;
+	}
+	
+	public OWLClassExpression getInsideILPDisjunct(Integer i) {
+		return insideILPDisjunct.get(i);
+	}
+	public Map<Integer, OWLClassExpression> getInsideILPDisjunct() {
+		return insideILPDisjunct;
+	}
+	public void setInsideILPDisjunct(Map<Integer, OWLClassExpression> insideILPDisjunct) {
+		this.insideILPDisjunct = insideILPDisjunct;
+	}
+	public void addInsideILPDisjunct(int bp, OWLClassExpression ce) {
+		this.insideILPDisjunct.put(bp, ce);
+	}
+	
+	public void setILPBranchingLevels(Set<Integer> iLPBranchingLevels) {
+		ILPBranchingLevels = iLPBranchingLevels;
+	}
 	public boolean isPairingNode() {
 		if (pairBlockerNodes.size() > 0 || pairBlockedNodes.size() > 0)
 			return true;

@@ -6,11 +6,13 @@ import org.semanticweb.owlapi.model.OWLClassExpression;
 import org.semanticweb.owlapi.model.OWLObjectPropertyExpression;
 
 import reasoner.Dependencies.DependencySet;
+import reasoner.graph.ConceptNDepSet;
 
 public class EdgeInformation
 {
   private final Set<OWLObjectPropertyExpression> edges;
   private final Set<OWLClassExpression> fillers;
+  private Set<ConceptNDepSet> cnds = new HashSet<>();
   private int cardinality;
   private DependencySet ds;
   private Set<Integer> nodeSet = new HashSet<>();
@@ -57,6 +59,15 @@ public class EdgeInformation
     this.setDs(ds);
     this.nodeSet = nodeSet;
   }
+  public EdgeInformation(Set<OWLObjectPropertyExpression> roles, Set<ConceptNDepSet> cnds, Set<OWLClassExpression> fillers, double card, DependencySet ds, Set<Integer> nodeSet)
+  {
+    this.edges = roles;
+    this.fillers = fillers;
+    this.cardinality = (int) card;
+    this.setDs(ds);
+    this.setCnds(cnds);
+    this.nodeSet = nodeSet;
+  }
   
   public Set<OWLObjectPropertyExpression> getEdges()
   {
@@ -68,7 +79,13 @@ public class EdgeInformation
     return new HashSet<OWLClassExpression>(this.fillers);
   }
   
-  public Set<Integer> getNodeSet() {
+  public void setCnds(Set<ConceptNDepSet> cnds) {
+	this.cnds = cnds;
+}
+public Set<ConceptNDepSet> getCnds() {
+	return cnds;
+}
+public Set<Integer> getNodeSet() {
 	return nodeSet;
 }
 public int getCardinality()
