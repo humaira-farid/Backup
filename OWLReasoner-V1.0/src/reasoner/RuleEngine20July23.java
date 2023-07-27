@@ -47,7 +47,8 @@ import reasoner.preprocessing.Internalization;
 import reasoner.todolist.ToDoEntry;
 import reasoner.todolist.ToDoList;
 
-public class RuleEngine {
+//lines changed 96, 973, 1122, (20 July 2023)
+public class RuleEngine20July23 {
 
 	Internalization intl;
 	Ontology ontology;
@@ -88,11 +89,11 @@ public class RuleEngine {
 	Logger LOG;
 	Set<OWLObjectPropertyExpression> symmRoles = new HashSet<>();
 
-	public RuleEngine(Internalization i, ToDoList todo, OWLDataFactory df, Configuration config, Logger LOG) {
+	public RuleEngine20July23(Internalization i, ToDoList todo, OWLDataFactory df, Configuration config, Logger LOG) {
 		this.intl = i;
 		this.todo = todo;
 		this.df = df;
-		this.cg = new CompletionGraph(this, config, df);
+		this.cg = null;//new CompletionGraph(this, config, df);
 		this.config = config;
 		currentBranchingPoint = INITBRANCHINGLEVELVALUE;
 		//ILPBranchingPoint = INITBRANCHINGLEVELVALUE;
@@ -122,8 +123,8 @@ public class RuleEngine {
 		if (config.isALC() || config.isSHI()) {
 			while (!todo.isEmpty()) {
 				ToDoEntry entry = todo.getNextEntry();
-				// System.out.println("node id "+ entry.getNode().getId());
-				// System.out.println("while loop "+ entry.getClassExpression());
+				 System.out.println("node id "+ entry.getNode().getId());
+				 System.out.println("while loop "+ entry.getClassExpression());
 				if (entry != null && !entry.getNode().isReset()) {
 					this.applyRules(entry);
 				}
@@ -968,11 +969,9 @@ public class RuleEngine {
 
 		return false;
 	}
-	public boolean callILP(DependencySet clashSet, Node n, Set<ToDoEntry> entries, DependencySet newDs, Set<OWLSubClassOfAxiom> learnedDisjointness, BranchHandler bhILP, OWLObjectPropertyExpression role) {
+	public boolean callILP(DependencySet clashSet, Node n, Set<ToDoEntry> entries, DependencySet newDs, Set<OWLSubClassOfAxiom> learnedDisjointness, ILPPreprocessor ilpPro) {
 		//System.out.println("ilpPro.getInsideBranches().size "+ ilpPro.getInsideILPDisjunctions().size());
-		if(role == null) {
-		ILPPreprocessor ilpPro = bhILP.ilpPro;
-		addInsideILPBranches(n, ilpPro.getInsideILPBranchHandlers());
+		//addInsideILPBranches(n, ilpPro.getInsideILPBranchHandlers());
 		ilpPro.addLearnedDisjointness(learnedDisjointness, n);
 		ILPSolution sol = null;
 		try {
@@ -981,7 +980,7 @@ public class RuleEngine {
 			e.printStackTrace();
 		}
 		if (sol.isSolved()) {
-			Node nn = processILPResult(n, sol, entries, newDs);
+			Node nn = processILPResult(n, sol, entries, newDs, ilpPro);
 			if(nn == null) {
 				Set<Integer> insideBranchLevels = ilpPro.getInsideBranches(); 
 				for(Integer i : insideBranchLevels){
@@ -1018,84 +1017,7 @@ public class RuleEngine {
 			}
 			//System.out.println("clashset: "+ clashSet.getbpList());
 			return true;
-		}
-	}
-		else {
-			ILPSolution sol = null;
-			Set<ILPSolution>  solutions = new HashSet<>();
-			Set<ILPPreprocessor>  ilpPros = new HashSet<>();
-			Map<OWLObjectPropertyExpression, ILPPreprocessor> ilpProsMap = bhILP.ilpPros;
-			for(OWLObjectPropertyExpression r : ilpProsMap.keySet()) {
-				ILPPreprocessor ilpPro = ilpProsMap.get(r);
-				addInsideILPBranches(n, ilpPro.getInsideILPBranchHandlers());
-				if(r.equals(role)) {
-					ilpPro.addLearnedDisjointness(learnedDisjointness, n);
-				}
-				ilpPros.add(ilpPro);
-				ILPSolution s = null;
-				try {
-					s = ilpPro.callILP();
-				} catch (IloException e) {
-					e.printStackTrace();
-				}
-				if(s.isSolved()) {
-					solutions.add(s);
-				}
-				else {
-					for(ILPPreprocessor ip : ilpPros) {
-						Set<Integer> insideBranchLevels = ip.getInsideBranches(); 
-						for(Integer i : insideBranchLevels){
-							branches.remove(i);
-						}
-					}
-					boolean handleClash = false;
-					DependencySet clashSet1 = DependencySet.create();
-					// System.out.println("size "+entries.size());
-					for (ToDoEntry entry : entries) {
-						if (!entry.getDs().isEmpty()) {
-							handleClash = true;
-							// System.out.println("ds "+entry.getDs().getbpList()+" "+
-							// entry.getClassExpression());
-							clashSet1.add(entry.getDs());
-						}
-					}
-					if (handleClash) {
-						if (!clashHandler(clashSet1, n)) {
-						//	System.out.println("here ");
-							isInconsistent(n);
-						}
-					} else
-						isInconsistent(n);
-					return true;
-				}
-			}
-			sol = combineSolutions(solutions); 
-			Node nn = processILPResult(n, sol, entries, newDs);
-			if(nn == null) {
-				for(ILPPreprocessor ip : ilpPros) {
-					Set<Integer> insideBranchLevels = ip.getInsideBranches(); 
-					for(Integer i : insideBranchLevels){
-						branches.remove(i);
-					}
-				}
-				if (!clashHandler(clashSet, n)) {
-					//	System.out.println("here ");
-						isInconsistent(n);
-				}
-				return true;
-			}
-			else if(nn.getId() == -1) {
-				for(ILPPreprocessor ip : ilpPros) {
-					Set<Integer> insideBranchLevels = ip.getInsideBranches(); 
-					for(Integer i : insideBranchLevels){
-						branches.remove(i);
-					}
-				}
-				
-				return true;
-			}
-			else return true;
-		}
+		}  
 		
 	}
 	private void addInsideILPBranches(Node n, Map<Integer, BranchHandler> insideILPBranchHandlers) {
@@ -1160,11 +1082,10 @@ public class RuleEngine {
 	public Node callILP(Node n, Set<ToDoEntry> entries, Set<OWLSubClassOfAxiom> subsumption,
 			Set<Edge> outgoingEdges) {
 		System.out.println("Calling ILP module..." + entries.size() + " node id: " + n.getId());
-		// for(ToDoEntry en : entries) {
-			 //System.out.println(en.getDs().getbpList()+" entry: "+en.getClassExpression());
-		// }
+		 for(ToDoEntry en : entries) {
+			 System.out.println(en.getDs().getbpList()+" entry: "+en.getClassExpression());
+		 }
 		Node blocker = findBlocker(n);
-		//System.out.println("blocker " + blocker);
 		if (blocker != null && !n.equals(blocker)) {
 			blockNode(n, blocker);
 			return n;
@@ -1183,117 +1104,7 @@ public class RuleEngine {
 		save(n);
 		// cg.saveN(n);
 		incCurLevel();
-		
-		ILPSolution sol = null;
-		
-		if (!config.hasRoleHierarchy() && axiomRoles.size() > 1) {
-			SetMultimap<OWLObjectPropertyExpression, ToDoEntry> roleNEntries = HashMultimap.create();
-			for (ToDoEntry en : entries) {
-				OWLClassExpression ce = en.getClassExpression();
-				if (ce instanceof OWLObjectMinCardinality) {
-					OWLObjectPropertyExpression r = ((OWLObjectMinCardinality) ce).getProperty();
-					roleNEntries.put(r, en);
-				} else if (ce instanceof OWLObjectMaxCardinality) {
-					OWLObjectPropertyExpression r = ((OWLObjectMaxCardinality) ce).getProperty();
-					roleNEntries.put(r, en);
-				} else if (ce instanceof OWLObjectSomeValuesFrom) {
-					OWLObjectPropertyExpression r = ((OWLObjectSomeValuesFrom) ce).getProperty();
-					roleNEntries.put(r, en);
-				} else if (ce instanceof OWLObjectHasValue) {
-					OWLObjectPropertyExpression r = ((OWLObjectHasValue) ce).getProperty();
-					roleNEntries.put(r, en);
-				} else if (ce instanceof OWLObjectAllValuesFrom) {
-					OWLObjectPropertyExpression r = ((OWLObjectAllValuesFrom) ce).getProperty();
-					roleNEntries.put(r, en);
-				}
-			}
-			Set<ILPSolution>  solutions = new HashSet<>();
-			Set<ILPPreprocessor>  ilpPros = new HashSet<>();
-			for (OWLObjectPropertyExpression r : roleNEntries.keySet()) {
-				Set<Edge> relatedOutgoingEdges = new HashSet<>();
-				outgoingEdges.stream().filter(e -> e.getLabel().contains(r)).forEach(e -> relatedOutgoingEdges.add(e));
-				ILPPreprocessor ilpPro = new ILPPreprocessor(this, this.cg, roleNEntries.get(r), this.intl, this.df, n, outgoingEdges,subsumption, new HashMap<>(), r);
-				ilpPros.add(ilpPro);
-				bh.addIlpPro(r, ilpPro);
-				ILPSolution s = null;
-				try {
-					s = ilpPro.callILP();
-				} catch (IloException e) {
-					e.printStackTrace();
-				}	
-				if(s.isSolved()) {
-					solutions.add(s);
-				}
-				else {
-					for(ILPPreprocessor ip : ilpPros) {
-						Set<Integer> insideBranchLevels = ip.getInsideBranches(); 
-						for(Integer i : insideBranchLevels){
-							branches.remove(i);
-						}
-					}
-					boolean handleClash = false;
-					DependencySet clashSet = DependencySet.create();
-					// System.out.println("size "+entries.size());
-					for (ToDoEntry entry : entries) {
-						if (!entry.getDs().isEmpty()) {
-							handleClash = true;
-							// System.out.println("ds "+entry.getDs().getbpList()+" "+
-							// entry.getClassExpression());
-							clashSet.add(entry.getDs());
-						}
-					}
-					if (handleClash) {
-						if (!clashHandler(clashSet, n)) {
-						//	System.out.println("here ");
-							isInconsistent(n);
-						}
-					} else
-						isInconsistent(n);
-					return new Node();
-				}
-			}
-			sol = combineSolutions(solutions); 
-			Node nn = processILPResult(n, sol, entries, newDs);
-			if(nn == null) {
-				for(ILPPreprocessor ip : ilpPros) {
-					Set<Integer> insideBranchLevels = ip.getInsideBranches(); 
-					for(Integer i : insideBranchLevels){
-						branches.remove(i);
-					}
-				}
-				boolean handleClash = false;
-				DependencySet clashSet = DependencySet.create();
-				// System.out.println("size "+entries.size());
-				for (ToDoEntry entry : entries) {
-					if (!entry.getDs().isEmpty()) {
-						handleClash = true;
-						// System.out.println("ds "+entry.getDs().getbpList()+" "+
-						// entry.getClassExpression());
-						clashSet.add(entry.getDs());
-					}
-				}
-				if (handleClash) {
-					if (!clashHandler(clashSet, n)) {
-					//	System.out.println("here ");
-						isInconsistent(n);
-					}
-				} else
-					isInconsistent(n);
-				return new Node();
-			}
-			else if(nn.getId() == -1) {
-				for(ILPPreprocessor ip : ilpPros) {
-					Set<Integer> insideBranchLevels = ip.getInsideBranches(); 
-					for(Integer i : insideBranchLevels){
-						branches.remove(i);
-					}
-				}
-				
-				return nn;
-			}
-			else return n;
-		}
-		else {
+
 		/////
 		Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap = new HashMap<>();
 		for (OWLObjectPropertyExpression r : this.axiomRoles.get(currNode)) {
@@ -1308,18 +1119,17 @@ public class RuleEngine {
 		// "+outgoingEdges.stream().filter(predicate)
 		// +outgoingEdges.iterator().next().getLabel());
 
-		ILPPreprocessor ilpPro = new ILPPreprocessor(this, this.cg, entries, this.intl, this.df, n, outgoingEdges,subsumption, superRolesMap, null);
+		ILPPreprocessor ilpPro = null;//new ILPPreprocessor(this, this.cg, entries, this.intl, this.df, n, outgoingEdges,subsumption, superRolesMap);
 		bh.setIlpPro(ilpPro);
-		
+		ILPSolution sol = null;
 		try {
 			sol = ilpPro.callILP();
 		} catch (IloException e) {
 			e.printStackTrace();
 		}
-		
 		if (sol.isSolved()) {
 			//return processILPResult(n, sol, entries, newDs, ilpPro);
-			Node nn = processILPResult(n, sol, entries, newDs);
+			Node nn = processILPResult(n, sol, entries, newDs, ilpPro);
 			if(nn == null) {
 				Set<Integer> insideBranchLevels = ilpPro.getInsideBranches(); 
 				for(Integer i : insideBranchLevels){
@@ -1382,26 +1192,16 @@ public class RuleEngine {
 				isInconsistent(n);
 			return new Node();
 		}  
-		}
+
 	}
 
 	
-	private ILPSolution combineSolutions(Set<ILPSolution> solutions) {
-		ILPSolution solution = new ILPSolution();
-		for(ILPSolution sol : solutions) {
-			 solution.setEdgeInformation(sol.getEdgeInformation());
-		}
-		if(solution.getEdgeInformation().size()==0)
-			solution.setSolved(false);
-		return solution;
-	}
-
-	public Node processILPResult(Node n, ILPSolution sol, Set<ToDoEntry> entries, DependencySet newDs) {
+	public Node processILPResult(Node n, ILPSolution sol, Set<ToDoEntry> entries, DependencySet newDs, ILPPreprocessor ilpPro) {
+		Set<Integer> insideBranchLevels = ilpPro.getInsideBranches(); 
 		Set<Node> oldNodes = new HashSet<>();
 			Set<Node> newNodes = new HashSet<>();
 			DependencySet ds = DependencySet.create();
 			for (EdgeInformation ei : sol.getEdgeInformation()) {
-				Set<Integer> insideBranchLevels =ei.getInsideILPBranchLevels(); 
 				// ei.getFillers().stream().forEach(f -> System.out.println("filler "+ f ));
 				// DependencySet ds = ei.getDs();
 				ds = DependencySet.plus(ei.getDs(), DependencySet.create(newDs)); 
@@ -2601,13 +2401,13 @@ public class RuleEngine {
 	}
 
 	private Node addLabelNewNode(Node from, Node to, Set<OWLClassExpression> fillers, Set<ConceptNDepSet> cnds, DependencySet nds, DependencySet newDs, Set<ToDoEntry> entries, Set<Integer> insideBranchLevels) {
-		//System.out.println("addLabelNewNode, node: "+ to.getId() + " cnds.size() "+ cnds.size() );
+		System.out.println("addLabelNewNode, node: "+ to.getId() + " cnds.size() "+ cnds.size() );
 		addTGAxiom(to, nds);
 		for (ConceptNDepSet cnd : cnds) {
 			OWLClassExpression ce = cnd.getCe();
 			DependencySet ds = DependencySet.plus(DependencySet.create(cnd.getDs()), DependencySet.create(newDs)); 
 			if (!isConceptExist(to, ce)) {
-				//System.out.println("add label : "+ ce +" ds  :  "+ ds.getbpList());
+				System.out.println("add label : "+ ce +" ds  :  "+ ds.getbpList());
 				for(Integer i : ds.getbpList()){
 					if(insideBranchLevels.contains(i)) {
 						this.branches.get(i).setDisjunctTaken(ce);
@@ -2702,7 +2502,7 @@ public class RuleEngine {
 
 
 	private boolean addLabelOldNode1(Node from, Node to, Set<OWLClassExpression> fillers, DependencySet ds, Set<ToDoEntry> entries) {
-		//System.out.println("addLabelOldNode, node: "+ to.getId());
+		System.out.println("addLabelOldNode, node: "+ to.getId());
 		addBackPropagatedConcepts(to, entries, fillers);
 		for (OWLClassExpression ce : fillers) {
 			Node nn = addConcept(to, ce, ds, true);
@@ -4222,7 +4022,7 @@ public class RuleEngine {
 
 	public boolean applyOr(Node n, OWLClassExpression ce, DependencySet ds) {
 		System.out.println("node  " + n.getId() + " or expression selected : " + ce);
-		// System.out.println(" ds "+ds.getbpList());
+		 System.out.println(" ds "+ds.getbpList());
 		// System.out.print("label "+n.getLabel());
 		// n.getnLabel().getCndList().getCdSet().stream().forEach(lb ->
 		// System.out.print("label "+lb.getCe()));
@@ -4934,7 +4734,6 @@ public class RuleEngine {
 			if (branches.get(level) != null) {
 				if (branches.get(level).isInsideILP()) {
 					System.err.println("inside ILPBranching");
-					OWLObjectPropertyExpression role = branches.get(level).role;
 					Map<Integer, BranchHandler> insideILPBranches = new HashMap<>();
 					boolean flag = true;
 					do {
@@ -4945,23 +4744,10 @@ public class RuleEngine {
 							continue;
 						}
 						if (branches.get(level) != null && branches.get(level).isInsideILP()) {
+							insideILPBranches.put(level, branches.get(level));
+							clashSet.removeLevel(level);
+							level = clashSet.getMax();
 							
-							if(role == null) {
-								insideILPBranches.put(level, branches.get(level));
-								clashSet.removeLevel(level);
-								level = clashSet.getMax();
-							}
-							else {
-								if(branches.get(level).role.equals(role)) {
-									insideILPBranches.put(level, branches.get(level));
-									clashSet.removeLevel(level);
-									level = clashSet.getMax();
-								}
-								else {
-									clashSet.removeLevel(level);
-									level = clashSet.getMax();
-								}
-							}
 							if (branches.get(level) != null && branches.get(level).isILPBranching()) {
 								flag = false;
 							}
@@ -4976,7 +4762,7 @@ public class RuleEngine {
 							return clashHandler(clashSet, branches.get(level).getNode());
 						}
 					}while(flag);
-					return handleClashInsideILPBranching(clashSet, node, insideILPBranches, role);
+					return handleClashInsideILPBranching(clashSet, node, insideILPBranches);
 				}
 
 				else if (branches.get(level).isILPBranching()) {
@@ -5104,7 +4890,7 @@ public class RuleEngine {
 					if (branches.get(level).hasNextOption()) {
 						restore(level, false, false, true);
 						DependencySet branchClashSet = branches.get(level).getClashSet();
-						//System.out.println("branchClashSet before "+ branches.get(level).getClashSet().getbpList());
+						System.out.println("branchClashSet before "+ branches.get(level).getClashSet().getbpList());
 						DependencySet newClashSet = DependencySet.create(clashSet);
 						/*for(Integer bp : clashSet.getbpList()) {
 							if(branches.get(bp).isInsideILP()) {
@@ -5113,7 +4899,7 @@ public class RuleEngine {
 						}*/
 						branches.get(level).setClashSet(DependencySet.plus(DependencySet.create(newClashSet),
 								DependencySet.create(branchClashSet)));
-						//System.out.println("branchClashSet after "+ branches.get(level).getClashSet().getbpList());
+						System.out.println("branchClashSet after "+ branches.get(level).getClashSet().getbpList());
 						// applyOr(cg.getCurrNode(), branches.get(level).getNextOption(),
 						// DependencySet.plus(newDS, branches.get(level).getDs()));
 						
@@ -5122,7 +4908,7 @@ public class RuleEngine {
 						// return applyOr(cg.getCurrNode(), branches.get(level).getNextOption(),
 						// DependencySet.plus(newDS,
 						// DependencySet.create(branches.get(level).getDs())));
-					//	System.err.println(" curr node "+ cg.getCurrNode().getId());
+						System.err.println(" curr node "+ cg.getCurrNode().getId());
 						
 						boolean result = applyOr(cg.getCurrNode(), branches.get(level).getNextOption(),
 								DependencySet.create(branches.get(level).getDs()));
@@ -5160,7 +4946,7 @@ public class RuleEngine {
 		return true;
 	}
 	
-	private boolean handleClashInsideILPBranching(DependencySet clashSet, Node node, Map<Integer, BranchHandler> insideILPBranches, OWLObjectPropertyExpression role) {
+	private boolean handleClashInsideILPBranching(DependencySet clashSet, Node node, Map<Integer, BranchHandler> insideILPBranches) {
 		
 		//check size if >1
 		//set<>
@@ -5230,7 +5016,7 @@ public class RuleEngine {
 		int level = clashSet.getMax();
 		BranchHandler bhILP = branches.get(level);
 		restore(level, true, false, false);
-		return this.callILP(clashSet, bhILP.getNode(), bhILP.entries, bhILP.ds, disjointness, bhILP, role);
+		return this.callILP(clashSet, bhILP.getNode(), bhILP.entries, bhILP.ds, disjointness, bhILP.ilpPro);
 	}
 
 	/*private void undoDepSet(Node node, Node from) {
@@ -5276,7 +5062,7 @@ public class RuleEngine {
 			return true;
 		}
 		if (n.getLabel().contains(c.getComplementNNF())) {
-			// System.err.println("clash "+c);
+			 System.err.println("clash "+c);
 			return true;
 		}
 		// System.err.println("check clash here ");
@@ -5354,7 +5140,7 @@ public class RuleEngine {
 		return ds;
 	}
 	public DependencySet getClashSet(Node n, OWLClassExpression ce, OWLClassExpression ceNNF) {
-		// System.err.println("clash set exp "+ ce +" ceNNF "+ ceNNF );
+		 System.err.println("clash set exp "+ ce +" ceNNF "+ ceNNF );
 		DependencySet clashSet;
 		List<ConceptNDepSet> cndList = n.getnLabel().getCndList().getCdSet();
 		ConceptNDepSet cnd1 = null;
@@ -5669,9 +5455,9 @@ public class RuleEngine {
 	private void incCurLevel() {
 		++currentBranchingPoint;
 	}
-	public BranchHandler createInsideILPBranch(Node n, OWLObjectPropertyExpression role, OWLObjectUnionOf objUn, ConceptNDepSet cn, DependencySet ds) {
+	public BranchHandler createInsideILPBranch(Node n, OWLObjectUnionOf objUn, ConceptNDepSet cn, DependencySet ds) {
 		DependencySet newDs = DependencySet.plus(DependencySet.create(ds), DependencySet.create(getCurLevel()));
-		BranchHandler bh = new BranchHandler(objUn, cn, newDs, true, role);
+		BranchHandler bh = new BranchHandler(objUn, cn, newDs, true);
 		this.branches.put(getCurLevel(), bh);
 		save(n);
 		incCurLevel();
@@ -5991,8 +5777,6 @@ public class RuleEngine {
 		Set<OWLSubClassOfAxiom> subsumption = new HashSet<>();
 		Set<OWLSubClassOfAxiom> learnedSubsumption = new HashSet<>();
 		ILPPreprocessor ilpPro = null;
-		Map<OWLObjectPropertyExpression, ILPPreprocessor> ilpPros  = new HashMap<>();
-		OWLObjectPropertyExpression role = null;
 
 		protected BranchHandler(OWLObjectUnionOf objUn, ConceptNDepSet cnds, DependencySet ds, Node n) {
 			objUn.asDisjunctSet().stream().forEach(ce -> applicableOrEntries.add(ce));
@@ -6009,16 +5793,7 @@ public class RuleEngine {
 			this.ilpPro = ilpPro;
 			
 		}
-		public void addIlpPro(OWLObjectPropertyExpression role, ILPPreprocessor ilpPro) {
-			this.ilpPros.put(role, ilpPro);
-			
-		}
-		public ILPPreprocessor getIlpPro(OWLObjectPropertyExpression role) {
-			return this.ilpPros.get(role);
-			
-		}
-		
-		protected BranchHandler(OWLObjectUnionOf objUn, ConceptNDepSet cnds, DependencySet ds, boolean insideILP, OWLObjectPropertyExpression role) {
+		protected BranchHandler(OWLObjectUnionOf objUn, ConceptNDepSet cnds, DependencySet ds, boolean insideILP) {
 			objUn.asDisjunctSet().stream().forEach(ce -> applicableOrEntries.add(ce));
 			this.size = applicableOrEntries.size();
 			this.branchIndex = 0;
@@ -6027,7 +5802,6 @@ public class RuleEngine {
 			this.clashSet = DependencySet.create();
 			this.cnds = cnds;
 			this.insideILP = insideILP;
-			this.role = role;
 		}
 
 		public DependencySet getClashSet() {
@@ -6217,13 +5991,6 @@ public class RuleEngine {
 			}
 			return relatedConcepts;
 		}
-	}
-
-	public BranchHandler createInsideILPBranch(Node currNode2, OWLObjectUnionOf superClass,
-			ConceptNDepSet conceptNDepSet, DependencySet create) {
-		// TODO Auto-generated method stub 
-		// created for ILPPreprocessor20July.java
-		return null;
 	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////

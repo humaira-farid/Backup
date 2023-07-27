@@ -23,13 +23,24 @@ public class Configuration implements OWLReasonerConfiguration{
 	 private boolean isSHOQ = false;
 	 private boolean isSHIQ = false;
 	 private boolean isSHOIQ = false;
+	 private boolean hasRoleHierarchy = false;
 	 
 	public Configuration(ConsoleProgressMonitor progressMonitor) {
 		new SimpleConfiguration(progressMonitor);
 	}
 	 
 	 
-	 public boolean isALC() {
+	 public boolean hasRoleHierarchy() {
+		return hasRoleHierarchy;
+	}
+
+
+	public void setHasRoleHierarchy(boolean hasRoleHierarchy) {
+		this.hasRoleHierarchy = hasRoleHierarchy;
+	}
+
+
+	public boolean isALC() {
 		return isALC;
 	}
 

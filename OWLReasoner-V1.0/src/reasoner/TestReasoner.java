@@ -51,10 +51,12 @@ public class TestReasoner{
 		//	 file = new File("/Users/temp/Documents/PhD/PhD Research/QCR-Ontologies_SHQ-no-abox_files/genomic-cds_rules-2.fowl.owl");
 		//	file = new File("/Users/temp/Desktop/testrh.owl");
 
-		//	file = new File("/Users/temp/Desktop/test-ontologies/ab4/paper-1b-inc-2.fowl.owl");
+		//	file = new File("/Users/temp/Desktop/test-ontologies/TestTop.owl");
 		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00351.owl_functional.owl");
-
-			file = new File("/Users/temp/Desktop/test-ontologies/incorrect/p_56ad.fowl.owl");
+		//	file = new File("/Users/temp/Desktop/test-ontologies/incorrect/unsat-incomplete/integer-only-1-sub-D.fowl.owl");
+			file = new File("/Users/temp/Desktop/test-ontologies/incorrect/crashes/00351.fowl.owl");
+		//	file = new File("/Users/temp/Desktop/test-ontologies/non_integer/non_integer_a.owl");
+		//	file = new File("/Users/temp/Desktop/test-ontologies/Jocelyne/sat/HARD-Koala-MaleStudentWith3Daughters.fowl.owl");
 		//	file = new File("/Users/temp/Desktop/sat-SHQ-noabox/C-SAT-exp-ALCQ-5.fowl.owl");
 			
 		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00003.owl_functional.owl");
@@ -118,7 +120,7 @@ public class TestReasoner{
 	     checkExpressivity();
 	     
 	     
-	     System.out.println("tg size reasoner method "+ intr.getTgAx().size());
+	    // System.out.println("tg size reasoner method "+ intr.getTgAx().size());
 	     OWLClassExpression tgAxiom = intr.getTgAxiom();
 	 //    for (OWLSubClassOfAxiom sbg : intr.getTg()) 
 	   //  	 	System.out.println("TG: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
@@ -215,6 +217,7 @@ public class TestReasoner{
 		boolean hasNominal = false;
 		boolean hasQCRs = false;
 		boolean hasInverseRoles = false;
+		boolean hasRoleHierarchy = false;
 		
 		if(ont.axioms().anyMatch(ax -> ax.nestedClassExpressions().anyMatch(c -> c instanceof OWLObjectOneOf || c instanceof OWLObjectHasValue))) {
 			hasNominal = true;
@@ -226,6 +229,9 @@ public class TestReasoner{
 				
 		if(ont.axioms().anyMatch(ax -> ax instanceof OWLInverseObjectPropertiesAxiom) || ont.axioms().anyMatch(ax -> ax instanceof OWLInverseFunctionalObjectPropertyAxiom)) {
 			hasInverseRoles = true;
+		}
+		if(ont.axioms().anyMatch(ax -> ax instanceof OWLSubObjectPropertyOfAxiom) || ont.axioms().anyMatch(ax -> ax instanceof OWLInverseFunctionalObjectPropertyAxiom)) {
+			hasRoleHierarchy = true;
 		}
 		else {
 			Set<Set<OWLClassExpression>> sExp = new HashSet<>(); 
@@ -274,7 +280,8 @@ public class TestReasoner{
 					
 			}
 		}
-		
+		config.setHasRoleHierarchy(hasRoleHierarchy);
+		//System.err.println("hasRoleHierarchy "+ hasRoleHierarchy);
 		if(hasNominal && hasQCRs && hasInverseRoles) {
 		//	System.err.println("SHOIQ");
 			config.setSHOIQ(true);
@@ -306,7 +313,7 @@ public class TestReasoner{
 			config.setUseSubsetBlocking(true);
 		}
 		else if(!hasNominal && hasQCRs && !hasInverseRoles) {
-			System.err.println("SHQ");
+			//System.err.println("SHQ");
 			config.setSHQ(true);
 			config.setUseSubsetBlocking(true);
 		}

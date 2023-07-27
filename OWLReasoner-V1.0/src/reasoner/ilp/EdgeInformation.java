@@ -16,6 +16,7 @@ public class EdgeInformation
   private int cardinality;
   private DependencySet ds;
   private Set<Integer> nodeSet = new HashSet<>();
+  private Set<Integer> insideBranchLevels = nodeSet = new HashSet<>();
   
   public EdgeInformation(Set<OWLObjectPropertyExpression> roles, Set<OWLClassExpression> fillers, int card)
   {
@@ -113,5 +114,13 @@ public void modifyCardinality(int paramInt)
   {
     this.fillers.remove(paramOWLClassExpression);
   }
+public void addInsideILPBranchLevels(Set<Integer> insideBranches) {
+	insideBranchLevels = insideBranches;
+	
+}
+public Set<Integer> getInsideILPBranchLevels() {
+	return insideBranchLevels;
+	
+}
 }
 

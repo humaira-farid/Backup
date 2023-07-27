@@ -23,7 +23,7 @@ import reasoner.graph.Node;
 import reasoner.preprocessing.Internalization;
 import reasoner.todolist.ToDoEntry;
 
-public class ILPPreprocessor {
+public class ILPPreprocessor20July {
 	
 	List<OWLObjectCardinalityRestriction> cardRes = new ArrayList<>();
 	List<OWLObjectCardinalityRestriction> minCardRes = new ArrayList<>();
@@ -96,7 +96,7 @@ public class ILPPreprocessor {
 	SetMultimap<OWLObjectPropertyExpression, OWLClassExpression> forAllMap = HashMultimap.create();
 	Map<OWLObjectPropertyExpression, OWLClassExpression> topMinMap = new HashMap<>();
 	Map<OWLObjectPropertyExpression, OWLClassExpression> topMaxMap = new HashMap<>();
-	OWLObjectPropertyExpression role = null;
+	
 	Set<OWLSubClassOfAxiom> learnedSubsumption = new HashSet<>();
 	Set<OWLSubClassOfAxiom> atomicGCIs = new HashSet<>();
 	
@@ -110,7 +110,7 @@ public class ILPPreprocessor {
 	Node currNode;
 	Set<Edge> outgoingEdges;
 	
-	public ILPPreprocessor(RuleEngine re, CompletionGraph cg, Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges, Set<OWLSubClassOfAxiom> subsumption, Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap2, OWLObjectPropertyExpression role) {
+	public ILPPreprocessor20July(RuleEngine re, CompletionGraph cg, Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges, Set<OWLSubClassOfAxiom> subsumption, Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap2) {
 		counter = 0;
 		this.cg = cg;
 		this.df = df;
@@ -123,7 +123,6 @@ public class ILPPreprocessor {
 		this.superRolesMap = superRolesMap2;
 		this.learnedSubsumption = subsumption;
 		this.atomicGCIs = intl.getAtomicGCIs();
-		this.role = role;
 		for(ToDoEntry entry : entries)
 			processEntry(entry);
 		generateQCR();
@@ -140,6 +139,7 @@ public class ILPPreprocessor {
 		
 		//addILPBranches();
 	}
+	
 	private void removeRedundantQCRs() {
 		Set<OWLObjectMinCardinality> removeMin = new HashSet<>();
 		Set<OWLObjectMaxCardinality> removeMax = new HashSet<>();
@@ -190,7 +190,7 @@ public class ILPPreprocessor {
 		
 	}
 	
-	public ILPPreprocessor(CompletionGraph cg, Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges, Set<OWLSubClassOfAxiom> subsumption, Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap2) {
+	public ILPPreprocessor20July(CompletionGraph cg, Set<ToDoEntry> entries, Internalization intl, OWLDataFactory df, Node n, Set<Edge> outgoingEdges, Set<OWLSubClassOfAxiom> subsumption, Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>> superRolesMap2) {
 		
 	}
 	
@@ -205,7 +205,7 @@ public class ILPPreprocessor {
 			
 				if(allConcepts.containsAll(aG.getSuperClass().asDisjunctSet())) {
 					conceptSubsumers.put(df.getOWLThing(), aG.getSuperClass());
-					BranchHandler bh = re.createInsideILPBranch(this.currNode, role, (OWLObjectUnionOf) aG.getSuperClass(), new ConceptNDepSet(aG.getSuperClass(), DependencySet.create()), DependencySet.create());				
+					BranchHandler bh = re.createInsideILPBranch(this.currNode, (OWLObjectUnionOf) aG.getSuperClass(), new ConceptNDepSet(aG.getSuperClass(), DependencySet.create()), DependencySet.create());				
 					DependencySet newDs = bh.getDs();
 					this.insideILPBranchHandlers.put(newDs.getMax(), bh);
 					this.insideILPDisjunctions.put(newDs.getMax(), aG.getSuperClass().asDisjunctSet());
@@ -931,7 +931,7 @@ public class ILPPreprocessor {
 				if(sb.getSuperClass().asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || 
 						(dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf))) {
 					
-					BranchHandler bh = re.createInsideILPBranch(this.currNode, role, (OWLObjectUnionOf) sb.getSuperClass(), new ConceptNDepSet(sb.getSuperClass(), ds), ds);
+					BranchHandler bh = re.createInsideILPBranch(this.currNode, (OWLObjectUnionOf) sb.getSuperClass(), new ConceptNDepSet(sb.getSuperClass(), ds), ds);
 
 					DependencySet newDs  = bh.getDs();
 					this.insideILPBranchHandlers.put(newDs.getMax(), bh);
@@ -1388,7 +1388,7 @@ public class ILPPreprocessor {
 							conceptSubsumers.put(ce, sp);
 							conceptDs.put(sp, this.getConceptDS(ce));
 							
-							BranchHandler bh = re.createInsideILPBranch(this.currNode, role, (OWLObjectUnionOf) sp, new ConceptNDepSet(sp, this.getConceptDS(ce)), this.getConceptDS(ce));
+							BranchHandler bh = re.createInsideILPBranch(this.currNode, (OWLObjectUnionOf) sp, new ConceptNDepSet(sp, this.getConceptDS(ce)), this.getConceptDS(ce));
 							DependencySet newDs = bh.getDs();
 							this.insideILPBranchHandlers.put(newDs.getMax(), bh);
 							this.insideILPDisjunctions.put(newDs.getMax(), sp.asDisjunctSet());
@@ -1458,7 +1458,7 @@ public class ILPPreprocessor {
 								|| (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf))) {
 							conceptSubsumers.put(ce, sp);
 							conceptDs.put(sp, this.getConceptDS(ce));
-							BranchHandler bh = re.createInsideILPBranch(currNode, role, (OWLObjectUnionOf) sp, new ConceptNDepSet(sp, this.getConceptDS(ce)), this.getConceptDS(ce));
+							BranchHandler bh = re.createInsideILPBranch(currNode, (OWLObjectUnionOf) sp, new ConceptNDepSet(sp, this.getConceptDS(ce)), this.getConceptDS(ce));
 							DependencySet newDs = bh.getDs();
 							this.insideILPBranchHandlers.put(newDs.getMax(), bh);
 							this.insideILPDisjunctions.put(newDs.getMax(), sp.asDisjunctSet());
@@ -1529,7 +1529,7 @@ public class ILPPreprocessor {
 										(dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf))) {
 									nominalSubsumers.put(ce, sp);
 									conceptDs.put(sp, this.getConceptDS(ce));
-									BranchHandler bh = re.createInsideILPBranch(currNode, role, (OWLObjectUnionOf) sp, new ConceptNDepSet(sp, this.getConceptDS(ce)), this.getConceptDS(ce));
+									BranchHandler bh = re.createInsideILPBranch(currNode, (OWLObjectUnionOf) sp, new ConceptNDepSet(sp, this.getConceptDS(ce)), this.getConceptDS(ce));
 									DependencySet newDs = bh.getDs();
 									this.insideILPBranchHandlers.put(newDs.getMax(), bh);
 									this.insideILPDisjunctions.put(newDs.getMax(), sp.asDisjunctSet());
@@ -1598,7 +1598,7 @@ public class ILPPreprocessor {
 					if(cj.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf))) {
 						conceptSubsumers.put(ce, cj);
 						conceptDs.put(cj, this.getConceptDS(ce));
-						BranchHandler bh = re.createInsideILPBranch(currNode, role, (OWLObjectUnionOf) cj, new ConceptNDepSet(cj, this.getConceptDS(ce)), this.getConceptDS(ce));
+						BranchHandler bh = re.createInsideILPBranch(currNode, (OWLObjectUnionOf) cj, new ConceptNDepSet(cj, this.getConceptDS(ce)), this.getConceptDS(ce));
 						DependencySet newDs = bh.getDs();
 						this.insideILPBranchHandlers.put(newDs.getMax(), bh);
 						this.insideILPDisjunctions.put(newDs.getMax(), cj.asDisjunctSet());
@@ -1648,7 +1648,7 @@ public class ILPPreprocessor {
 					if(cj.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf))) {
 						nominalSubsumers.put(ce, cj);
 						conceptDs.put(cj, this.getConceptDS(ce));
-						BranchHandler bh = re.createInsideILPBranch(currNode, role, (OWLObjectUnionOf) cj, new ConceptNDepSet(cj, this.getConceptDS(ce)), this.getConceptDS(ce));
+						BranchHandler bh = re.createInsideILPBranch(currNode, (OWLObjectUnionOf) cj, new ConceptNDepSet(cj, this.getConceptDS(ce)), this.getConceptDS(ce));
 						DependencySet newDs = bh.getDs();
 						this.insideILPBranchHandlers.put(newDs.getMax(), bh);
 						
@@ -1705,7 +1705,7 @@ public class ILPPreprocessor {
 					if(cj.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf))) {
 						conceptSubsumers.put(ce, cj);
 						conceptDs.put(cj, this.getConceptDS(ce));
-						BranchHandler bh = re.createInsideILPBranch(currNode, role, (OWLObjectUnionOf) cj, new ConceptNDepSet(cj, this.getConceptDS(ce)), this.getConceptDS(ce));
+						BranchHandler bh = re.createInsideILPBranch(currNode, (OWLObjectUnionOf) cj, new ConceptNDepSet(cj, this.getConceptDS(ce)), this.getConceptDS(ce));
 						DependencySet newDs = bh.getDs();
 						this.insideILPBranchHandlers.put(newDs.getMax(), bh);
 						this.insideILPDisjunctions.put(newDs.getMax(), cj.asDisjunctSet());
@@ -1757,7 +1757,7 @@ public class ILPPreprocessor {
 					if(cj.asDisjunctSet().stream().allMatch(dj -> (dj instanceof OWLObjectOneOf) || (dj instanceof OWLClass) || (dj instanceof OWLObjectComplementOf))) {
 						nominalSubsumers.put(ce, cj);
 						conceptDs.put(cj, this.getConceptDS(ce));
-						BranchHandler bh = re.createInsideILPBranch(currNode, role, (OWLObjectUnionOf) cj, new ConceptNDepSet(cj, this.getConceptDS(ce)), this.getConceptDS(ce));
+						BranchHandler bh = re.createInsideILPBranch(currNode, (OWLObjectUnionOf) cj, new ConceptNDepSet(cj, this.getConceptDS(ce)), this.getConceptDS(ce));
 						DependencySet newDs = bh.getDs();
 						this.insideILPBranchHandlers.put(newDs.getMax(), bh);
 						this.insideILPDisjunctions.put(newDs.getMax(), cj.asDisjunctSet());
@@ -1876,12 +1876,12 @@ public class ILPPreprocessor {
 		subsumers.putAll(conceptSubsumers);
 		subsumers.putAll(nominalSubsumers);
 		subsumers.putAll(simpleASubsumers);
-		//System.err.println(" subsumers  "+subsumers);
+		System.err.println(" subsumers  "+subsumers);
 		//System.err.println("simpleASubsumers "+ simpleASubsumers);
 		disjoints.putAll(conceptDisjoints);
 		disjoints.putAll(nominalDisjoints);
 		//this.sRMap = (Map<OWLObjectPropertyExpression, Set<OWLObjectPropertyExpression>>) (Map<?, ?>) sR.asMap();
-		CplexModelGenerator cmg = new CplexModelGenerator(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH, this.topMinMap, this.topMaxMap);
+		CplexModelGenerator cmg = null;//new CplexModelGenerator(this, (Map<OWLClassExpression, Set<OWLClassExpression>>) (Map<?, ?>)subsumers.asMap(), this.binarySubsumers, disjoints, disjointGroups, this.sRMap, this.forAllMap, this.tempRoleH, this.topMinMap, this.topMaxMap);
 		ILPSolution sol = cmg.getILPSolution();
 		System.out.println("Solved: "+sol.isSolved());
 		System.out.println("edges: "+sol.getEdgeInformation().size());
@@ -1893,7 +1893,6 @@ public class ILPPreprocessor {
 					ei.getFillers().addAll(this.complexASubsumers.get(ce));
 			}
 			ei.getFillers().removeAll(auxiliaryConcepts);*/
-			ei.addInsideILPBranchLevels(this.getInsideBranches());
 			System.out.println("Roles: " + ei.getEdges() +" Qualifications: " + ei.getFillers() +" cardinality : "+ ei.getCardinality());
 		}
 		return sol;
@@ -1908,7 +1907,7 @@ public class ILPPreprocessor {
 			System.out.println("learnedDisjointness "+ sbAx);
 			if(sbAx.getSuperClass() instanceof OWLObjectUnionOf) {
 				conceptSubsumers.put(df.getOWLThing(), sbAx.getSuperClass());
-				BranchHandler bh = re.createInsideILPBranch(n, role, (OWLObjectUnionOf) sbAx.getSuperClass(), new ConceptNDepSet(sbAx.getSuperClass(), DependencySet.create()), DependencySet.create());				
+				BranchHandler bh = re.createInsideILPBranch(n, (OWLObjectUnionOf) sbAx.getSuperClass(), new ConceptNDepSet(sbAx.getSuperClass(), DependencySet.create()), DependencySet.create());				
 				DependencySet newDs = bh.getDs();
 				this.insideILPBranchHandlers.put(newDs.getMax(), bh);
 				this.insideILPDisjunctions.put(newDs.getMax(), sbAx.getSuperClass().asDisjunctSet());

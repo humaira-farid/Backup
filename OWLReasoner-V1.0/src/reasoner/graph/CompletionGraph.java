@@ -501,7 +501,7 @@ public class CompletionGraph implements Cloneable {
 	}
 
 	public Node findPairwiseBlocker(Node n) {
-		System.err.println("find blocker node for "+n.getId());
+	//	System.err.println("find blocker node for "+n.getId());
 		if (n.isBlockableNode()) {
 			// List<Edge> xEdges = n.getIncomingEdges();
 			List<Edge> xEdges = n.getIncomingEdges();
@@ -741,8 +741,8 @@ public class CompletionGraph implements Cloneable {
 		s.setbNodes(nodeBase.size());
 		s.setsNodes(savedNodes.size());
 		s.setnEdges(ctEdgeHeap.size());
-		 System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+
-		 savedNodes.size()+"totalNodes: "+ totalNodes);
+		// System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+
+		 //savedNodes.size()+"totalNodes: "+ totalNodes);
 
 		s.setCurrNode(currNode);
 		s.setCurrNodeResetStatus(currNode.isReset());
@@ -757,7 +757,7 @@ public class CompletionGraph implements Cloneable {
 	public void restore(int level, boolean ilp, boolean merge, boolean disjunction) {
 		assert level > 0;
 		branchingLevel = level;
-		System.out.println("cg level " + level + " curr node " + currNode.getId());
+		//System.out.println("cg level " + level + " curr node " + currNode.getId());
 		// rareStack.restore(level);
 		// CGSaveState s = stack.pop(level);
 		/// 5 mar
@@ -769,7 +769,7 @@ public class CompletionGraph implements Cloneable {
 		totalNodes = s.getnNodes();
 		currNode = s.getCurrNode();
 		// currNode.setReset(s.getCurrNodeResetStatus());
-		System.out.println("cg level " + level + " restore graph curr node " + s.getCurrNode().getId());
+		//System.out.println("cg level " + level + " restore graph curr node " + s.getCurrNode().getId());
 		int nSaved = s.getsNodes();
 	//	System.err.println("total nodes: " + totalNodes + " nsaved: " + nSaved + " saved nodes: " + savedNodes.size());
 		if (totalNodes < Math.abs(savedNodes.size() - nSaved)) {

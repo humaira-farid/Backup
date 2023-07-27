@@ -275,7 +275,7 @@ public class Internalization {
 						sup.asConjunctSet().forEach(cj -> this.Tg.add(df.getOWLSubClassOfAxiom(sub, cj)));
 					else
 						Tg.add(sax);
-					System.out.println("TOP SubClassOf (ClassExpression) " + sax);
+					//System.out.println("TOP SubClassOf (ClassExpression) " + sax);
 				}
 				
 				// --> A SubClassOf (ClassExpression)
@@ -587,7 +587,7 @@ public class Internalization {
 		ontology = new Ontology(subAx, Eq, objdAx, objrAx, oneOfSubAx, oneOfEqAx, oneOf, djAx, djuAx, diffInd,
 				aboxClassAss, aboxObjProAss, subObjProAx, invObjProAx, this.Tu, this.Tui, this.symmRoles);
 		
-		System.out.println("tg size internalize method "+ this.getTgAx().size());
+		//System.out.println("tg size internalize method "+ this.getTgAx().size());
 		return ontology;
 	}
 	
@@ -618,7 +618,7 @@ public class Internalization {
 							aboxClassAss.add(subClassAx);
 							oneOfSubAx.add(subClassAx);
 							subAx.add(subClassAx);
-							System.out.println("subClassAx "+ subClassAx);
+							//System.out.println("subClassAx "+ subClassAx);
 							removeTg.add(sbAx);
 							break;
 						}
@@ -646,7 +646,7 @@ public class Internalization {
 								aboxClassAss.add(subClassAx);
 								oneOfSubAx.add(subClassAx);
 								subAx.add(subClassAx);
-								System.out.println("subClassAx "+ subClassAx);
+								//System.out.println("subClassAx "+ subClassAx);
 							}
 							removeTg.add(sbAx);
 							flag = true;
@@ -675,13 +675,13 @@ public class Internalization {
 										aboxClassAss.add(subClassAx);
 										oneOfSubAx.add(subClassAx);
 										subAx.add(subClassAx);
-										System.out.println("subClassAx "+ subClassAx);
+										//System.out.println("subClassAx "+ subClassAx);
 									}
 									else if(sb.getComplementNNF() instanceof OWLClass) {
 										OWLSubClassOfAxiom subClassAx = df.getOWLSubClassOfAxiom(sb.getComplementNNF(), supC);
 										this.Tu.add(subClassAx);
 										subAx.add(subClassAx);
-										System.out.println("subClassAx "+ subClassAx);
+										//System.out.println("subClassAx "+ subClassAx);
 									}
 								}
 								removeTg.add(sbAx);
@@ -709,7 +709,7 @@ public class Internalization {
 							OWLSubClassOfAxiom subClassAx = df.getOWLSubClassOfAxiom(dj.getComplementNNF(), supC);
 							this.Tu.add(subClassAx);
 							subAx.add(subClassAx);
-							System.out.println("subClassAx "+ subClassAx);
+							//System.out.println("subClassAx "+ subClassAx);
 							removeTg.add(sbAx);
 							break;
 						}
@@ -848,7 +848,7 @@ public class Internalization {
 		this.Tg.removeAll(remove);
 		//System.out.println("tg after:" + Tg);
 		//System.out.println("extendedDomainRestrictions " + extendedDomainRestrictions.size());
-		for (OWLSubClassOfAxiom sbAx : this.Tu) {
+		/*for (OWLSubClassOfAxiom sbAx : this.Tu) {
 			if(sbAx.getSuperClass() instanceof OWLClass) {
 				this.atomicSupClassGCIs.put(sbAx.getSuperClass(), sbAx.getSubClass());
 			}
@@ -857,7 +857,7 @@ public class Internalization {
 			if(sbAx.getSuperClass() instanceof OWLClass) {
 				this.atomicSupClassGCIs.put(sbAx.getSuperClass(), sbAx.getSubClass());
 			}
-		}
+		}*/
 	}
 	public Set<OWLClassExpression> getApplicableGCIs(OWLClassExpression ce){
 		return this.atomicSupClassGCIs.get(ce);

@@ -62,7 +62,8 @@ public class CplexModelGenerator {
 	Map<OWLObjectPropertyExpression, OWLObjectPropertyExpression> tempRoleH = new HashMap<>();
 	IloRange[]   orgConstraint = null;
 	IloNumVar[] orgR = null;
-	
+	IloObjective orgObj =null;
+	IloObjective orgReducedCost = null;
 	boolean initiallySolved;
 	long M;
 	int totalQCR = 0;
@@ -409,9 +410,9 @@ public class CplexModelGenerator {
 				relaxed_opt = rmpCplex.getObjValue();
 
 				/// generate and add a new column in RMP
-
+			//	System.out.println("-------------------------------- ");
 				double[] price = rmpCplex.getDuals(Constraint);
-
+				
 				reducedCost.setExpr(ppCplex.diff(objExprSqSum, ppCplex.scalProd(r, price)));
 
 				if (ppCplex.solve()) {
@@ -421,6 +422,9 @@ public class CplexModelGenerator {
 					}
 
 					newCol = ppCplex.getValues(r);
+					/*for (int j = 0; j < newCol.length; j++) {
+						System.err.println("R "+ newCol[j]);
+					}*/
 					double[] bVal = ppCplex.getValues(b);
 					int cost = 0;
 					int bPlus = 0;
@@ -432,14 +436,16 @@ public class CplexModelGenerator {
 							bPlus += bVal[j];
 
 					}
+					
 					int cost2 = (qcrQualifiers.size() * cost * cost) + (bPlus);
 					IloColumn column = rmpCplex.column(obj, cost2);// Creates and returns a column from the specified
 																	// objective and value.
 					for (int i = 0; i < totalVar; i++)
 						column = column.and(rmpCplex.column(Constraint[i], newCol[i]));// Creates and returns a column
 																						// from the specified range and
-																						// value.
-
+															
+						//System.err.println("SR "+ ppCplex.getValues(sr)[0]);
+					
 					x.add(rmpCplex.numVar(column, 0., Double.MAX_VALUE));
 					subsets.add(new SubSet(ppCplex.getValues(r), ppCplex.getValues(b), ppCplex.getValues(sr)));
 				} else
@@ -459,7 +465,7 @@ public class CplexModelGenerator {
 			for (int i = 0; i < x.getSize(); i++) {
 				double cardinality = rmpCplex.getValue(x.getElement(i));
 				cardinality = Math.round(cardinality * 100000D) / 100000D;
-			//	System.out.println("check non integer cardinality " + cardinality);
+				//System.out.println(i + " check non integer cardinality " + cardinality);
 				if (!isInteger(cardinality)) {
 					nonInteger = true;
 					break;
@@ -483,12 +489,15 @@ public class CplexModelGenerator {
 				orgConstraint = Arrays.copyOf(rmpModel.Constraint, rmpModel.Constraint.length);
 				orgR = ppCplex.numVarArray(r.length, 0., 1, IloNumVarType.Int);
 				System.arraycopy(r, 0, orgR, 0, r.length);
+				orgObj = rmpCplex.getObjective();
+				orgReducedCost = ppCplex.getObjective();
+				//System.out.println("obj : "+ orgObj +" orgReducedCost" + reducedCost);
 				// System.out.println("constraint size " + orgConstraint.length);
 				returnSolution = applyBranchAndPrice(rmpModel, ppModel, rmpCplex, ppCplex, x, h, subsets, b, r, sr, rmpModel.Constraint);
 				///////
 			
 				
-//				returnSolution = handleNonIntegerSolution(rmpModel, ppModel, rmpCplex, ppCplex, x, h, subsets, b, r, sr, hr);
+			//	returnSolution = handleNonIntegerSolution(rmpModel, ppModel, rmpCplex, ppCplex, x, h, subsets, b, r, sr, hr);
 				rmpCplex.end();
 				ppCplex.end();
 
@@ -572,7 +581,7 @@ public class CplexModelGenerator {
 									DependencySet ds = DependencySet.create();
 									for (int j = 0; j < tempSubSet.getRolesIndexSet().length; j++) {
 										if (tempSubSet.getRolesIndexSet()[j] > 0) { // if r value is 1
-											 System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier + " ds "+ qcrMap.get(j).ds.getbpList());
+											// System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier + " ds "+ qcrMap.get(j).ds.getbpList());
 											if (qcrMap.get(j).role != null && qcrMap.get(j).getType()!="MAX") {
 												tempRoleSet.add(qcrMap.get(j).role);
 												ds.add(qcrMap.get(j).ds);
@@ -582,10 +591,18 @@ public class CplexModelGenerator {
 
 									for (int j = 0; j < tempSubSet.getSupRolesIndexSet().length; j++) {
 										if (tempSubSet.getSupRolesIndexSet()[j] > 0) { // if sr value is 1
-											// System.out.println("sr["+j+"]: "+tempSubSet.getSupRolesIndexSet()[j]);
-											// System.out.println("sup role "+reverseRoles.get(j) );
-
-											tempSupRoleSet.add(reverseRoles.get(j));
+											 OWLObjectPropertyExpression supR = reverseRoles.get(j);
+											 /*if(axiomRoles.contains(supR)) {
+												 tempSupRoleSet.add(supR);
+											 }
+											 else {*/
+												 for(OWLObjectPropertyExpression role : this.superRoles.keySet()) {
+													 if(tempRoleSet.contains(role) && this.superRoles.get(role).contains(supR)) {
+														 tempSupRoleSet.add(reverseRoles.get(j));
+														 break;
+													 }
+												 }
+											 //}
 										}
 									}
 									tempRoleSet.addAll(tempSupRoleSet);
@@ -607,7 +624,7 @@ public class CplexModelGenerator {
 									for(OWLClassExpression ce : tempClassSet) {
 										cnds.add(new ConceptNDepSet(ce, ilpPro.getConceptDS(ce)));
 									}
-									 System.out.println(" cnds.size "+ cnds.size() + "  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
+									// System.out.println(" cnds.size "+ cnds.size() + "  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
 									
 									 
 									 if (!tempRoleSet.isEmpty()) {
@@ -719,9 +736,8 @@ public class CplexModelGenerator {
 		ILPSolution returnSolution = new ILPSolution();
 		IloNumVarArray orgX = new IloNumVarArray(x);
 		ArrayList<SubSet> orgSubsets = new ArrayList<SubSet>(subsets);
-
-	//	IloObjective obj = rmpCplex.getObjective();
-	//	IloObjective reducedCost = ppCplex.getObjective();
+		
+		
 		/*for (int i = 0; i < orgX.getSize(); i++) {
 			double cardinality = Math.round(rmpCplex.getValue(orgX.getElement(i)) * 100000D) / 100000D;
 			System.out.println("cardinality  :" + cardinality);
@@ -764,7 +780,8 @@ public class CplexModelGenerator {
 			IloRange[] Constraint1 = copyOrgRmpModel.getConstraint();
 			IloRange[] Constraint = Arrays.copyOf(Constraint1, Constraint1.length + 1);
 			IloConstraint[] ppNewCons = null;
-			// System.out.println("constraint size " + Constraint.length);
+		//	System.out.println("constraint1 size " + Constraint1.length);
+		//	 System.out.println("subset size " + subsets.size());
 
 			IloNumVar[] r1 = copyOrgPpModel.getR();
 			IloNumVar[] r = ppCplex.numVarArray(r1.length + 1, 0., 1, IloNumVarType.Int);
@@ -772,7 +789,9 @@ public class CplexModelGenerator {
 			IloNumVar[] b = copyOrgPpModel.getB();
 			IloNumVar[] sr = copyOrgPpModel.getSR();
 			IloNumVar[] hr = copyOrgPpModel.getHR();
-			
+			IloObjective obj = rmpCplex.getObjective();
+			IloObjective reducedCost = ppCplex.getObjective();
+			//System.out.println("obj : "+ obj +" reducedCost" + reducedCost);
 			infeasible = false;
 
 			if (k == 0) {
@@ -821,9 +840,10 @@ public class CplexModelGenerator {
 				}
 				ppNewCons[count] = ppCplex.addLe(ppCplex.diff(nexpr, bvalues.size() - 1), r[r1.length]);
 			}
-			IloObjective obj = rmpCplex.getObjective();
-			IloObjective reducedCost = ppCplex.getObjective();
-
+			
+		//	rmpCplex.solve();
+		//	ppCplex.solve();
+		//	System.out.println("obj : "+ rmpCplex.getObjValue() +" reducedCost" + reducedCost);
 			BiMap<Integer, OWLClassExpression> reverseQualifiers = qualifiers.inverse();
 			System.out.println("solving...");
 
@@ -846,7 +866,7 @@ public class CplexModelGenerator {
 
 			double relaxed_opt = M;
 			while (true) {
-
+				System.out.println("constraint size " + Constraint.length);
 				infeasible = false;
 				if (rmpCplex.solve()) {
 					// System.out.println("feasible ");
@@ -903,13 +923,13 @@ public class CplexModelGenerator {
 
 			if (!infeasible) {
 				if (relaxed_opt < M) {
-					// System.out.println("relaxed opt "+relaxed_opt);
-					// System.out.println("x.getSize() " + x.getSize());
+					 System.out.println("relaxed opt "+relaxed_opt);
+					 System.out.println("x.getSize() " + x.getSize());
 
 					boolean nonInteger = false;
 					for (int l = 0; l < x.getSize(); l++) {
 						double card = rmpCplex.getValue(x.getElement(l));
-						// System.out.println("cardinality outside! "+ card);
+						 System.out.println("cardinality outside! "+ card);
 						// if(!isInteger(Math.round(card * 100000D) / 100000D)) {
 						if (!isInteger(card)) {
 							nonInteger = true;
@@ -954,6 +974,7 @@ public class CplexModelGenerator {
 					boolean result = false;
 					if (rmpCplex.solve()) {
 
+					//	System.out.println("obj : "+ rmpCplex.getObjective() +" reducedCost" + ppCplex.getObjValue());
 						result = true;
 						Set<EdgeInformation> edgeInformationSet = new HashSet<EdgeInformation>();
 
@@ -1070,7 +1091,7 @@ public class CplexModelGenerator {
 											 
 											 if (!tempRoleSet.isEmpty()) {
 												EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet, cnds,
-														tempClassSet, cardinality, ds, nodeSet);
+														tempClassSet, cardinality2, ds, nodeSet);
 												edgeInformationSet.add(tempEdgeInformation);
 											}
 										}
@@ -1692,9 +1713,9 @@ public class CplexModelGenerator {
 		ArrayList<SubSet> subsets = new ArrayList<SubSet>(subsets1);
 
 		for (int i = 0; i < x.getSize(); i++) {
-			
-			double cardinality = Math.round(rmpCplex.getValue(x.getElement(i)) * 100000D) / 100000D;
-			System.out.println("cardinality bnp :" + cardinality);
+			IloNumVar nonInt = x.getElement(i);
+			double cardinality = Math.round(rmpCplex.getValue(nonInt) * 100000D) / 100000D;
+		//	System.out.println("cardinality bnp :" + cardinality);
 
 			if (!isInteger(cardinality)) {
 
@@ -1702,7 +1723,7 @@ public class CplexModelGenerator {
 				double part1 = cardinality - fractional;
 				double part2 = part1 + 1;
 				SubSet tempSubSet = subsets.get(i);
-
+				System.out.println("Trying value number " + i + " card " + cardinality + " x "+ nonInt);
 				// try both branches
 				boolean infeasible = false;
 				for (int k = 0; k < 2; k++) {
@@ -1716,19 +1737,29 @@ public class CplexModelGenerator {
 					System.arraycopy(r1, 0, r, 0, r1.length);
 
 					IloObjective obj = rmpCplex.getObjective();
+					IloNumExpr[] initObj = new IloNumExpr[1];
+					initObj[0] = obj.getExpr();
+					IloNumVarArray initX = new IloNumVarArray(x1);
+					IloNumVarArray initH = new IloNumVarArray(h1);
+					ArrayList<SubSet> initSubsets = new ArrayList<SubSet>(subsets1);
+
 					IloObjective reducedCost = ppCplex.getObjective();
 					Set<Integer> bvalues = new HashSet<>();
 					infeasible = false;
-
+					BiMap<Integer, OWLClassExpression> reverseQualifiers = qualifiers.inverse();
+					//System.out.println("obj expr: "+ obj.getExpr() +" reducedCost" + reducedCost);
 					if (k == 0) {
 						System.out.println("1 Trying part " + (k + 1) + " inequality " + part2);
 						// Constraint[totalVar] = rmpCp.addGe(expr[totalVar], part2);
-						Constraint[Constraint1.length] = rmpCplex.addGe(x.getElement(i), part2);
+						Constraint[Constraint1.length] = rmpCplex.addGe(nonInt, part2);
+						System.out.println("Constraint[Constraint1.length] " + Constraint[Constraint1.length]);
+					//	System.out.println("Constraint[Constraint1.length-1] " + Constraint[Constraint1.length-1]);
+						nonInt.setLB(part2);
 						// Constraint[totalVar] = rmpCplex.addGe(xv, part2);
 						// check which b values are 1
 						for (int j = 0; j < tempSubSet.getConceptIndexSet().length; j++) {
 							if (tempSubSet.getConceptIndexSet()[j] > 0) { // if b value is 1
-								// System.out.println("bvalue "+ j );
+								// System.out.println("bvalue "+ j +" Qualifier "+ reverseQualifiers.get(j));
 								bvalues.add(j);
 							}
 						}
@@ -1736,6 +1767,7 @@ public class CplexModelGenerator {
 						// add constraint in PP
 						IloLinearNumExpr nexpr = ppCplex.linearNumExpr();
 						ppNewCons = new IloConstraint[bvalues.size() + 1];
+						//ppNewCons = new IloConstraint[1];
 						int count = 0;
 						for (Integer bv : bvalues) {
 							// System.out.println(bv);
@@ -1747,11 +1779,13 @@ public class CplexModelGenerator {
 					} else {
 						System.out.println("1 Trying part " + (k + 1) + " inequality " + part1);
 						// Constraint[totalVar] = rmpCp.addLe(expr[totalVar], part1);
-						Constraint[Constraint1.length] = rmpCplex.addLe(x.getElement(i), part1);
+						Constraint[Constraint1.length] = rmpCplex.addLe(nonInt, part1);
+						nonInt.setUB(part1);
 						// Constraint[totalVar] = rmpCplex.addLe(xv, part1);
 						// check which b values are 1
 						for (int j = 0; j < tempSubSet.getConceptIndexSet().length; j++) {
 							if (tempSubSet.getConceptIndexSet()[j] > 0) { // if b value is 1
+								//System.out.println("bvalue "+ j +" Qualifier "+ reverseQualifiers.get(j));
 								bvalues.add(j);
 							}
 						}
@@ -1761,14 +1795,14 @@ public class CplexModelGenerator {
 						IloLinearNumExpr nexpr = ppCplex.linearNumExpr();
 						for (Integer bv : bvalues) {
 							nexpr.addTerm(1, b[bv]);
-							ppNewCons[count] = ppCplex.addLe(b[bv], r[r1.length]);
+							ppNewCons[count] = ppCplex.addLe(r[r1.length], b[bv]);
 							count++;
 						}
 						ppNewCons[count] = ppCplex.addLe(ppCplex.diff(nexpr, bvalues.size() - 1), r[r1.length]);
 					}
 					
-					BiMap<Integer, OWLClassExpression> reverseQualifiers = qualifiers.inverse();
-					System.out.println("solving...");
+					
+					System.out.println("solving..."+ nonInt.getLB());
 					
 					IloLinearNumExpr objExpr = ppCplex.linearNumExpr();
 					IloLinearNumExpr objExpr1 = ppCplex.linearNumExpr();
@@ -1794,9 +1828,14 @@ public class CplexModelGenerator {
 						if (rmpCplex.solve()) {
 							// System.out.println("feasible ");
 							relaxed_opt = rmpCplex.getObjValue();
-						
-							double[] price = rmpCplex.getDuals(Constraint);
-
+						//	System.out.println("-------------------------------- ");
+							
+							double[] price2 = rmpCplex.getDuals(Constraint);
+							double[] price =new double[price2.length];
+							/*for(int a = 0; a < price2.length; a++) {
+							//	System.err.println("duals "+ Math.round(price2[a]* 100000D) / 100000D);
+								price[a] =   Math.round(price2[a]* 100000D) / 100000D;
+							}*/
 							/*IloLinearNumExpr objExpr = ppCplex.linearNumExpr();
 							for (int j = 0; j < b.length; j++)
 								objExpr.addTerm(1, b[j]);
@@ -1804,23 +1843,22 @@ public class CplexModelGenerator {
 							reducedCost.setExpr(ppCplex.diff(ppCplex.square(objExpr), ppCplex.scalProd(r, price)));
 							// reducedCost.setExpr(ppCplex.diff(objExpr,ppCplex.scalProd(r, price)));
 */
+							//reducedCost.setExpr(ppCplex.diff(objExprSqSum, ppCplex.scalProd(r, price)));
 							reducedCost.setExpr(ppCplex.diff(objExprSqSum, ppCplex.scalProd(r, price)));
-							
 							if (ppCplex.solve()) {
 								// System.out.println("pp objective "+ppCplex.getObjValue());
 								if (ppCplex.getObjValue() > -RC_EPS) {
-									// System.out.println("break" + -RC_EPS);
+									// System.err.println("break" + -RC_EPS);
 									break;
 								}
-
+								//System.out.println("-------------------------------- ");
 								newCol = ppCplex.getValues(r);
-
+								
 								double[] bVal = ppCplex.getValues(b);
+								
 								int cost = 0;
 								int bPlus = 0;
 								for (int j = 0; j < bVal.length; j++) {
-									// System.out.println("bVal " + bVal[j] +" Qualifier "+
-									// reverseQualifiers.get(j));
 									if (this.qcrQualifiers.contains(reverseQualifiers.get(j)))
 										cost += bVal[j];
 									else
@@ -1858,13 +1896,13 @@ public class CplexModelGenerator {
 
 					if (!infeasible) {
 						if (relaxed_opt < M) {
-							// System.out.println("relaxed opt "+relaxed_opt);
+							 System.out.println("relaxed opt "+relaxed_opt);
 							// System.out.println("x.getSize() " + x.getSize());
-
+							 System.out.println("Constraint[Constraint1.length] " + Constraint[Constraint1.length]);
 							boolean nonInteger = false;
 							for (int l = 0; l < x.getSize(); l++) {
 								double card = rmpCplex.getValue(x.getElement(l));
-								System.err.println("cardinality! "+ card);
+							//	System.err.println(l+" cardinality! "+ card);
 								card =   Math.round(card * 100000D) / 100000D;
 							//	System.out.println("cardinality! "+ card);
 								// if(!isInteger(Math.round(card * 100000D) / 100000D)) {
@@ -1885,34 +1923,84 @@ public class CplexModelGenerator {
 							}
 
 							if (infeasible) {
+								if (k == 1) {
+									System.out.println("No solution k 2");
+									Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
+									for (int l = 0; l < totalVar; l++) {
+										if (rmpCplex.getValue(h.getElement(l)) > 0.1) {
+											infeasible_set.add(crMap.get(l));
+										}
+									}
+
+									// rmpCplex.end();
+									// ppCplex.end();
+									returnSolution.setSolved(false);
+									returnSolution.setInfeasible_set(infeasible_set);
+									return returnSolution;
+								}
+							//	System.out.println("total var "+ totalVar + "Constraint.length "+ Constraint.length);
 								for (int j = totalVar; j < Constraint.length; j++) {
 									rmpCplex.remove(Constraint[j]);
 								}
+							//	System.out.println("rmpCplex.getObjValue() "+ rmpCplex.getObjValue() );
+							//	System.out.println("BEFORE x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+								obj.setExpr(initObj[0]);
+								x = initX;
+								h= initH;
+								nonInt.setLB(0.0);
+								nonInt.setUB(0.0);
+								subsets = initSubsets;
+							//	System.out.println("AFTER x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+								
 								rmpCplex.solve();
+							//	System.out.println("rmpCplex.getObj "+ orgObj );
 								Constraint1 = new IloRange[orgConstraint.length];
 								Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
 								ppCplex = new PPModel().GeneratePpModel().getPpCplex();
 								r1 = ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
 								System.arraycopy(orgR, 0, r1, 0, orgR.length);
-								// ppCplex.solve();
+								ppCplex.solve();
 								continue;
 							}
-							// if(nonInteger) {
-							if (nonInteger && !infeasible) {
+							 if(nonInteger) {
+							//if (nonInteger && !infeasible) {
 								System.out.println("non integer cardinality! trying for integer solution ");
 								// infeasible = true;
 								// System.out.println("before call : i "+i+" subset size"+subsets.size()+" x
 								// size"+ x.getSize());
-								ILPSolution sol = applyBranchAndPrice2(-1, rmpModel, ppModel, rmpCplex, ppCplex, x, h,
-										subsets, b, r, sr, Constraint);
-							//	ILPSolution sol = applyBranchAndPrice(rmpModel, ppModel, rmpCplex, ppCplex, x, h,
+							//	ILPSolution sol = applyBranchAndPrice2(-1, rmpModel, ppModel, rmpCplex, ppCplex, x, h,
 							//			subsets, b, r, sr, Constraint);
+								ILPSolution sol = applyBranchAndPrice(rmpModel, ppModel, rmpCplex, ppCplex, x, h,
+										subsets, b, r, sr, Constraint);
+							//	ILPSolution sol = applyBranchAndPrice2(-1,rmpModel, ppModel, rmpCplex, ppCplex, x, h,
+							//			subsets, ppModel.b, ppModel.r, ppModel.sr, rmpModel.Constraint);
 								if (sol.solved)
 									return sol;
 								else {
+									if (k == 1) {
+										System.out.println("No solution k 2");
+										Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
+										for (int l = 0; l < totalVar; l++) {
+											if (rmpCplex.getValue(h.getElement(l)) > 0.1) {
+												infeasible_set.add(crMap.get(l));
+											}
+										}
+
+										// rmpCplex.end();
+										// ppCplex.end();
+										returnSolution.setSolved(false);
+										returnSolution.setInfeasible_set(infeasible_set);
+										return returnSolution;
+									}
 									for (int j = totalVar; j < Constraint.length; j++) {
 										rmpCplex.remove(Constraint[j]);
 									}
+									obj.setExpr(initObj[0]);
+									x = initX;
+									h= initH;
+									nonInt.setLB(0.0);
+									nonInt.setUB(0.0);
+									subsets = initSubsets;
 									rmpCplex.solve();
 									Constraint1 = new IloRange[orgConstraint.length];
 									Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
@@ -2021,11 +2109,18 @@ public class CplexModelGenerator {
 													for (int j = 0; j < tempSubSet1.getSupRolesIndexSet().length; j++) {
 														if (tempSubSet1.getSupRolesIndexSet()[j] > 0) { // if sr value
 																										// is 1
-															// System.out.println("sr["+j+"]:
-															// "+tempSubSet1.getSupRolesIndexSet()[j]);
-															// System.out.println("sup role "+reverseRoles.get(j) );
-
-															tempSupRoleSet.add(reverseRoles.get(j));
+															OWLObjectPropertyExpression supR = reverseRoles.get(j);
+															 /*if(axiomRoles.contains(supR)) {
+																 tempSupRoleSet.add(supR);
+															 }
+															 else {*/
+																 for(OWLObjectPropertyExpression role : this.superRoles.keySet()) {
+																	 if(tempRoleSet.contains(role) && this.superRoles.get(role).contains(supR)) {
+																		 tempSupRoleSet.add(reverseRoles.get(j));
+																		 break;
+																	 }
+																 }
+															 //}
 														}
 													}
 													tempRoleSet.addAll(tempSupRoleSet);
@@ -2114,7 +2209,7 @@ public class CplexModelGenerator {
 								return returnSolution;
 							}
 						} else {
-							/*if (k == 1) {
+							if (k == 1) {
 								System.out.println("No solution k 2");
 								Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
 								for (int l = 0; l < totalVar; l++) {
@@ -2128,11 +2223,17 @@ public class CplexModelGenerator {
 								returnSolution.setSolved(false);
 								returnSolution.setInfeasible_set(infeasible_set);
 								return returnSolution;
-							}*/
+							}
 							// System.out.println("here");
 							for (int j = totalVar; j < Constraint.length; j++) {
 								rmpCplex.remove(Constraint[j]);
 							}
+							obj.setExpr(initObj[0]);
+							x = initX;
+							h= initH;
+							nonInt.setLB(0.0);
+							nonInt.setUB(0.0);
+							subsets = initSubsets;
 							rmpCplex.solve();
 							Constraint1 = new IloRange[orgConstraint.length];
 							Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
@@ -2145,7 +2246,7 @@ public class CplexModelGenerator {
 							continue;
 						}
 					} else {
-						/*if (k == 1) {
+						if (k == 1) {
 							System.out.println("No solution");
 							Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
 							for (int l = 0; l < totalVar; l++) {
@@ -2159,10 +2260,16 @@ public class CplexModelGenerator {
 							returnSolution.setSolved(false);
 							returnSolution.setInfeasible_set(infeasible_set);
 							return returnSolution;
-						}*/
+						}
 						for (int j = totalVar; j < Constraint.length; j++) {
 							rmpCplex.remove(Constraint[j]);
 						}
+						obj.setExpr(initObj[0]);
+						x = initX;
+						h= initH;
+						nonInt.setLB(0.0);
+						nonInt.setUB(0.0);
+						subsets = initSubsets;
 						rmpCplex.solve();
 						Constraint1 = new IloRange[orgConstraint.length];
 						Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
@@ -2208,7 +2315,6 @@ public class CplexModelGenerator {
 		return returnSolution;
 
 	}
-
 	private ILPSolution applyBranchAndPrice2(int start, RMPModel rmpModel, PPModel ppModel, IloCplex rmpCplex,
 			IloCplex ppCplex, IloNumVarArray x1, IloNumVarArray h1, ArrayList<SubSet> subsets1, IloNumVar[] b,
 			IloNumVar[] r1, IloNumVar[] sr, IloRange[] Constraint1) throws IloException {
@@ -2217,14 +2323,14 @@ public class CplexModelGenerator {
 		IloNumVarArray x = new IloNumVarArray(x1);
 		IloNumVarArray h = new IloNumVarArray(h1);
 		ArrayList<SubSet> subsets = new ArrayList<SubSet>(subsets1);
-		// int size = x.getSize();
-		// System.out.println("x size :"+ size);
+		 int size = x.getSize();
+		 System.out.println("x size :"+ size);
 		// System.out.println("start :"+ start);
 
 		for (int i = start + 1; i < x.getSize(); i++) {
 			start++;
 			// System.out.println("i : "+i);
-			// System.out.println("obj : "+rmpCplex.getObjValue());
+			 System.out.println("obj : "+rmpCplex.getObjValue());
 			// rmpCplex.solve();
 			// double cardinality = rmpCplex.getValue(x.getElement(i));
 			double cardinality = Math.round(rmpCplex.getValue(x.getElement(i)) * 100000D) / 100000D;
@@ -2264,6 +2370,13 @@ public class CplexModelGenerator {
 					System.arraycopy(r1, 0, r, 0, r1.length);
 
 					IloObjective obj = rmpCplex.getObjective();
+					
+					IloNumExpr[] initObj = new IloNumExpr[1];
+					initObj[0] = obj.getExpr();
+					IloNumVarArray initX = new IloNumVarArray(x1);
+					IloNumVarArray initH = new IloNumVarArray(h1);
+					ArrayList<SubSet> initSubsets = new ArrayList<SubSet>(subsets1);
+					
 					IloObjective reducedCost = ppCplex.getObjective();
 					Set<Integer> bvalues = new HashSet<>();
 					infeasible = false;
@@ -2424,10 +2537,10 @@ public class CplexModelGenerator {
 							for (int l = 0; l < x.getSize(); l++) {
 								double card = rmpCplex.getValue(x.getElement(l));
 								card = Math.round(card * 100000D) / 100000D;
-								// System.out.println("cardinality outside! "+ card);
+								System.err.println("cardinality outside! "+ card);
 								if (!isInteger(card)) {
 									nonInteger = true;
-									break;
+									//break;
 								}
 							}
 							for (int l = 0; l < h.getSize(); l++) {
@@ -2438,8 +2551,42 @@ public class CplexModelGenerator {
 									break;
 								}
 							}
+							if (infeasible) {
+								if (k == 1) {
+									System.out.println("No solution k 2");
+									Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
+									for (int l = 0; l < totalVar; l++) {
+										if (rmpCplex.getValue(h.getElement(l)) > 0.1) {
+											infeasible_set.add(crMap.get(l));
+										}
+									}
 
-							if (nonInteger && !infeasible) {
+									// rmpCplex.end();
+									// ppCplex.end();
+									returnSolution.setSolved(false);
+									returnSolution.setInfeasible_set(infeasible_set);
+									return returnSolution;
+								}
+								for (int j = totalVar; j < Constraint.length; j++) {
+									rmpCplex.remove(Constraint[j]);
+								}
+								System.out.println("BEFORE x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+								obj.setExpr(initObj[0]);
+								x = initX;
+								h= initH;
+								subsets = initSubsets;
+								System.out.println("AFTER x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+								
+								rmpCplex.solve();
+								Constraint1 = new IloRange[orgConstraint.length];
+								Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
+								ppCplex = new PPModel().GeneratePpModel().getPpCplex();
+								r1 = ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+								System.arraycopy(orgR, 0, r1, 0, orgR.length);
+								// ppCplex.solve();
+								continue;
+							}
+							if (nonInteger) {
 								System.out.println("non integer cardinality! trying for integer solution ");
 								// infeasible = true;
 								// System.out.println("before call : i "+i+" subset size"+subsets.size()+" x
@@ -2452,22 +2599,30 @@ public class CplexModelGenerator {
 								 * else if(k == 1) { return sol; }
 								 */
 								else {
-									rmpCplex.remove(Constraint[Constraint1.length]);
-									/*
-									 * for(int j = totalVar; j<Constraint.length; j++) {
-									 * rmpCplex.remove(Constraint[j]); }
-									 */
-									rmpCplex.solve();
+									if (k == 1) {
+										System.out.println("No solution k 2");
+										Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
+										for (int l = 0; l < totalVar; l++) {
+											if (rmpCplex.getValue(h.getElement(l)) > 0.1) {
+												infeasible_set.add(crMap.get(l));
+											}
+										}
 
-									for (int j = 0; j < ppNewCons.length; j++) {
-										ppCplex.remove(ppNewCons[j]);
+										// rmpCplex.end();
+										// ppCplex.end();
+										returnSolution.setSolved(false);
+										returnSolution.setInfeasible_set(infeasible_set);
+										return returnSolution;
 									}
-									ppCplex.solve();
-									// Constraint1 = new IloRange[orgConstraint.length];
-									// Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
-									// ppCplex = new PPModel().GeneratePpModel().getPpCplex();
-									// r1 = ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
-									// System.arraycopy(orgR, 0, r1, 0, orgR.length);
+									for (int j = totalVar; j < Constraint.length; j++) {
+										rmpCplex.remove(Constraint[j]);
+									}
+									rmpCplex.solve();
+									Constraint1 = new IloRange[orgConstraint.length];
+									Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
+									ppCplex = new PPModel().GeneratePpModel().getPpCplex();
+									r1 = ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+									System.arraycopy(orgR, 0, r1, 0, orgR.length);
 									// ppCplex.solve();
 									continue;
 								}
@@ -2642,55 +2797,74 @@ public class CplexModelGenerator {
 
 										returnSolution.setEdgeInformation(finalEdgeInformations);
 									} else {
-										/*
-										 * result = false; Set<OWLObjectCardinalityRestriction> infeasible_set = new
-										 * HashSet<>(); for(int l = 0; l < totalVar; l++){
-										 * if(rmpCplex.getValue(h.getElement(l)) > 0.1){
-										 * infeasible_set.add(crMap.get(l)); } }
-										 * returnSolution.setInfeasible_set(infeasible_set);
-										 */
-										System.out.println("Infeasible inequality system. Trying other option");
+										if (k == 1) {
+											System.out.println("No solution k 2");
+											Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
+											for (int l = 0; l < totalVar; l++) {
+												if (rmpCplex.getValue(h.getElement(l)) > 0.1) {
+													infeasible_set.add(crMap.get(l));
+												}
+											}
 
-										rmpCplex.remove(Constraint[Constraint1.length]);
-										rmpCplex.solve();
-
-										for (int j = 0; j < ppNewCons.length; j++) {
-											ppCplex.remove(ppNewCons[j]);
+											// rmpCplex.end();
+											// ppCplex.end();
+											returnSolution.setSolved(false);
+											returnSolution.setInfeasible_set(infeasible_set);
+											return returnSolution;
 										}
-										ppCplex.solve();
-
-										/*
-										 * for(int j = totalVar; j<Constraint.length; j++) {
-										 * rmpCplex.remove(Constraint[j]); } rmpCplex.solve(); Constraint1 = new
-										 * IloRange[orgConstraint.length]; Constraint1 = Arrays.copyOf(orgConstraint,
-										 * orgConstraint.length); ppCplex = new
-										 * PPModel().GeneratePpModel().getPpCplex(); r1 =
-										 * ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
-										 * System.arraycopy(orgR, 0, r1, 0, orgR.length);
-										 */
+										for (int j = totalVar; j < Constraint.length; j++) {
+											rmpCplex.remove(Constraint[j]);
+										}
+										System.out.println("BEFORE x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+										obj.setExpr(initObj[0]);
+										x = initX;
+										h= initH;
+										subsets = initSubsets;
+										System.out.println("AFTER x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+										
+										rmpCplex.solve();
+										Constraint1 = new IloRange[orgConstraint.length];
+										Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
+										ppCplex = new PPModel().GeneratePpModel().getPpCplex();
+										r1 = ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+										System.arraycopy(orgR, 0, r1, 0, orgR.length);
+										// ppCplex.solve();
 										continue;
 									}
 								} else {
 
-									System.out.println("Infeasible inequality system. Trying other option");
+									if (k == 1) {
+										System.out.println("No solution k 2");
+										Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
+										for (int l = 0; l < totalVar; l++) {
+											if (rmpCplex.getValue(h.getElement(l)) > 0.1) {
+												infeasible_set.add(crMap.get(l));
+											}
+										}
 
-									rmpCplex.remove(Constraint[Constraint1.length]);
-									rmpCplex.solve();
-
-									for (int j = 0; j < ppNewCons.length; j++) {
-										ppCplex.remove(ppNewCons[j]);
+										// rmpCplex.end();
+										// ppCplex.end();
+										returnSolution.setSolved(false);
+										returnSolution.setInfeasible_set(infeasible_set);
+										return returnSolution;
 									}
-									ppCplex.solve();
-
-									/*
-									 * for(int j = totalVar; j<Constraint.length; j++) {
-									 * rmpCplex.remove(Constraint[j]); } rmpCplex.solve(); Constraint1 = new
-									 * IloRange[orgConstraint.length]; Constraint1 = Arrays.copyOf(orgConstraint,
-									 * orgConstraint.length); ppCplex = new
-									 * PPModel().GeneratePpModel().getPpCplex(); r1 =
-									 * ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
-									 * System.arraycopy(orgR, 0, r1, 0, orgR.length);
-									 */
+									for (int j = totalVar; j < Constraint.length; j++) {
+										rmpCplex.remove(Constraint[j]);
+									}
+									System.out.println("BEFORE x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+									obj.setExpr(initObj[0]);
+									x = initX;
+									h= initH;
+									subsets = initSubsets;
+									System.out.println("AFTER x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+									
+									rmpCplex.solve();
+									Constraint1 = new IloRange[orgConstraint.length];
+									Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
+									ppCplex = new PPModel().GeneratePpModel().getPpCplex();
+									r1 = ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+									System.arraycopy(orgR, 0, r1, 0, orgR.length);
+									// ppCplex.solve();
 									continue;
 								}
 								// rmpCplex.end();
@@ -2704,52 +2878,74 @@ public class CplexModelGenerator {
 							 * for(IloConstraint ppc : ppNewCons) { ppCplex.remove(ppc); } continue; }
 							 */
 						} else {
-							// System.out.println("here");
+							if (k == 1) {
+								System.out.println("No solution k 2");
+								Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
+								for (int l = 0; l < totalVar; l++) {
+									if (rmpCplex.getValue(h.getElement(l)) > 0.1) {
+										infeasible_set.add(crMap.get(l));
+									}
+								}
 
-							rmpCplex.remove(Constraint[Constraint1.length]);
-							rmpCplex.solve();
-
-							for (int j = 0; j < ppNewCons.length; j++) {
-								ppCplex.remove(ppNewCons[j]);
+								// rmpCplex.end();
+								// ppCplex.end();
+								returnSolution.setSolved(false);
+								returnSolution.setInfeasible_set(infeasible_set);
+								return returnSolution;
 							}
-							ppCplex.solve();
-
-							/*
-							 * for(int j = totalVar; j<Constraint.length; j++) {
-							 * rmpCplex.remove(Constraint[j]); } rmpCplex.solve(); Constraint1 = new
-							 * IloRange[orgConstraint.length]; Constraint1 = Arrays.copyOf(orgConstraint,
-							 * orgConstraint.length); ppCplex = new
-							 * PPModel().GeneratePpModel().getPpCplex(); r1 =
-							 * ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
-							 * System.arraycopy(orgR, 0, r1, 0, orgR.length);
-							 */
-							/*
-							 * for(IloConstraint ppc : ppNewCons) { ppCplex.remove(ppc); }
-							 */
+							for (int j = totalVar; j < Constraint.length; j++) {
+								rmpCplex.remove(Constraint[j]);
+							}
+							System.out.println("BEFORE x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+							obj.setExpr(initObj[0]);
+							x = initX;
+							h= initH;
+							subsets = initSubsets;
+							System.out.println("AFTER x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+							
+							rmpCplex.solve();
+							Constraint1 = new IloRange[orgConstraint.length];
+							Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
+							ppCplex = new PPModel().GeneratePpModel().getPpCplex();
+							r1 = ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+							System.arraycopy(orgR, 0, r1, 0, orgR.length);
+							// ppCplex.solve();
 							continue;
 						}
 					} else {
 
-						rmpCplex.remove(Constraint[Constraint1.length]);
-						rmpCplex.solve();
+						if (k == 1) {
+							System.out.println("No solution k 2");
+							Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
+							for (int l = 0; l < totalVar; l++) {
+								if (rmpCplex.getValue(h.getElement(l)) > 0.1) {
+									infeasible_set.add(crMap.get(l));
+								}
+							}
 
-						for (int j = 0; j < ppNewCons.length; j++) {
-							ppCplex.remove(ppNewCons[j]);
+							// rmpCplex.end();
+							// ppCplex.end();
+							returnSolution.setSolved(false);
+							returnSolution.setInfeasible_set(infeasible_set);
+							return returnSolution;
 						}
-						ppCplex.solve();
-
-						/*
-						 * for(int j = totalVar; j<Constraint.length; j++) {
-						 * rmpCplex.remove(Constraint[j]); } rmpCplex.solve(); Constraint1 = new
-						 * IloRange[orgConstraint.length]; Constraint1 = Arrays.copyOf(orgConstraint,
-						 * orgConstraint.length); ppCplex = new
-						 * PPModel().GeneratePpModel().getPpCplex(); r1 =
-						 * ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
-						 * System.arraycopy(orgR, 0, r1, 0, orgR.length);
-						 */
-						/*
-						 * for(IloConstraint ppc : ppNewCons) { ppCplex.remove(ppc); }
-						 */
+						for (int j = totalVar; j < Constraint.length; j++) {
+							rmpCplex.remove(Constraint[j]);
+						}
+						System.out.println("BEFORE x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+						obj.setExpr(initObj[0]);
+						x = initX;
+						h= initH;
+						subsets = initSubsets;
+						System.out.println("AFTER x.size"+ x.getSize() +" subsets.size() "+ subsets.size() +  " obj: "+ obj +" reducedCost" + reducedCost);
+						
+						rmpCplex.solve();
+						Constraint1 = new IloRange[orgConstraint.length];
+						Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
+						ppCplex = new PPModel().GeneratePpModel().getPpCplex();
+						r1 = ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+						System.arraycopy(orgR, 0, r1, 0, orgR.length);
+						// ppCplex.solve();
 						continue;
 					}
 				}
@@ -2786,6 +2982,582 @@ public class CplexModelGenerator {
 		return returnSolution;
 
 	}
+	/*private ILPSolution applyBranchAndPrice2(int start, RMPModel rmpModel, PPModel ppModel, IloCplex rmpCplex,
+			IloCplex ppCplex, IloNumVarArray x1, IloNumVarArray h1, ArrayList<SubSet> subsets1, IloNumVar[] b,
+			IloNumVar[] r1, IloNumVar[] sr, IloRange[] Constraint1) throws IloException {
+
+		ILPSolution returnSolution = new ILPSolution();
+		IloNumVarArray x = new IloNumVarArray(x1);
+		IloNumVarArray h = new IloNumVarArray(h1);
+		ArrayList<SubSet> subsets = new ArrayList<SubSet>(subsets1);
+		// int size = x.getSize();
+		// System.out.println("x size :"+ size);
+		// System.out.println("start :"+ start);
+
+		for (int i = start + 1; i < x.getSize(); i++) {
+			start++;
+			// System.out.println("i : "+i);
+			// System.out.println("obj : "+rmpCplex.getObjValue());
+			// rmpCplex.solve();
+			// double cardinality = rmpCplex.getValue(x.getElement(i));
+			double cardinality = Math.round(rmpCplex.getValue(x.getElement(i)) * 100000D) / 100000D;
+			System.out.println("cardinality bnp 2: " + cardinality);
+			
+			 * for ( int ii = 0; ii < x.getSize(); ii++ ) {
+			 * System.out.println("cardinality check :"+
+			 * Math.round(rmpCplex.getValue(x.getElement(ii))* 100000D) / 100000D); }
+			 
+			if (!isInteger(cardinality)) {
+
+				System.out.println("Trying value number " + i + " card " + cardinality);
+				// subsets = new ArrayList<SubSet>(subsets1);
+
+				double fractional = cardinality % 1;
+				double part1 = cardinality - fractional;
+				double part2 = part1 + 1;
+				// System.out.println("i "+i+" subset size"+subsets.size()+" x size"+
+				// x.getSize());
+
+				
+				 * if(i>=subsets.size()) {
+				 * System.out.println("i "+i+" subset size"+subsets.size()); break; }
+				 
+				SubSet tempSubSet = subsets.get(i);
+
+				// try both branches
+				boolean infeasible = false;
+				for (int k = 0; k < 2; k++) {
+
+					IloRange[] Constraint = Arrays.copyOf(Constraint1, Constraint1.length + 1);
+					IloConstraint[] ppNewCons = null;
+					// System.out.println("constraint size " + Constraint.length);
+
+					IloNumVar[] r = ppCplex.numVarArray(r1.length + 1, 0., 1, IloNumVarType.Int);
+
+					System.arraycopy(r1, 0, r, 0, r1.length);
+
+					IloObjective obj = rmpCplex.getObjective();
+					IloObjective reducedCost = ppCplex.getObjective();
+					Set<Integer> bvalues = new HashSet<>();
+					infeasible = false;
+
+					if (k == 0) {
+						System.out.println("Trying part " + (k + 1) + " inequality " + part2);
+						// Constraint[totalVar] = rmpCp.addGe(expr[totalVar], part2);
+						Constraint[Constraint1.length] = rmpCplex.addGe(x.getElement(i), part2);
+						// Constraint[totalVar] = rmpCplex.addGe(xv, part2);
+						// check which b values are 1
+						for (int j = 0; j < tempSubSet.getConceptIndexSet().length; j++) {
+							if (tempSubSet.getConceptIndexSet()[j] > 0) { // if b value is 1
+								// System.out.println("bvalue "+ j );
+								bvalues.add(j);
+							}
+						}
+
+						// add constraint in PP
+						IloLinearNumExpr nexpr = ppCplex.linearNumExpr();
+						ppNewCons = new IloConstraint[bvalues.size() + 1];
+						int count = 0;
+						for (Integer bv : bvalues) {
+							// System.out.println(bv);
+							nexpr.addTerm(1, b[bv]);
+							ppNewCons[count] = ppCplex.addLe(r[r1.length], b[bv]);
+							count++;
+						}
+						ppNewCons[count] = ppCplex.addLe(ppCplex.diff(nexpr, bvalues.size() - 1), r[r1.length]);
+					} else {
+						System.out.println("Trying part " + (k + 1) + " inequality " + part1);
+						// Constraint[totalVar] = rmpCp.addLe(expr[totalVar], part1);
+						Constraint[Constraint1.length] = rmpCplex.addLe(x.getElement(i), part1);
+						// Constraint[totalVar] = rmpCplex.addLe(xv, part1);
+						// check which b values are 1
+						for (int j = 0; j < tempSubSet.getConceptIndexSet().length; j++) {
+							if (tempSubSet.getConceptIndexSet()[j] > 0) { // if b value is 1
+								bvalues.add(j);
+							}
+						}
+						ppNewCons = new IloConstraint[bvalues.size() + 1];
+						int count = 0;
+						// add constraint in PP
+						IloLinearNumExpr nexpr = ppCplex.linearNumExpr();
+						for (Integer bv : bvalues) {
+							// System.out.println(bv);
+							// System.out.println(r[totalVar]);
+							nexpr.addTerm(1, b[bv]);
+							ppNewCons[count] = ppCplex.addLe(b[bv], r[r1.length]);
+							count++;
+						}
+						ppNewCons[count] = ppCplex.addLe(ppCplex.diff(nexpr, bvalues.size() - 1), r[r1.length]);
+					}
+					BiMap<Integer, OWLClassExpression> reverseQualifiers = qualifiers.inverse();
+					System.out.println("solving...");
+
+					IloLinearNumExpr objExpr = ppCplex.linearNumExpr();
+					IloLinearNumExpr objExpr1 = ppCplex.linearNumExpr();
+					int count = 0;
+					for (int j = 0; j < b.length; j++) {
+						if (this.qcrQualifiers.contains(reverseQualifiers.get(j))) {
+							count++;
+							objExpr.addTerm(1, b[j]);
+						} else
+							objExpr1.addTerm(1, b[j]);
+					}
+					if (count == 0)
+						count = 1;
+
+					IloNumExpr objExprSqSum = ppCplex.sum(ppCplex.prod(count, ppCplex.square(objExpr)), objExpr1);
+					double[] newCol = new double[totalVar + 1];
+					// System.out.println("M value "+M);
+					double relaxed_opt = M;
+					while (true) {
+
+						infeasible = false;
+						if (rmpCplex.solve()) {
+						//	System.out.println("feasible ");
+							relaxed_opt = rmpCplex.getObjValue();
+							double[] price = rmpCplex.getDuals(Constraint);
+
+							IloLinearNumExpr objExpr = ppCplex.linearNumExpr();
+							for (int j = 0; j < b.length; j++)
+								objExpr.addTerm(1, b[j]);
+							// System.out.println("r value # "+r.length);
+							reducedCost.setExpr(ppCplex.diff(ppCplex.square(objExpr), ppCplex.scalProd(r, price)));
+							// reducedCost.setExpr(ppCplex.diff(objExpr,ppCplex.scalProd(r, price)));
+
+							reducedCost.setExpr(ppCplex.diff(objExprSqSum, ppCplex.scalProd(r, price)));
+							if (ppCplex.solve()) {
+								// System.out.println("pp objective "+ppCplex.getObjValue());
+								if (ppCplex.getObjValue() > -RC_EPS) {
+									// System.out.println("break" + -RC_EPS);
+									break;
+								}
+
+								newCol = ppCplex.getValues(r);
+
+								double[] bVal = ppCplex.getValues(b);
+								int cost = 0;
+								int bPlus = 0;
+								for (int j = 0; j < bVal.length; j++) {
+									// System.out.println("bVal " + bVal[j] +" Qualifier "+
+									// reverseQualifiers.get(j));
+									if (this.qcrQualifiers.contains(reverseQualifiers.get(j)))
+										cost += bVal[j];
+									else
+										bPlus += bVal[j];
+
+								}
+								int cost2 = (qcrQualifiers.size() * cost * cost) + (bPlus);
+								// System.err.println("cost " + cost + " cost2 "+cost2 +" (cost*cost)*bPlus "+
+								// (cost*cost)*bPlus + " square bPlus "+bPlus*bPlus);
+								IloColumn column = rmpCplex.column(obj, cost2);// Creates and returns a column from the specified
+																				// objective and value.
+								for (int ii = 0; ii < Constraint.length; ii++)
+									column = column.and(rmpCplex.column(Constraint[ii], newCol[ii]));// Creates and
+																										// returns a
+																										// column from
+																										// the specified
+																										// range and
+																										// value.
+
+								x.add(rmpCplex.numVar(column, 0., Double.MAX_VALUE));
+								subsets.add(
+										new SubSet(ppCplex.getValues(r), ppCplex.getValues(b), ppCplex.getValues(sr)));
+								// System.out.println("x add "+ x.getSize()+" subset add "+ subsets.size());
+
+							} else {
+								infeasible = true;
+								break;
+							}
+						} else {
+							// System.out.println("infeasible 1");
+							infeasible = true;
+							break;
+						}
+					}
+
+					if (!infeasible) {
+						if (relaxed_opt < M) {
+							// System.out.println("relaxed opt "+relaxed_opt);
+							// System.out.println("x.getSize() " + x.getSize());
+							
+							 * for(int l = 0; l < h.getSize(); l++){ double card =
+							 * rmpCplex.getValue(h.getElement(l)); if(card > 0){
+							 * System.out.println("non zero cardinality " + card); infeasible = true; break;
+							 * } } if(infeasible) { for(int j = totalVar; j<Constraint.length; j++) {
+							 * rmpCplex.remove(Constraint[j]); } Constraint1 = new
+							 * IloRange[orgConstraint.length]; Constraint1 = Arrays.copyOf(orgConstraint,
+							 * orgConstraint.length); ppCplex = new
+							 * PPModel().GeneratePpModel().getPpCplex(); r1 =
+							 * ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+							 * System.arraycopy(orgR, 0, r1, 0, orgR.length); for(IloConstraint ppc :
+							 * ppNewCons) { ppCplex.remove(ppc); } System.out.println("k value "+k);
+							 * continue; }
+							 
+							boolean nonInteger = false;
+							for (int l = 0; l < x.getSize(); l++) {
+								double card = rmpCplex.getValue(x.getElement(l));
+								card = Math.round(card * 100000D) / 100000D;
+								// System.out.println("cardinality outside! "+ card);
+								if (!isInteger(card)) {
+									nonInteger = true;
+									break;
+								}
+							}
+							for (int l = 0; l < h.getSize(); l++) {
+								double card = rmpCplex.getValue(h.getElement(l));
+								card = Math.round(card * 100000D) / 100000D;
+								if (card > 0) {
+									infeasible = true;
+									break;
+								}
+							}
+							if (nonInteger && !infeasible) {
+								System.out.println("non integer cardinality! trying for integer solution ");
+								// infeasible = true;
+								// System.out.println("before call : i "+i+" subset size"+subsets.size()+" x
+								// size"+ x.getSize());
+								ILPSolution sol = applyBranchAndPrice2(start, rmpModel, ppModel, rmpCplex, ppCplex, x,
+										h, subsets, b, r, sr, Constraint);
+								if (sol.solved)
+									return sol;
+								
+								 * else if(k == 1) { return sol; }
+								 
+								else {
+									rmpCplex.remove(Constraint[Constraint1.length]);
+									
+									 * for(int j = totalVar; j<Constraint.length; j++) {
+									 * rmpCplex.remove(Constraint[j]); }
+									 
+									rmpCplex.solve();
+
+									for (int j = 0; j < ppNewCons.length; j++) {
+										ppCplex.remove(ppNewCons[j]);
+									}
+									ppCplex.solve();
+									// Constraint1 = new IloRange[orgConstraint.length];
+									// Constraint1 = Arrays.copyOf(orgConstraint, orgConstraint.length);
+									// ppCplex = new PPModel().GeneratePpModel().getPpCplex();
+									// r1 = ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+									// System.arraycopy(orgR, 0, r1, 0, orgR.length);
+									// ppCplex.solve();
+									continue;
+								}
+
+							} else {
+								for (int l = 0; l < x.getSize(); l++)
+									rmpCplex.add(x.getElement(l));
+							}
+
+							for (int l = 0; l < h.getSize(); l++) {
+								rmpCplex.add(h.getElement(l));
+								// rmpCp.add(rmpCp.conversion(h.getElement(l),IloNumVarType.Int));
+							}
+
+							boolean result = false;
+							if (rmpCplex.solve()) {
+
+								
+								 * if(k!=1) { for(int j = totalVar; j<Constraint.length; j++) {
+								 * rmpCplex.remove(Constraint[j]); } Constraint1 = new
+								 * IloRange[orgConstraint.length]; Constraint1 = Arrays.copyOf(orgConstraint,
+								 * orgConstraint.length); ppCplex = new
+								 * PPModel().GeneratePpModel().getPpCplex(); r1 =
+								 * ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+								 * System.arraycopy(orgR, 0, r1, 0, orgR.length); continue; }
+								 
+								result = true;
+								Set<EdgeInformation> edgeInformationSet = new HashSet<EdgeInformation>();
+
+								if (rmpCplex.getObjValue() < M) {
+									System.out.println("rmp obj " + rmpCplex.getObjValue());
+									for (int l = 0; l < h.getSize(); l++) {
+										double card = rmpCplex.getValue(h.getElement(l));
+										card = Math.round(card * 100000D) / 100000D;
+										if (card > 0) {
+											// System.out.println("non zero cardinality " + card);
+											infeasible = true;
+											break;
+										}
+									}
+									
+									 * for(int l = 0; l < x.getSize(); l++){ double card =
+									 * rmpCplex.getValue(x.getElement(l)); if(!isInteger(card)) {
+									 * System.out.println("non integer cardinality " + card); infeasible = true;
+									 * break; } }
+									 
+									if (!infeasible) {
+									//	BiMap<Integer, OWLClassExpression> reverseQualifiers = qualifiers.inverse();
+										BiMap<Integer, OWLObjectPropertyExpression> reverseRoles = srRolesMap.inverse();
+										BiMap<Integer, OWLObjectPropertyExpression> reverseTempRoles = tempRoleHMap
+												.inverse();
+										Map<OWLObjectPropertyExpression, OWLObjectPropertyExpression> reverseTempRoleH = new HashMap<>();
+										for (Entry<OWLObjectPropertyExpression, OWLObjectPropertyExpression> e : tempRoleH
+												.entrySet()) {
+											reverseTempRoleH.put(e.getValue(), e.getKey());
+										}
+										for (int l = 0; l < x.getSize(); l++) {
+											double cardinality2 = rmpCplex.getValue(x.getElement(l));
+											cardinality2 =   Math.round(cardinality2 * 100000D) / 100000D;
+											// System.out.println("x cardinality2 " + cardinality2);
+											if (cardinality2 > 0.0) {
+												// System.out.println("l value " + l);
+												SubSet tempSubSet1 = subsets.get(l);
+
+												Set<OWLObjectPropertyExpression> tempRoleSet = new HashSet<>();
+												Set<OWLObjectPropertyExpression> tempSupRoleSet = new HashSet<>();
+												Set<OWLClassExpression> tempClassSet = new HashSet<>();
+												Set<Integer> nodeSet = new HashSet<>();
+
+												boolean addIt = false;
+
+												for (int j = 0; j < tempSubSet1.getConceptIndexSet().length; j++) {
+													if (tempSubSet1.getConceptIndexSet()[j] > 0) { // if b value is 1
+														tempClassSet.add(reverseQualifiers.get(j));
+														if (!addIt)
+															addIt = true;
+													}
+												}
+												// System.out.println("tempClassSet "+tempClassSet.size());
+												DependencySet ds = DependencySet.create();
+												Set<OWLClassExpression> temp = new HashSet<>();
+												temp.addAll(tempClassSet);
+												for (OWLClassExpression ce : temp) {
+													if(ilpPro.conceptDs.containsKey(ce)) {
+														for(DependencySet d : ilpPro.conceptDs.get(ce))
+															ds.add(d);
+													}
+													if (ilpPro.getAuxiliaryConcepts().contains(ce))
+														tempClassSet.addAll(ilpPro.getComplexASubsumers(ce));
+													if (ilpPro.getComSubConcepts().contains(ce))
+														tempClassSet.addAll(ilpPro.getComplexCSubsumers(ce));
+													if (ilpPro.getComSubNom().contains(ce))
+														tempClassSet.addAll(ilpPro.getComplexNSubsumers(ce));
+													if (ilpPro.getNodeIdMap().containsKey(ce))
+														nodeSet.add(ilpPro.getNodeIdMap().get(ce));
+												}
+												tempClassSet.removeAll(ilpPro.getAuxiliaryConcepts());
+												if (addIt) {
+													
+													for (int j = 0; j < tempSubSet1.getRolesIndexSet().length; j++) {
+														if (tempSubSet1.getRolesIndexSet()[j] > 0) { // if r value is 1
+														//	 System.out.println(" role "+qcrMap.get(j));
+															if (qcrMap.get(j) != null) {
+															//	 System.out.println(" role "+qcrMap.get(j).role +" qualifier "+qcrMap.get(j).qualifier + " ds "+ qcrMap.get(j).ds.getbpList());
+																if (qcrMap.get(j).role != null && qcrMap.get(j).getType()!="MAX") {
+																	tempRoleSet.add(qcrMap.get(j).role);
+																	ds.add(qcrMap.get(j).ds);
+																}
+															}
+														}
+													}
+													for (int j = 0; j < tempSubSet1.getSupRolesIndexSet().length; j++) {
+														if (tempSubSet1.getSupRolesIndexSet()[j] > 0) { // if sr value
+																										// is 1
+															// System.out.println("sr["+j+"]:
+															// "+tempSubSet1.getSupRolesIndexSet()[j]);
+															// System.out.println("sup role "+reverseRoles.get(j) );
+
+															tempSupRoleSet.add(reverseRoles.get(j));
+														}
+													}
+													tempRoleSet.addAll(tempSupRoleSet);
+													Set<OWLObjectPropertyExpression> temp2 = new HashSet<>();
+													temp2.addAll(tempRoleSet);
+													for (OWLObjectPropertyExpression rr : temp2) {
+														if (ilpPro.getAuxiliaryRoles().contains(rr))
+															tempRoleSet.addAll(ilpPro.getAuxRoleHMap(rr));
+													}
+													tempRoleSet.removeAll(ilpPro.getAuxiliaryRoles());
+													for(OWLObjectPropertyExpression role :  tempRoleSet) {
+														for(DependencySet rds : ilpPro.getRoleDS(role)) {
+															ds.add(DependencySet.create(rds));
+														}
+													}
+													Set<ConceptNDepSet> cnds = new HashSet<>();
+													for(OWLClassExpression ce : tempClassSet) {
+														cnds.add(new ConceptNDepSet(ce, ilpPro.getConceptDS(ce)));
+													}
+												//	 System.out.println(" cnds.size "+ cnds.size() + "  ds "+ ds.getbpList() +" tempRoleSet.isEmpty() "+ tempRoleSet.isEmpty());
+													
+													 
+													 if (!tempRoleSet.isEmpty()) {
+														EdgeInformation tempEdgeInformation = new EdgeInformation(tempRoleSet, cnds,
+																tempClassSet, cardinality2, ds, nodeSet);
+														edgeInformationSet.add(tempEdgeInformation);
+													}
+												}
+											}
+
+										}
+
+										
+
+										Map<EdgeInformation, Integer> edge_map = new HashMap<>();
+										for (EdgeInformation e : edgeInformationSet) {
+											EdgeInformation indic = this.containsEdge(edge_map.keySet(), e);
+											if (indic == null)
+												edge_map.put(e, e.getCardinality());
+											else {
+												edge_map.put(indic, edge_map.get(indic) + e.getCardinality());
+											}
+										}
+
+										Set<EdgeInformation> finalEdgeInformations = new HashSet<EdgeInformation>();
+										for (EdgeInformation e : edge_map.keySet()) {
+											Set<OWLClassExpression> fillers = e.getFillers();
+											Set<ConceptNDepSet> cnds = e.getCnds();
+											EdgeInformation tempEdgeInformation = new EdgeInformation(e.getEdges(), cnds,
+													fillers, edge_map.get(e), e.getDs(), e.getNodeSet());
+											finalEdgeInformations.add(tempEdgeInformation);
+										}
+
+										returnSolution.setEdgeInformation(finalEdgeInformations);
+									} else {
+										
+										 * result = false; Set<OWLObjectCardinalityRestriction> infeasible_set = new
+										 * HashSet<>(); for(int l = 0; l < totalVar; l++){
+										 * if(rmpCplex.getValue(h.getElement(l)) > 0.1){
+										 * infeasible_set.add(crMap.get(l)); } }
+										 * returnSolution.setInfeasible_set(infeasible_set);
+										 
+										System.out.println("Infeasible inequality system. Trying other option");
+
+										rmpCplex.remove(Constraint[Constraint1.length]);
+										rmpCplex.solve();
+
+										for (int j = 0; j < ppNewCons.length; j++) {
+											ppCplex.remove(ppNewCons[j]);
+										}
+										ppCplex.solve();
+
+										
+										 * for(int j = totalVar; j<Constraint.length; j++) {
+										 * rmpCplex.remove(Constraint[j]); } rmpCplex.solve(); Constraint1 = new
+										 * IloRange[orgConstraint.length]; Constraint1 = Arrays.copyOf(orgConstraint,
+										 * orgConstraint.length); ppCplex = new
+										 * PPModel().GeneratePpModel().getPpCplex(); r1 =
+										 * ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+										 * System.arraycopy(orgR, 0, r1, 0, orgR.length);
+										 
+										continue;
+									}
+								} else {
+
+									System.out.println("Infeasible inequality system. Trying other option");
+
+									rmpCplex.remove(Constraint[Constraint1.length]);
+									rmpCplex.solve();
+
+									for (int j = 0; j < ppNewCons.length; j++) {
+										ppCplex.remove(ppNewCons[j]);
+									}
+									ppCplex.solve();
+
+									
+									 * for(int j = totalVar; j<Constraint.length; j++) {
+									 * rmpCplex.remove(Constraint[j]); } rmpCplex.solve(); Constraint1 = new
+									 * IloRange[orgConstraint.length]; Constraint1 = Arrays.copyOf(orgConstraint,
+									 * orgConstraint.length); ppCplex = new
+									 * PPModel().GeneratePpModel().getPpCplex(); r1 =
+									 * ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+									 * System.arraycopy(orgR, 0, r1, 0, orgR.length);
+									 
+									continue;
+								}
+								// rmpCplex.end();
+								// ppCplex.end();
+								returnSolution.setSolved(result);
+
+								return returnSolution;
+							}
+							
+							 * else{ infeasible = true; rmpCplex.remove(Constraint[Constraint1.length]);
+							 * for(IloConstraint ppc : ppNewCons) { ppCplex.remove(ppc); } continue; }
+							 
+						} else {
+							// System.out.println("here");
+
+							rmpCplex.remove(Constraint[Constraint1.length]);
+							rmpCplex.solve();
+
+							for (int j = 0; j < ppNewCons.length; j++) {
+								ppCplex.remove(ppNewCons[j]);
+							}
+							ppCplex.solve();
+
+							
+							 * for(int j = totalVar; j<Constraint.length; j++) {
+							 * rmpCplex.remove(Constraint[j]); } rmpCplex.solve(); Constraint1 = new
+							 * IloRange[orgConstraint.length]; Constraint1 = Arrays.copyOf(orgConstraint,
+							 * orgConstraint.length); ppCplex = new
+							 * PPModel().GeneratePpModel().getPpCplex(); r1 =
+							 * ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+							 * System.arraycopy(orgR, 0, r1, 0, orgR.length);
+							 
+							
+							 * for(IloConstraint ppc : ppNewCons) { ppCplex.remove(ppc); }
+							 
+							continue;
+						}
+					} else {
+
+						rmpCplex.remove(Constraint[Constraint1.length]);
+						rmpCplex.solve();
+
+						for (int j = 0; j < ppNewCons.length; j++) {
+							ppCplex.remove(ppNewCons[j]);
+						}
+						ppCplex.solve();
+
+						
+						 * for(int j = totalVar; j<Constraint.length; j++) {
+						 * rmpCplex.remove(Constraint[j]); } rmpCplex.solve(); Constraint1 = new
+						 * IloRange[orgConstraint.length]; Constraint1 = Arrays.copyOf(orgConstraint,
+						 * orgConstraint.length); ppCplex = new
+						 * PPModel().GeneratePpModel().getPpCplex(); r1 =
+						 * ppCplex.numVarArray(orgR.length, 0., 1, IloNumVarType.Int);
+						 * System.arraycopy(orgR, 0, r1, 0, orgR.length);
+						 
+						
+						 * for(IloConstraint ppc : ppNewCons) { ppCplex.remove(ppc); }
+						 
+						continue;
+					}
+				}
+				if (infeasible == true) {
+					System.out.println("No solution 2");
+					Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
+					for (int l = 0; l < totalVar; l++) {
+						if (rmpCplex.getValue(h.getElement(l)) > 0.1) {
+							infeasible_set.add(crMap.get(l));
+						}
+					}
+
+					// rmpCplex.end();
+					// ppCplex.end();
+					returnSolution.setSolved(false);
+					returnSolution.setInfeasible_set(infeasible_set);
+					return returnSolution;
+				}
+			}
+
+		}
+		System.out.println("No solution");
+		Set<OWLObjectCardinalityRestriction> infeasible_set = new HashSet<>();
+		for (int l = 0; l < totalVar; l++) {
+			if (rmpCplex.getValue(h.getElement(l)) > 0.1) {
+				infeasible_set.add(crMap.get(l));
+			}
+		}
+
+		// rmpCplex.end();
+		// ppCplex.end();
+		returnSolution.setSolved(false);
+		returnSolution.setInfeasible_set(infeasible_set);
+		return returnSolution;
+
+	}*/
 
 	private EdgeInformation containsEdge(Set<EdgeInformation> aSet , EdgeInformation a){
 		Set<OWLClassExpression> tempSet = a.getFillers();
@@ -3049,7 +3821,7 @@ public class CplexModelGenerator {
 					axiomRolesMap.put(qcrMap.get(i).role, i);
 					if(tempRoleH.containsKey(qcrMap.get(i).role))
 						ppCplex.addLe(r[i] , hr[tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role))]);
-					//System.out.println("r["+i+"]: role "+"hr["+tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role.getNamedProperty()))+"] "+ tempRoleH.get(qcrMap.get(i).role.getNamedProperty()));
+					//System.out.println(qcrMap.get(i).role+ " r["+i+"]: role "+"hr["+tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role.getNamedProperty()))+"] "+ tempRoleH.get(qcrMap.get(i).role.getNamedProperty()));
 					//System.out.println("r["+i+"]: role "+qcrMap.get(i).role.getNamedProperty()+ "qualifier "+qcrMap.get(i).qualifier);
 					
 				}
@@ -3059,7 +3831,12 @@ public class CplexModelGenerator {
 				}
 				else if (qcrMap.get(i).type.equals("MAX")) {
 					//ppCplex.addLe(b[qualifiers.get(qcrMap.get(i).qualifier)] , r[i]);
-					ppCplex.addLe(ppCplex.sum(hr[tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role))], 
+					//ppCplex.addLe(ppCplex.sum(hr[tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role))], 
+					///		b[qualifiers.get(qcrMap.get(i).qualifier)]), ppCplex.sum(1,  r[i]));
+					
+					//System.out.println(qcrMap.get(i).role + " hr["+tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role))+"] ");
+					
+					ppCplex.addEq(ppCplex.sum(hr[tempRoleHMap.get(tempRoleH.get(qcrMap.get(i).role))], 
 							b[qualifiers.get(qcrMap.get(i).qualifier)]), ppCplex.sum(1,  r[i]));
 					
 				}
@@ -3113,15 +3890,17 @@ public class CplexModelGenerator {
 				if(superRoles.get(role) != null){
 					OWLObjectPropertyExpression tempSupRole = tempRoleH.get(role);
 					for(OWLObjectPropertyExpression supRole : superRoles.get(role)){
-					//	System.out.println("role : "+role+" H role "+tempSupRole+" sup role " +supRole);
+					//	System.err.println("role : "+role+" H role "+tempSupRole+" sup role " +supRole);
 					//	System.out.println("role : "+role+" sup role " +supRole);
 						///System.out.println("hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "sr["+srRolesMap.get(supRole)+"]");
 						if(axiomRoles.contains(supRole)) {
-							//System.out.println("hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "hr["+tempRoleHMap.get(tempRoleH.get(supRole))+"]");
+							//System.out.println(tempSupRole + "hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ "hr["+tempRoleHMap.get(tempRoleH.get(supRole))+"]");
 							ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], hr[tempRoleHMap.get(tempRoleH.get(supRole))]);
 							
 						}
 						if(srRolesMap.get(supRole) != null)
+							//System.out.println(tempSupRole +" hr["+tempRoleHMap.get(tempSupRole)+"] <= "+ supRole +" sr["+srRolesMap.get(supRole)+"]");
+						
 						ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], sr[srRolesMap.get(supRole)]);
 					}
 				}
@@ -3137,8 +3916,10 @@ public class CplexModelGenerator {
 						
 						for(OWLClassExpression C : forAllMaps.get(role)) {
 							ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], b[qualifiers.get(C)]);
-							if(srRolesMap.get(role)!=null)
+							if(srRolesMap.get(role)!=null) {
+								//System.out.println("for all: role "+ role+ " class  "+C);
 								ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
+							}
 						}
 					}
 					else {
@@ -3163,8 +3944,10 @@ public class CplexModelGenerator {
 						//System.out.println("role "+ role+ " class  "+C);
 							
 						ppCplex.addLe(hr[tempRoleHMap.get(tempSupRole)], b[qualifiers.get(C)]);
-							if(srRolesMap.get(role)!=null)
+							if(srRolesMap.get(role)!=null) {
+								//System.out.println("TOP max : role "+ role+ " class  "+C);
 								ppCplex.addLe(sr[srRolesMap.get(role)], b[qualifiers.get(C)]);
+							}
 						
 					}
 					else {
@@ -3178,7 +3961,7 @@ public class CplexModelGenerator {
 			//System.out.println("TOP min cardinality Restrictions : "+topMinMap.keySet().size());
 			
 			for (OWLObjectPropertyExpression role : topMinMap.keySet()){
-				//System.out.println("TOP max cardinality Restrictions : "+topMaxMap.keySet().size());
+				//System.out.println("TOP min cardinality Restrictions : "+topMinMap.keySet().size());
 				if(topMinMap.get(role) != null){
 					int ri = 0;
 					for(int i : qcrMap.keySet()) {
@@ -3207,7 +3990,7 @@ public class CplexModelGenerator {
 			for (OWLClassExpression C : allQualifiers){
 				if(conceptSubsumersMap.get(C) != null){
 					for(OWLClassExpression D : conceptSubsumersMap.get(C)){
-						System.out.println(""+C+" subsume by "+D);
+					//	System.out.println(""+C+" subsume by "+D);
 						if(D instanceof OWLObjectUnionOf) {
 							IloLinearNumExpr exprSub = ppCplex.linearNumExpr();
 							D.asDisjunctSet().stream().forEach(dj -> {
@@ -3246,12 +4029,16 @@ public class CplexModelGenerator {
 				for (OWLClassExpression sb : binarySubsumersMap.keySet()){
 					IloLinearNumExpr exprBinarySub = ppCplex.linearNumExpr();
 					for(OWLClassExpression X : sb.asConjunctSet()){
-						//System.err.println(X);
+						//System.err.println("binary subsumption  "+X);
 						exprBinarySub.addTerm(1, b[qualifiers.get(X)]);
 					}
 					for(OWLClassExpression sp : binarySubsumersMap.get(sb)) {
-						ppCplex.addLe(ppCplex.diff(exprBinarySub, sb.asConjunctSet().size() - 1), b[qualifiers.get(sp)]);
-						
+						if(sp.isOWLNothing()) {
+							ppCplex.addLe(exprBinarySub, sb.asConjunctSet().size() - 1);
+						}
+						else
+							ppCplex.addLe(ppCplex.diff(exprBinarySub, sb.asConjunctSet().size() - 1), b[qualifiers.get(sp)]);
+						//System.err.println("binary subsumption  "+sp);
 					}
 				}
 			}
