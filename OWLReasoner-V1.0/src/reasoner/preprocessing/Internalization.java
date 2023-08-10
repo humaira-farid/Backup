@@ -234,7 +234,8 @@ public class Internalization {
 
 		for (OWLAxiom ax : (Iterable<OWLAxiom>) ont.axioms()::iterator) {
 			ax = ax.getNNF();
-		//	 System.err.println("ax :  "+ax);
+			//System.err.println("ax :  "+ax);
+			// ax.nestedClassExpressions().forEach(c -> System.err.println(c));
 			if (!this.prefixSet) {
 				if (this.getPrefixManager().getDefaultPrefix().equals("")) {
 					try {
@@ -848,7 +849,7 @@ public class Internalization {
 		this.Tg.removeAll(remove);
 		//System.out.println("tg after:" + Tg);
 		//System.out.println("extendedDomainRestrictions " + extendedDomainRestrictions.size());
-		/*for (OWLSubClassOfAxiom sbAx : this.Tu) {
+		for (OWLSubClassOfAxiom sbAx : this.Tu) {
 			if(sbAx.getSuperClass() instanceof OWLClass) {
 				this.atomicSupClassGCIs.put(sbAx.getSuperClass(), sbAx.getSubClass());
 			}
@@ -857,7 +858,7 @@ public class Internalization {
 			if(sbAx.getSuperClass() instanceof OWLClass) {
 				this.atomicSupClassGCIs.put(sbAx.getSuperClass(), sbAx.getSubClass());
 			}
-		}*/
+		}
 	}
 	public Set<OWLClassExpression> getApplicableGCIs(OWLClassExpression ce){
 		return this.atomicSupClassGCIs.get(ce);

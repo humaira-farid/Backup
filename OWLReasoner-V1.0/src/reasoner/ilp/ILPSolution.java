@@ -54,10 +54,13 @@ public class ILPSolution {
 		return edgeInformation;
 	}
 	
+	
 	public void setEdgeInformation(Set<EdgeInformation> edgeInformation) {
 		this.edgeInformation = edgeInformation;
 	}
-
+	public void addEdgeInformation(EdgeInformation edgeInformation) {
+		this.edgeInformation.add(edgeInformation);
+	}
 	public Set<OWLObjectCardinalityRestriction> getInfeasible_set() {
 		return infeasible_set;
 	}

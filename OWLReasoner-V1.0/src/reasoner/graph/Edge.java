@@ -46,6 +46,7 @@ public class Edge {
 		}
 
 		public void setReset(boolean reset) {
+		//	System.err.println("From "+this.getFromNode().getId() +" to "+ this.getToNode().getId()+" update reset "+ reset);
 			this.reset = reset;
 		}
 

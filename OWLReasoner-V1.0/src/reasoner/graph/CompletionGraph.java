@@ -79,13 +79,13 @@ public class CompletionGraph implements Cloneable {
 	}
 
 	public void updateNodeCardinality(Node n, int card) {
-		saveNode(n, branchingLevel);
+		saveNode(n, branchingLevel, false);
 		n.setCardinality(card);
 	}
 
 	public void addConceptToNode(Node n, ConceptNDepSet cnd) {
 		//System.out.println(cnd.getDs().getMax() + " level "+ cnd.getCe() + " addConceptToNode " + n.getId() + " bpList" + cnd.getDs().getbpList()+ " branchingLevel " + branchingLevel);
-		saveNode(n, branchingLevel);
+		saveNode(n, branchingLevel, false);
 	//	saveNode(n, cnd.getDs().getMax());
 	//	saveNode(n, cnd.getDs().getMax(), branchingLevel);
 	//	System.out.println("addConceptToNode "+n.getId());
@@ -268,6 +268,49 @@ public class CompletionGraph implements Cloneable {
 		// saveNode(from);
 		Set<Edge> succEdges = new HashSet<>();
 
+		from.getOutgoingEdges().forEach(q -> {
+			if (q != null) {
+				if (!q.getToNode().equals(to)) {
+					if (q.isPredEdge()) {
+						moveEdge2(to, q, q.isPredEdge(),
+								DependencySet.plus(DependencySet.create(q.getDepSet()), DependencySet.create(ds)));
+						if (this.getEdge(q.getToNode(), from) != null) {
+							this.getEdge(q.getToNode(), from).setReset(true);
+						}
+						// from.setReset(true);
+					} else if (q.isSuccEdge() && q.getToNode().isNominalNode()) {
+						moveEdge2(to, q, q.isPredEdge(),
+								DependencySet.plus(DependencySet.create(q.getDepSet()), DependencySet.create(ds)));
+						if (this.getEdge(q.getToNode(), from) != null) {
+							this.getEdge(q.getToNode(), from).setReset(true);
+						}
+						// from.setReset(true);
+					} else if (q.isSuccEdge() && !q.getToNode().isNominalNode()) {
+						succEdges.add(q);
+						prune(from, q);
+					}
+				}
+			}
+		});
+		from.setReset(true);
+		
+
+	}
+
+	/**
+	 * merge from node into to node
+	 * 
+	 * @param from
+	 * @param to
+	 * @param ds
+	 *//*// comment out on Aug 7, 2023
+	public void merge(Node from, Node to, DependencySet ds) {
+		// 1. For all x: x->FROM make x->TO
+		// 2. For all nominal nodes x: FROM->x make TO->x
+		// 3. For all blockable nodes x: FROM->x prune x
+		// saveNode(from);
+		Set<Edge> succEdges = new HashSet<>();
+
 		from.getNeighbour().forEach(q -> {
 			if (q != null) {
 				if (!q.getToNode().equals(to)) {
@@ -293,7 +336,7 @@ public class CompletionGraph implements Cloneable {
 			}
 		});
 		from.setReset(true);
-		/*
+		
 		 * from.getIncomingEdges().forEach(q -> { if (q.isSuccEdge()) { moveEdge2(to, q,
 		 * q.isPredEdge(), DependencySet.plus(DependencySet.create(q.getDepSet()),
 		 * DependencySet.create(ds))); } }); from.getOutgoingEdges().forEach(q -> { if
@@ -301,9 +344,9 @@ public class CompletionGraph implements Cloneable {
 		 * q.isPredEdge(), DependencySet.plus(DependencySet.create(q.getDepSet()),
 		 * DependencySet.create(ds))); } else if (q.isSuccEdge() &&
 		 * !q.getToNode().isNominalNode()) { succEdges.add(q); prune(from, q); } });
-		 */
+		 
 
-		/*
+		
 		 * from.getNeighbour().forEach(q -> { if(q != null) {
 		 * if(!q.getToNode().equals(to)) { if (q.isPredEdge()) { moveEdge2(to, q,
 		 * q.isPredEdge(), DependencySet.plus(DependencySet.create(q.getDepSet()),
@@ -315,11 +358,11 @@ public class CompletionGraph implements Cloneable {
 		 * 
 		 * } else if (q.isSuccEdge() && !q.getToNode().isNominalNode()) {
 		 * succEdges.add(q); prune(from, q); } } }});
-		 */
+		 
 		// from.setNodeMerged();
 		// for(Edge e : succEdges)
 		// removeNode(from, e.getToNode(), e);
-		/*
+		
 		 * from.getIncomingEdges().forEach(p -> { if (p.isSuccEdge()) { moveEdge(to, p,
 		 * p.isPredEdge(), ds); }
 		 * 
@@ -327,10 +370,10 @@ public class CompletionGraph implements Cloneable {
 		 * p.getToNode().isNominalNode()) { moveEdge(to, p, p.isPredEdge(), ds); } else
 		 * if (p.isSuccEdge() && !p.getToNode().isNominalNode()) { // purgeEdge(p, to,
 		 * ds); } });
-		 */
+		 
 
 	}
-
+*/
 	private void prune(Node from, Edge e) {
 		e.setReset(true);
 		Node n = e.getToNode();
@@ -360,7 +403,7 @@ public class CompletionGraph implements Cloneable {
 			Node to = q.getToNode();
 			Edge e = getEdge(node, to);
 			if (e == null) {
-				addEdge(node, to, q.getLabel(), ds, !isPredEdge);
+				addEdge(node, to, q.getLabel(), ds, false); 
 			} else {
 				e.addLabel(q.getLabel());
 				e.updateDepSet(ds);
@@ -374,7 +417,7 @@ public class CompletionGraph implements Cloneable {
 			Node nn = q.getToNode();
 			Edge e = getEdge(node, nn);
 			if (e == null) {
-				addEdge(node, nn, q.getLabel(), ds, !isPredEdge);
+				addEdge(node, nn, q.getLabel(), ds, true);
 			} else {
 				e.addLabel(q.getLabel());
 				e.updateDepSet(ds);
@@ -454,7 +497,7 @@ public class CompletionGraph implements Cloneable {
 
 	public Node findBlocker(Node n) {
 		// System.out.println("n node "+ n.getId() +"sunsetblocking "+config.isUsePairwiseBlocking());
-		saveNode(n, branchingLevel);
+		saveNode(n, branchingLevel, false);
 		Node blocker = null;
 		if (config.isUsePairwiseBlocking())
 			blocker = findPairwiseBlocker(n);
@@ -675,22 +718,25 @@ public class CompletionGraph implements Cloneable {
 		propagateIBlockedStatus(node, blocker);
 	}
 
+	public void saveN(Node n, boolean ilp) {
+		saveNode(n, branchingLevel, ilp);
+	}
 	public void saveN(Node n) {
-		saveNode(n, branchingLevel);
+		//saveNode(n, branchingLevel);
 	}
 
-	public void saveNode(Node node, int level) {
-		if (node.needSave(level)) {
+	public void saveNode(Node node, int level, boolean ilp) {
+		if (node.needSave(level) || ilp) {
 			node.save(level);
 			savedNodes.add(node);
 		}
 	}
-	public void saveNode(Node node, int level, int branchingLevel) {
+	/*public void saveNode(Node node, int level, int branchingLevel) {
 		if (node.needSave(level)) {
 			node.save(level, branchingLevel);
 			savedNodes.add(node);
 		}
-	}
+	}*/
 	/*
 	 * public void saveNode(Node node) { node.save(node.curLevel);
 	 * savedNodes.add(node); ++nNodeSaves;
@@ -708,15 +754,20 @@ public class CompletionGraph implements Cloneable {
 	}
 
 	public void updateReset(Node n) {
+	//	System.err.println("n "+ n.getId() +" n.getNeighbour() size : "+ n.getNeighbour().size());
 		n.setReset(false);
-		for (Edge e : n.getOutgoingEdges()) {
+		for (Edge e : n.getNeighbour()) {
 			if (e != null && e.isPredEdge()) {
+				//System.err.println("n "+ n.getId() +" pred e.getToNode() : "+ e.getToNode().getId());
 				e.setReset(false);
 			} else if (e != null && e.isSuccEdge()) {
+				//System.err.println("n "+ n.getId() +" succ e.getToNode() : "+ e.getToNode().getId());
 				e.setReset(false);
 				Node to = e.getToNode();
-				if (to.isReset())
+				if (to.isReset()) {
+					//System.err.println("update reset "+ to.getId());
 					updateReset(to);
+				}
 			}
 		}
 		for (Edge e : n.getIncomingEdges()) {
@@ -742,7 +793,7 @@ public class CompletionGraph implements Cloneable {
 		s.setsNodes(savedNodes.size());
 		s.setnEdges(ctEdgeHeap.size());
 		// System.out.println("saving currentBranchingPoint : "+branchingLevel +" currentNode : "+currNode.getId() +" savedNodes: "+
-		 //savedNodes.size()+"totalNodes: "+ totalNodes);
+		// savedNodes.size()+"totalNodes: "+ totalNodes);
 
 		s.setCurrNode(currNode);
 		s.setCurrNodeResetStatus(currNode.isReset());
@@ -932,16 +983,16 @@ public class CompletionGraph implements Cloneable {
 		// this.ctEdgeHeap.add(invEdge);
 
 		from.getNeighbour().add(edge);
-		from.getOutgoingEdges().add(edge);
+		from.getOutgoingEdge().add(edge);
 		// from.getIncomingEdges().add(invEdge);
 
 		// to.getNeighbour().add(invEdge);
 		// to.getOutgoingEdges().add(invEdge);
 		// to.getIncomingEdges().add(edge);
-
-		saveNode(from, branchingLevel);
-		saveNode(to, branchingLevel);
-		// System.err.println("getOutgoingEdges " + to.getOutgoingEdges().size());
+		// System.err.println("add edge save node branchingLevel " + branchingLevel);
+		saveNode(from, branchingLevel, false);
+		saveNode(to, branchingLevel, false);
+		
 
 		// System.err.println("getOutgoingEdges " + to.getOutgoingEdges().size());
 		edge.setSuccEdge(succEdge);
@@ -954,7 +1005,7 @@ public class CompletionGraph implements Cloneable {
 
 	public Edge addEdge(Node from, Node to, Set<OWLObjectPropertyExpression> edgeLabel, DependencySet ds,
 			boolean succEdge, boolean inverseEdge) {
-		// System.err.println("edge label to be added " + edgeLabel);
+		 
 		Edge edge = new Edge(from, to, edgeLabel, ds);
 		// Set<OWLObjectPropertyExpression> invRoles = new
 		// HashSet<>(edgeLabel.stream().map(r ->
@@ -967,18 +1018,15 @@ public class CompletionGraph implements Cloneable {
 		this.ctEdgeHeap.add(invEdge);
 
 		from.getNeighbour().add(edge);
-		from.getOutgoingEdges().add(edge);
+		from.getOutgoingEdge().add(edge);
 		from.getIncomingEdges().add(invEdge);
 
 		to.getNeighbour().add(invEdge);
-		to.getOutgoingEdges().add(invEdge);
+		to.getOutgoingEdge().add(invEdge);
 		to.getIncomingEdges().add(edge);
-
-		saveNode(from, branchingLevel);
-		saveNode(to, branchingLevel);
-		// System.err.println("getOutgoingEdges " + to.getOutgoingEdges().size());
-
-		// System.err.println("getOutgoingEdges " + to.getOutgoingEdges().size());
+		saveNode(from, branchingLevel, false);
+		saveNode(to, branchingLevel, false);
+		
 		edge.setSuccEdge(succEdge);
 		invEdge.setSuccEdge(!succEdge);
 

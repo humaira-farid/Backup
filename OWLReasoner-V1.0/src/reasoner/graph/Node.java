@@ -198,6 +198,8 @@ public class Node implements Cloneable {
 		this.setPairBlockedNodes(mergeTo.getPairBlockedNodes());
 		this.setBlockedNodes(mergeTo.getBlockedNodes());
 		this.setAbsorbedRoles(mergeTo.getAbsorbedRoles());
+		this.setILPBranchingLevels(mergeTo.getILPBranchingLevels());
+		this.setInsideILPDisjunct(mergeTo.getInsideILPDisjunct());
 	}
 
 	public int getId() {
@@ -403,18 +405,27 @@ public class Node implements Cloneable {
 
 	public List<Edge> getOutgoingEdges() {
 		List<Edge> e2 = new ArrayList<Edge>();
-		// System.out.println("size "+this.outgoingEdge.size());
 		for (Edge e : this.outgoingEdge) {
-			// System.out.println(e);
-			if (e != null)
+			 //System.out.println(e.getToNode());
+			if (e != null && !e.isReset() && !e.getToNode().isReset())
 				e2.add(e);
 		}
-		this.outgoingEdge = e2;
+	//	this.outgoingEdge = e2;
 		return e2;
 		// return this.outgoingEdge.stream().filter(e -> e!=null
 		// ).collect(Collectors.toList());
 	}
-
+	public void printOutgoingEdges() {
+		System.out.println("outgoingEdge size "+ outgoingEdge.size());
+		for (Edge e : this.outgoingEdge) {
+			if(e != null)
+			 System.out.println("edge reset? "+ e.isReset() + "to node "+e.getToNode().getId());
+			
+		}
+		
+		// return this.outgoingEdge.stream().filter(e -> e!=null
+		// ).collect(Collectors.toList());
+	}
 	public boolean hasEdge(Node from, Node to) {
 		return findEdge(from, to).isPresent();
 	}
@@ -531,8 +542,7 @@ public class Node implements Cloneable {
 	 * @return check if node needs to be saved
 	 */
 	public boolean needSave(int newLevel) {
-		// System.err.println("need save? cur level: "+ curLevel + " new level: " +
-		// newLevel + " " + (curLevel < newLevel));
+	//	 System.err.println("Node " + this.getId() + " need save? cur level: "+ curLevel + " new level: " + newLevel + " " + (curLevel < newLevel));
 		return curLevel < newLevel;
 	}
 
@@ -544,7 +554,7 @@ public class Node implements Cloneable {
 	 */
 
 	public void save(int level) {
-	//	System.out.println("node: node " + this.getId() + " level " + level);
+	//	System.out.println("saving node: node " + this.getId() + " level " + level);
 		NodeSaveState nodeNSS = new NodeSaveState();
 		// saves.push(node);
 		// 5 mar
@@ -555,21 +565,20 @@ public class Node implements Cloneable {
 		curLevel = level;
 		// System.err.println(" changed to " + curLevel);
 	}
-	public void save(int level, int branchingLevel) {
+	/*public void save(int level, int branchingLevel) {
 	//	System.out.println("node: node " + this.getId() + " level " + level + " currlevel " + curLevel);
 		NodeSaveState nodeNSS = new NodeSaveState();
 		save(nodeNSS, level);
 		saveMap.put(level, nodeNSS);
 		curLevel = branchingLevel;
-	}
+	}*/
 	/**
 	 * @param resetLevel
 	 *            resetLevel
 	 * @return check if node needs to be restored
 	 */
 	public boolean needRestore(int resetLevel) {
-		// System.out.println("n id "+ this.getId()+" need restore? curr level: "+
-		// curLevel + " restore level "+ restLevel);
+		// System.out.println("n id "+ this.getId()+" need restore? curr level: "+ curLevel + " restore level "+ resetLevel);
 		return curLevel > resetLevel;
 	}
 
@@ -587,10 +596,9 @@ public class Node implements Cloneable {
 	}
 
 	private void save(NodeSaveState nss, int level) {
-	//	System.out.println("saving nss level: " + level + "node " + this.getId());
+		//System.out.println("saving nss level: " + level + " node " + this.getId());
 		nss.setCurLevel(level);
 		nss.setCardinality(cardinality);
-		// System.out.println("neighbour.size() " + neighbour.size());
 		nss.setnNeighbours(neighbour.size());
 		nss.setnOutgoingEdges(outgoingEdge.size());
 		nss.setnIncommingEdges(incomingEdge.size());
@@ -604,6 +612,7 @@ public class Node implements Cloneable {
 			return;
 		}
 		// level restore
+	//	System.err.println(" nss.getnOutgoingEdges() " +  outgoingEdge);
 		curLevel = nss.getCurLevel();
 		cardinality = nss.getCardinality();
 		nLabel.restore(nss.getLab(), nss.getCurLevel(), ilp, merge, disjunction);

@@ -54,7 +54,7 @@ public class TestReasoner{
 		//	file = new File("/Users/temp/Desktop/test-ontologies/TestTop.owl");
 		//	file = new File("/Users/temp/Documents/PhD/dataset/files/00351.owl_functional.owl");
 		//	file = new File("/Users/temp/Desktop/test-ontologies/incorrect/unsat-incomplete/integer-only-1-sub-D.fowl.owl");
-			file = new File("/Users/temp/Desktop/test-ontologies/incorrect/crashes/00351.fowl.owl");
+			file = new File("/Users/temp/Desktop/test-ontologies/ab5/proxy-nodes-7.fowl.owl");
 		//	file = new File("/Users/temp/Desktop/test-ontologies/non_integer/non_integer_a.owl");
 		//	file = new File("/Users/temp/Desktop/test-ontologies/Jocelyne/sat/HARD-Koala-MaleStudentWith3Daughters.fowl.owl");
 		//	file = new File("/Users/temp/Desktop/sat-SHQ-noabox/C-SAT-exp-ALCQ-5.fowl.owl");
@@ -132,7 +132,7 @@ public class TestReasoner{
 //	 	  for (OWLSubClassOfAxiom sbg : intr.getTu()) 
 //	 	   	 	System.out.println("Tu: Subclass"+sbg.getSubClass() + " , SuperClass" + sbg.getSuperClass());
 	    
-	    System.out.println("tgAxiom : "+  tgAxiom);
+	//    System.out.println("tgAxiom : "+  tgAxiom);
 	 	   re.setTransitiveRoles(getTransitiveRoles());
 	 	   if(!getFunctionalRoles().isEmpty()) {
 	 		   intr.addFunctionalRoleAxiom(getFunctionalRoles());
@@ -227,10 +227,14 @@ public class TestReasoner{
 			hasQCRs = true;
 		}
 				
-		if(ont.axioms().anyMatch(ax -> ax instanceof OWLInverseObjectPropertiesAxiom) || ont.axioms().anyMatch(ax -> ax instanceof OWLInverseFunctionalObjectPropertyAxiom)) {
+		if(ont.axioms().anyMatch(ax -> ax instanceof OWLInverseObjectPropertiesAxiom)  || ont.axioms().anyMatch(ax -> ax instanceof OWLInverseFunctionalObjectPropertyAxiom)) {
+			hasInverseRoles = true;
+			
+		}
+		else if(ont.axioms().anyMatch(ax -> ax.nestedClassExpressions().anyMatch(c -> c.toString().contains("ObjectInverseOf")))) {
 			hasInverseRoles = true;
 		}
-		if(ont.axioms().anyMatch(ax -> ax instanceof OWLSubObjectPropertyOfAxiom) || ont.axioms().anyMatch(ax -> ax instanceof OWLInverseFunctionalObjectPropertyAxiom)) {
+		if(ont.axioms().anyMatch(ax -> ax instanceof OWLSubObjectPropertyOfAxiom)) {
 			hasRoleHierarchy = true;
 		}
 		else {
@@ -281,44 +285,44 @@ public class TestReasoner{
 			}
 		}
 		config.setHasRoleHierarchy(hasRoleHierarchy);
-		//System.err.println("hasRoleHierarchy "+ hasRoleHierarchy);
+		System.err.println("hasRoleHierarchy "+ hasRoleHierarchy);
 		if(hasNominal && hasQCRs && hasInverseRoles) {
-		//	System.err.println("SHOIQ");
+			System.err.println("SHOIQ");
 			config.setSHOIQ(true);
 			config.setUsePairwiseBlocking(true);
 		}
 		else if(hasNominal && hasQCRs && !hasInverseRoles) {
-			//System.err.println("SHOQ");
+			System.err.println("SHOQ");
 			config.setSHOQ(true);
 			config.setUseSubsetBlocking(true);
 		}
 		else if(hasNominal && !hasQCRs && hasInverseRoles) {
-			//System.err.println("SHOI");
+			System.err.println("SHOI");
 			config.setSHOI(true);
 			config.setUseEqualityBlocking(true);
 		}
 		else if(!hasNominal && hasQCRs && hasInverseRoles) {
-		//	System.err.println("SHIQ");
+			System.err.println("SHIQ");
 			config.setSHIQ(true);
 			config.setUsePairwiseBlocking(true);
 		}
 		else if(!hasNominal && !hasQCRs && hasInverseRoles) {
-			//System.err.println("SHI");
+			System.err.println("SHI");
 			config.setSHI(true);
 			config.setUseEqualityBlocking(true);
 		}
 		else if(hasNominal && !hasQCRs && !hasInverseRoles) {
-			//System.err.println("SHO");
+			System.err.println("SHO");
 			config.setSHO(true);
 			config.setUseSubsetBlocking(true);
 		}
 		else if(!hasNominal && hasQCRs && !hasInverseRoles) {
-			//System.err.println("SHQ");
+			System.err.println("SHQ");
 			config.setSHQ(true);
 			config.setUseSubsetBlocking(true);
 		}
 		else if(!hasNominal && !hasQCRs && !hasInverseRoles){
-			//System.err.println("ALC");
+			System.err.println("ALC");
 			config.setALC(true);
 			config.setUseSubsetBlocking(true);
 		}
